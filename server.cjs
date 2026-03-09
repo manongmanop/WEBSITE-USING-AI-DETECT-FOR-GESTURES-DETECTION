@@ -6,6 +6,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const app = express();
+require('dotenv').config();
 console.log("🚀 SERVER STARTING - VERSION: WITH_SESSION_ID_AND_FEEDBACK_FIXED"); // Unique Log
 const PORT = process.env.PORT || 5000;
 // Middleware

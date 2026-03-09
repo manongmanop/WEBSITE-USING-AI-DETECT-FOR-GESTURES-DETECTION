@@ -1863,18 +1863,7 @@ canvas.wp-media {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #1e293b;
-    --bg-secondary: #0f172a;
-    --bg-card: #334155;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-light: #94a3b8;
-    --border: #334155;
-    --border-light: #475569;
-  }
-}
+
 
 /* Focus styles */
 .wp-btn:focus-visible,

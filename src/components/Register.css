@@ -646,36 +646,7 @@ body, html {
   }
 }
 /* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .register-box {
-    background: rgba(30, 30, 30, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  .form-subtitle {
-    color: var(--gray-400);
-  }
-  .custom-input {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: var(--black-color);
-  }
-  .custom-input::-moz-placeholder {
-    color: var(--gray-800);
-  }
-  .custom-input::placeholder {
-    color: var(--gray-800);
-  }
-  .terms-section {
-    background: rgba(255, 255, 255, 0.05);
-    border-left-color: var(--primary-color);
-  }
-  .terms-text {
-    color: var(--gray-300);
-  }
-  .login-redirect span {
-    color: var(--gray-400);
-  }
-}
+
 /* Animation for better UX */
 .register-box {
   animation: slideUp 0.6s ease-out;

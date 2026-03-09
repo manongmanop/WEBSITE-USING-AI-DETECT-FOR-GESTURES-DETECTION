@@ -919,7 +919,7 @@ export default function WorkoutPlayer() {
 
   return (
     <div className="wp-container">
-      {showGuide && <CameraGuide mode={guideMode} images={[guideImg, guideImg2]} onAccept={handleAcceptGuide} onClose={handleCloseGuide} />}
+      {showGuide && <CameraGuide mode={guideMode} images={["/images/infographic.webp", "/images/infographic2.webp"]} onAccept={handleAcceptGuide} onClose={handleCloseGuide} />}
 
       <Header
         title={program.name}
