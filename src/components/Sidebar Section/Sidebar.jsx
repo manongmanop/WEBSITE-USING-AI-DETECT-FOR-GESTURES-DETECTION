@@ -101,7 +101,7 @@ const Sidebar = () => {
   const getProfileImage = () => {
     if (user?.photoURL) return user.photoURL;
     if (user?.providerData?.[0]?.photoURL) return user.providerData[0].photoURL;
-    return "https://media.tenor.com/mzIscFHY8L0AAAAM/blue-box-ao-no-hako.gif";
+    return "C:\\inetpub\\summer_code\\react_firebase_auth_V2\\public\\pngtree-no-image-available-icon-flatvector-illustration-pic-design-profile-vector-png-image_40966566.jpg";
   };
 
   return (

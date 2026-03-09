@@ -755,7 +755,7 @@ function Account() {
                         src={
                           user?.photoURL ||
                           user?.providerData?.[0]?.photoURL ||
-                          "https://png.pngtree.com/png-vector/20221125/ourmid/pngtree-no-image-available-icon-flatvector-illustration-pic-design-profile-vector-png-image_40966566.jpg"
+                          "C:\\inetpub\\summer_code\\react_firebase_auth_V2\\public\\pngtree-no-image-available-icon-flatvector-illustration-pic-design-profile-vector-png-image_40966566.jpg"
                         }
                         alt="Profile"
                         className="profile-avatar"
