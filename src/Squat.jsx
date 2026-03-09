@@ -8,20 +8,25 @@ export const useSquatCamera = ({
   isActive,
   targetReps = null,
   targetSets = null,
-  onRepComplete
+  setRestTime = null,
+  onRepComplete,
+  onSetComplete,
+  onWorkoutComplete
 }) => {
   // State variables
   const [counterLeft, setCounterLeft] = useState(0);
   const [counterRight, setCounterRight] = useState(0);
+  const [sets, setSets] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [workoutComplete, setWorkoutComplete] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
-  const [postureTilt, setPostureTilt] = useState('Straight');
-  const [leftArmPosition, setLeftArmPosition] = useState('Neutral');
-  const [rightArmPosition, setRightArmPosition] = useState('Neutral');
+  // const [postureTilt, setPostureTilt] = useState('Straight');
+  // const [leftArmPosition, setLeftArmPosition] = useState('Neutral');
+  // const [rightArmPosition, setRightArmPosition] = useState('Neutral');
   const [landmarksValid, setLandmarksValid] = useState(false);
-  // const [legStance, setLegStance] = useState('Normal');
-  // const [ankleDistance, setAnkleDistance] = useState(0);
-  const [kneeDistance, setKneeDistance] = useState('Normal');
+  const [legStance, setLegStance] = useState('Normal');
+  const [ankleDistance, setAnkleDistance] = useState(0);
+  // const [kneeDistance, setKneeDistance] = useState(0);
 
   // Refs for tracking state
   const stageLeft = useRef(null);
@@ -32,8 +37,9 @@ export const useSquatCamera = ({
   const holdTimeRight = useRef(0);
   const timerStartLeft = useRef(0);
   const timerStartRight = useRef(0);
-  const holdTimeRequiredLeft = useRef(0.5);
-  const holdTimeRequiredRight = useRef(0.5);
+  const holdTimeRequiredLeft = useRef(2);
+  const holdTimeRequiredRight = useRef(2);
+  const restEndTime = useRef(0);
   const restInterval = useRef(null);
 
   // Database refs - for storing angle data
@@ -45,19 +51,51 @@ export const useSquatCamera = ({
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  // const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const instructions = "Voice: High-energy, upbeat, and encouraging, projecting enthusiasm and motivation.\n\nPunctuation: Short, punchy sentences with strategic pauses to maintain excitement and clarity.\n\nDelivery: Fast-paced and dynamic, with rising intonation to build momentum and keep engagement high.\n\nPhrasing: Action-oriented and direct, using motivational cues to push participants forward.\n\nTone: Positive, energetic, and empowering, creating an atmosphere of encouragement and achievement.";
   const chatHistory = useRef([
     {
       role: "user",
-      parts: [{ text: "ค่ามุมองศาอยู่ที่ 30 มุมองศา หากค่ามากกว่าหรือน้อยกว่าให้ส่งข้อความบอกให้เพิ่มหรือลดตามจำนวนที่ขาดหรือเกิน" }]
+      parts: [{ text: "ค่ามุมองศาอยู่ที่ 70 มุมองศา หากค่ามากกว่าหรือน้อยกว่าให้ส่งข้อความบอกให้เพิ่มหรือลดตามจำนวนที่ขาดหรือเกิน" }]
     },
     {
       role: "model",
-      parts: [{ text: "มุม 30 องศา! ดีมาก! ถ้าต้องการปรับค่า, ทำตามนี้เลย: * **ค่าเกิน:** ลดลง [จำนวนที่เกิน] องศา * **ค่าขาด:** เพิ่มขึ้น [จำนวนที่ขาด] องศา คุณทำได้! ลุย!" }]
+      parts: [{ text: "มุม 70 องศา! ดีมาก! ถ้าต้องการปรับค่า, ทำตามนี้เลย: * **ค่าเกิน:** ลดลง [จำนวนที่เกิน] องศา * **ค่าขาด:** เพิ่มขึ้น [จำนวนที่ขาด] องศา คุณทำได้! ลุย!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "60" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "เหลืออีก 10 องศา! เพิ่มอีกหน่อยนะ!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "73" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "เก่งมาก! เกินมา 3 องศา! ลดลงอีกหน่อย แล้วคุณจะไปถึงเป้าหมาย!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "140" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "โอ้โห! เกินมาเยอะเลย! ลดลง 70 องศานะ! สู้ๆ!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "69" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "ยอดเยี่ยม! อีกนิดเดียว! เพิ่มอีก 1 องศา คุณก็ถึงเป้าหมายแล้ว!" }]
     }
   ]);
 
@@ -70,38 +108,27 @@ export const useSquatCamera = ({
     return angle;
   };
 
-  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
-  const getArmPositionLeft = (dist) => {
-    if (dist > 0.25) {
-      return "Wide";
-    } else if (dist < 0.08) {
-      return "Narrow";
-    } else {
-      return "Neutral";
-    }
-  };
-
-  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
-  const getArmPositionRight = (dist) => {
-    if (dist > 0.25) {
-      return "Wide";
-    } else if (dist < 0.08) {
-      return "Narrow";
-    } else {
-      return "Neutral";
-    }
-  };
-
   const getColorForAngle = (angle) => {
     if (angle > 160) {
       return '#ff0000ff'; // Red
-    } else if (angle >= 130 && angle <= 150) {
+    } else if (angle >= 129 && angle <= 149) {
       return '#00ff00ff'; // Green
-    } else if ((angle > 129 && angle < 129) || angle < 159) {
+    } else if ((angle > 149 && angle < 159) || angle < 131) {
       return '#FFFF00'; // Yellow
     }
     return '#ffffffff'; // White
   };
+
+  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide/Narrow/Neutral)
+  // const getArmPosition = (dist) => {
+  //   if (dist > 0.25) {
+  //     return "Wide";
+  //   } else if (dist < 0.08) {
+  //     return "Narrow";
+  //   } else {
+  //     return "Neutral";
+  //   }
+  // };
 
   // Save session data to database
   const saveSessionData = async (sessionData) => {
@@ -130,10 +157,10 @@ export const useSquatCamera = ({
     }
   };
 
-  // Gemini API call == https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}
+  // Gemini API call
   const callGeminiAPI = async (angle) => {
     try {
-      const response = await fetch(``, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -167,10 +194,10 @@ export const useSquatCamera = ({
     }
   };
 
-  // OpenAI TTS API call == https://api.openai.com/v1/audio/speech
+  // OpenAI TTS API call
   const callTTSAPI = async (text) => {
     try {
-      const response = await fetch('', {
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openaiApiKey}`,
@@ -233,39 +260,72 @@ export const useSquatCamera = ({
     }
   };
 
+  // Start rest period
+  const startRestPeriod = () => {
+    setResting(true);
+    setRestTimeRemaining(setRestTime);
+    restEndTime.current = Date.now() + (setRestTime * 1000);
+    setCounterLeft(0);
+    setCounterRight(0);
+    restInterval.current = setInterval(() => {
+      const timeLeft = Math.max(0, Math.ceil((restEndTime.current - Date.now()) / 1000));
+      setRestTimeRemaining(timeLeft);
+
+      if (timeLeft <= 0) {
+        clearInterval(restInterval.current);
+        setResting(false);
+      }
+    }, 1000);
+  };
+
   // Check if set is complete
   useEffect(() => {
-    if (counterLeft >= targetReps && counterRight >= targetReps) {
+    if (counterLeft >= targetReps && counterRight >= targetReps && !workoutComplete) {
+      setSets(prev => {
+        const newSets = prev + 1;
+        if (newSets >= targetSets) {
+          setWorkoutComplete(true);
 
-      // Prepare and save session data
-      const sessionData = {
-        timestamp: new Date().toLocaleString('th-TH', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }),
-        set: {
-          target_reps: targetReps,
-          target_sets: targetSets,
-          completed_sets: newSets,
-          arm: {
-            data_right: angleDataRight.current,
-            data_left: angleDataLeft.current
+          // Prepare and save session data
+          const sessionData = {
+            timestamp: new Date().toLocaleString('th-TH', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            }),
+            set: {
+              target_reps: targetReps,
+              target_sets: targetSets,
+              completed_sets: newSets,
+              arm: {
+                data_right: angleDataRight.current,
+                data_left: angleDataLeft.current
+              }
+            }
+          };
+
+          // Auto save to database
+          saveSessionData(sessionData);
+
+          if (onWorkoutComplete) {
+            onWorkoutComplete(sessionData);
+          }
+        } else {
+          startRestPeriod();
+          if (onSetComplete) {
+            onSetComplete(newSets);
           }
         }
-      };
-
-      // Auto save to database
-      saveSessionData(sessionData);
-
+        return newSets;
+      });
     }
-  }, [counterLeft, counterRight, targetReps, targetSets]);
+  }, [counterLeft, counterRight, targetReps, sets, targetSets, workoutComplete]);
 
   useEffect(() => {
-    if (!isActive || !videoRef.current || !canvasRef.current) {
+    if (!isActive || !videoRef.current || !canvasRef.current || workoutComplete) {
       return;
     }
 
@@ -352,76 +412,87 @@ export const useSquatCamera = ({
               if (results.poseLandmarks) {
                 const landmarks = results.poseLandmarks;
 
-                // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
-                const requiredLandmarks = [
-                  11, // LEFT_SHOULDER
-                  12, // RIGHT_SHOULDER
-                  25, // LEFT_KNEE
-                  26, // RIGHT_KNEE
-                ];
+                // // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
+                // const requiredLandmarks = [
+                //   11, // LEFT_SHOULDER
+                //   12, // RIGHT_SHOULDER
+                //   27,
+                //   28,
+                // ];
 
-                // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
-                const valid = requiredLandmarks.every(
-                  idx => landmarks[idx] && landmarks[idx].visibility > 0.8
-                );
-                setLandmarksValid(valid);
+                // // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
+                // const valid = requiredLandmarks.every(
+                //   idx => landmarks[idx] && landmarks[idx].visibility > 0.8
+                // );
+                // setLandmarksValid(valid);
 
-                // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
-                if (!valid) {
-                  canvasCtx.restore();
-                  return;
-                }
+                // // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
+                // if (!valid) {
+                //   canvasCtx.restore();
+                //   return;
+                // }
 
                 // Get coordinates
-                const leftShoulder = landmarks[11];
-                const rightShoulder = landmarks[12];
+                // const leftShoulder = landmarks[11];
+                // const rightShoulder = landmarks[12];
+                // const leftElbow = landmarks[13];
+                // const rightElbow = landmarks[14];
+                // const leftWrist = landmarks[15];
+                // const rightWrist = landmarks[16];
+
+                // // Get lower body landmark positions
+                // const leftAnkle = landmarks[27];  // LEFT_ANKLE
+                // const rightAnkle = landmarks[28]; // RIGHT_ANKLE
+                // const leftHip = landmarks[23];    // LEFT_HIP
+                // const rightHip = landmarks[24];   // RIGHT_HIP
+                // const leftKnee = landmarks[25];   // LEFT_KNEE
+                // const rightKnee = landmarks[26];  // RIGHT_KNEE
 
                 // คำนวณระยะทาง (normalized coordinates)
-                const leftHandDist = Math.abs(leftWrist.x - leftShoulder.x);
-                const rightHandDist = Math.abs(rightWrist.x - rightShoulder.x);
-
-                // Get lower body landmark positions
-                const leftAnkle = landmarks[27];  // LEFT_ANKLE
-                const rightAnkle = landmarks[28]; // RIGHT_ANKLE
-                const leftHip = landmarks[23];    // LEFT_HIP
-                const rightHip = landmarks[24];   // RIGHT_HIP
-                const leftKnee = landmarks[25];   // LEFT_KNEE
-                const rightKnee = landmarks[26];  // RIGHT_KNEE
+                // const shoulderWristDistanceLeft = Math.abs(leftShoulder.x - leftWrist.x);
+                // const shoulderWristDistanceRight = Math.abs(rightShoulder.x - rightWrist.x);
+                // const elbowDistanceLR = Math.abs(leftElbow.x - rightElbow.x);
+                // const wristDistanceLR = Math.abs(leftWrist.x - rightWrist.x);
+                // const leftHandDist = Math.abs(leftWrist.x - leftShoulder.x);
+                // const rightHandDist = Math.abs(rightWrist.x - rightShoulder.x);
 
                 // คำนวณตัวเลขแบบ normalized สำหรับส่วนล่าง
-                const kneeDistanceNorm = Math.abs(leftKnee.x - rightKnee.x);
                 // const ankleDistanceNorm = Math.abs(leftAnkle.x - rightAnkle.x);
+                // const kneeDistanceNorm = Math.abs(leftKnee.x - rightKnee.x);
+                // const hipAnkleDistanceLeft = Math.abs(leftHip.x - leftAnkle.x);
+                // const hipAnkleDistanceRight = Math.abs(rightHip.x - rightAnkle.x);
 
                 // บันทึกค่าระยะห่าง
                 // setAnkleDistance(ankleDistanceNorm);
                 // setKneeDistance(kneeDistanceNorm);
 
                 // ตัดสินว่า stance แบบไหน (ข้อเท้า)
-                let stance = "Normal";
-                if (kneeDistanceNorm > 0.10) {
-                  stance = "Wide";
-                } else if (kneeDistanceNorm < 0.04) {
-                  stance = "Narrow";
-                }
-                setKneeDistance(stance);
+                // let stance = "Normal";
+                // if (ankleDistanceNorm > 0.10) {
+                //   stance = "Wide";
+                // } else if (ankleDistanceNorm < 0.04) {
+                //   stance = "Narrow";
+                // }
+                // setLegStance(stance);
 
                 // คำนวณความต่างของแกน y ระหว่างไหล่
-                const shoulderDiffY = leftShoulder.y - rightShoulder.y;
+                // const shoulderDiffY = leftShoulder.y - rightShoulder.y;
+                // const threshold = 0.03;
 
                 // ตัดสินว่าตัวเอียงด้านไหน
-                let tilt = "Straight";
-                if (shoulderDiffY > 0.03) {
-                  tilt = "Leaning Right";
-                } else if (shoulderDiffY < -0.03) {
-                  tilt = "Leaning Left";
-                }
-                setPostureTilt(tilt);
+                // let tilt = "Straight";
+                // if (shoulderDiffY > threshold) {
+                //   tilt = "Leaning Right";
+                // } else if (shoulderDiffY < -threshold) {
+                //   tilt = "Leaning Left";
+                // }
+                // setPostureTilt(tilt);
 
                 // กำหนดสถานะตำแหน่งแขน
-                const leftPosition = getArmPositionLeft(leftHandDist);
-                const rightPosition = getArmPositionRight(rightHandDist);
-                setLeftArmPosition(leftPosition);
-                setRightArmPosition(rightPosition);
+                // const leftPosition = getArmPosition(leftHandDist);
+                // const rightPosition = getArmPosition(rightHandDist);
+                // setLeftArmPosition(leftPosition);
+                // setRightArmPosition(rightPosition);
 
                 // Left arm processing
                 const shoulderLeft = landmarks[11];
@@ -475,7 +546,7 @@ export const useSquatCamera = ({
 
                       processGeminiAndTTS(Math.round(angleLeft));
                     }
-                  } else if ((angleLeft > 129 && angleLeft < 159) || angleLeft < 129) {
+                  } else if ((angleLeft > 130 && angleLeft < 160) || angleLeft < 130) {
                     if (isTimingLeft.current) {
                       holdTimeLeft.current += (Date.now() - timerStartLeft.current) / 1000;
                       isTimingLeft.current = false;
@@ -488,7 +559,7 @@ export const useSquatCamera = ({
                 const hipRight = landmarks[24];
                 const kneeRight = landmarks[26];
 
-                if (shoulderRight && hipRight && wristRight) {
+                if (shoulderRight && hipRight && kneeRight) {
                   const angleRight = calculateAngle(shoulderRight, hipRight, kneeRight);
                   const colorRight = getColorForAngle(angleRight);
 
@@ -510,121 +581,131 @@ export const useSquatCamera = ({
                   } else if (angleRight >= 130 && angleRight <= 150 && stageRight.current === "up") {
                     if (!isTimingRight.current) {
                       timerStartRight.current = Date.now();
-                    isTimingRight.current = true;
-                  }
+                      isTimingRight.current = true;
+                    }
 
-                  const currentHoldTime = (Date.now() - timerStartRight.current) / 1000;
-                  const totalHoldTime = holdTimeRight.current + currentHoldTime;
+                    const currentHoldTime = (Date.now() - timerStartRight.current) / 1000;
+                    const totalHoldTime = holdTimeRight.current + currentHoldTime;
 
-                  if (totalHoldTime >= holdTimeRequiredRight.current) {
-                    stageRight.current = "down";
-                    setCounterRight(prev => {
-                      const newCounter = prev + 1;
-                      angleDataRight.current.push({
-                        counter_right: newCounter,
-                        angle_right: Math.round(angleRight * 100) / 100,
-                        timestamp: new Date().toISOString()
+                    if (totalHoldTime >= holdTimeRequiredRight.current) {
+                      stageRight.current = "down";
+                      setCounterRight(prev => {
+                        const newCounter = prev + 1;
+                        angleDataRight.current.push({
+                          counter_right: newCounter,
+                          angle_right: Math.round(angleRight * 100) / 100,
+                          timestamp: new Date().toISOString()
+                        });
+
+                        if (onRepComplete) onRepComplete('right', newCounter);
+
+                        return newCounter;
                       });
+                      isTimingRight.current = false;
+                      holdTimeRight.current = 0;
 
-                      if (onRepComplete) onRepComplete('right', newCounter);
-
-                      return newCounter;
-                    });
-                    isTimingRight.current = false;
-                    holdTimeRight.current = 0;
-
-                    processGeminiAndTTS(Math.round(angleRight));
-                  }
-                } else if ((angleRight > 129 && angleRight < 159) || angleRight < 129) {
-                  if (isTimingRight.current) {
-                    holdTimeRight.current += (Date.now() - timerStartRight.current) / 1000;
-                    isTimingRight.current = false;
+                      processGeminiAndTTS(Math.round(angleRight));
+                    }
+                  } else if ((angleRight > 130 && angleRight < 160) || angleRight < 130) {
+                    if (isTimingRight.current) {
+                      holdTimeRight.current += (Date.now() - timerStartRight.current) / 1000;
+                      isTimingRight.current = false;
+                    }
                   }
                 }
               }
+              canvasCtx.restore();
+            };
+
+            pose.onResults(onResults);
+
+            if (videoRef.current) {
+              const camera = new cam.Camera(videoRef.current, {
+                onFrame: async () => {
+                  if (videoRef.current && videoRef.current.readyState >= 2 && videoRef.current.videoWidth > 0) {
+                    try {
+                      await pose.send({ image: videoRef.current });
+                    } catch (e) {
+                      console.warn("Pose send error:", e);
+                    }
+                  }
+                },
+                width: 640,
+                height: 480
+              });
+
+              cameraRef.current = camera;
+              camera.start();
             }
-            canvasCtx.restore();
           };
-
-          pose.onResults(onResults);
-
-          if (videoRef.current) {
-            const camera = new cam.Camera(videoRef.current, {
-              onFrame: async () => {
-                await pose.send({ image: videoRef.current });
-              },
-              width: 640,
-              height: 480
-            });
-
-            cameraRef.current = camera;
-            camera.start();
-          }
-        };
-      }
+        }
       } catch (error) {
-      console.error('Error accessing camera:', error);
-      alert('Cannot access camera. Please allow camera permission.');
-    }
+        console.error('Error accessing camera:', error);
+        alert('Cannot access camera. Please allow camera permission.');
+      }
+    };
+
+    initCamera();
+
+    // Cleanup function
+    return () => {
+      console.log('🧹 Cleaning up camera...');
+
+      if (cameraRef.current) {
+        try {
+          cameraRef.current.stop();
+          cameraRef.current = null;
+        } catch (error) {
+          console.error('Error stopping camera:', error);
+        }
+      }
+
+      if (poseRef.current) {
+        try {
+          poseRef.current.close();
+          poseRef.current = null;
+        } catch (error) {
+          console.error('Error closing pose:', error);
+        }
+      }
+
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => {
+          track.stop();
+          console.log('✅ Stopped track:', track.kind);
+        });
+        videoRef.current.srcObject = null;
+      }
+
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+
+      if (restInterval.current) {
+        clearInterval(restInterval.current);
+      }
+    };
+  }, [isActive, targetReps, workoutComplete]);
+
+  return {
+    counterLeft,
+    counterRight,
+    sets,
+    isSpeaking,
+    workoutComplete,
+    saveStatus,
+    angleDataLeft: angleDataLeft.current,
+    angleDataRight: angleDataRight.current,
+    // postureTilt,
+    // leftArmPosition,
+    // rightArmPosition,
+    // landmarksValid,
+    // legStance,
+    // ankleDistance,
+    // kneeDistance
   };
-
-  initCamera();
-
-  // Cleanup function
-  return () => {
-    console.log('🧹 Cleaning up camera...');
-
-    if (cameraRef.current) {
-      try {
-        cameraRef.current.stop();
-        cameraRef.current = null;
-      } catch (error) {
-        console.error('Error stopping camera:', error);
-      }
-    }
-
-    if (poseRef.current) {
-      try {
-        poseRef.current.close();
-        poseRef.current = null;
-      } catch (error) {
-        console.error('Error closing pose:', error);
-      }
-    }
-
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach(track => {
-        track.stop();
-        console.log('✅ Stopped track:', track.kind);
-      });
-      videoRef.current.srcObject = null;
-    }
-
-    if (canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    }
-
-    if (restInterval.current) {
-      clearInterval(restInterval.current);
-    }
-  };
-}, [isActive, targetReps]);
-
-return {
-  counterLeft,
-  counterRight,
-  isSpeaking,
-  saveStatus,
-  angleDataLeft: angleDataLeft.current,
-  angleDataRight: angleDataRight.current,
-  postureTilt,
-  leftArmPosition,
-  rightArmPosition,
-  landmarksValid,
-  kneeDistance
-};
 };
 
 export default useSquatCamera;
