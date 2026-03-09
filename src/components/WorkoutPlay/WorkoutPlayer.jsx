@@ -7,7 +7,7 @@ import { db } from '../../../firebase';
 import "./WorkoutPlayer.css";
 // Removed asset imports, relying on public folder
 import { useUserAuth } from "../../context/UserAuthContext.jsx";
-const API_BASE = import.meta.env?.VITE_API_URL || "";
+import { API_BASE } from "../../../apiConfig.js";
 import { ExerciseCameraManager } from '../../ExerciseCameraManager.jsx';
 /* =========================================
    SECTION 1: Helpers & Utilities

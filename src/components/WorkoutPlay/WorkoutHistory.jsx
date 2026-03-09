@@ -21,7 +21,7 @@ import {
 
 import "./WorkoutHistory.css";
 
-const API_BASE = "";
+import { API_BASE } from "../../../apiConfig.js";
 
 /* ========== Helper Functions ========== */
 const formatDuration = (totalSeconds) => {
