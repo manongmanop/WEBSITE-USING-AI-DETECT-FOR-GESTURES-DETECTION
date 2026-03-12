@@ -2,24 +2,31 @@ import { useEffect, useRef, useState } from 'react';
 import * as Pose from '@mediapipe/pose';
 import * as cam from '@mediapipe/camera_utils';
 
-export const useDumbbellCamera = ({
-  videoRef,
-  canvasRef,
+export const useDumbbellCamera = ({ 
+  videoRef, 
+  canvasRef, 
   isActive,
   targetReps = null,
   targetSets = null,
-  onRepComplete
+  setRestTime = null,
+  onRepComplete,
+  onSetComplete,
+  onWorkoutComplete
 }) => {
   // State variables
   const [counterLeft, setCounterLeft] = useState(0);
   const [counterRight, setCounterRight] = useState(0);
   const [sets, setSets] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [workoutComplete, setWorkoutComplete] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [postureTilt, setPostureTilt] = useState('Straight');
   const [leftArmPosition, setLeftArmPosition] = useState('Neutral');
   const [rightArmPosition, setRightArmPosition] = useState('Neutral');
   const [landmarksValid, setLandmarksValid] = useState(false);
+  const [legStance, setLegStance] = useState('Normal');
+  const [ankleDistance, setAnkleDistance] = useState(0);
+  const [kneeDistance, setKneeDistance] = useState(0);
 
   // Refs for tracking state
   const stageLeft = useRef(null);
@@ -30,8 +37,9 @@ export const useDumbbellCamera = ({
   const holdTimeRight = useRef(0);
   const timerStartLeft = useRef(0);
   const timerStartRight = useRef(0);
-  const holdTimeRequiredLeft = useRef(0.5);
-  const holdTimeRequiredRight = useRef(0.5);
+  const holdTimeRequiredLeft = useRef(0.2);
+  const holdTimeRequiredRight = useRef(0.2);
+  const restEndTime = useRef(0);
   const restInterval = useRef(null);
 
   // Database refs - for storing angle data
@@ -43,8 +51,8 @@ export const useDumbbellCamera = ({
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  // const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const instructions = "Voice: High-energy, upbeat, and encouraging, projecting enthusiasm and motivation.\n\nPunctuation: Short, punchy sentences with strategic pauses to maintain excitement and clarity.\n\nDelivery: Fast-paced and dynamic, with rising intonation to build momentum and keep engagement high.\n\nPhrasing: Action-oriented and direct, using motivational cues to push participants forward.\n\nTone: Positive, energetic, and empowering, creating an atmosphere of encouragement and achievement.";
@@ -68,17 +76,6 @@ export const useDumbbellCamera = ({
     return angle;
   };
 
-  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
-  const getArmPosition = (dist) => {
-    if (dist > 0.25) {
-      return "Wide";
-    } else if (dist < 0.08) {
-      return "Narrow";
-    } else {
-      return "Neutral";
-    }
-  };
-
   const getColorForAngle = (angle) => {
     if (angle > 160) {
       return '#ff0000ff'; // Red
@@ -89,6 +86,29 @@ export const useDumbbellCamera = ({
     }
     return '#ffffffff'; // White
   };
+
+  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
+  const getArmPositionLeft = (dist) => {
+    if (dist > 0.25) {
+      return "Wide";
+    } else if (dist < 0.08) {
+      return "Narrow";
+    } else {
+      return "Neutral";
+    }
+  };
+
+    // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
+  const getArmPositionRight = (dist) => {
+    if (dist > 0.25) {
+      return "Wide";
+    } else if (dist < 0.08) {
+      return "Narrow";
+    } else {
+      return "Neutral";
+    }
+  };
+
 
   // Save session data to database
   const saveSessionData = async (sessionData) => {
@@ -117,10 +137,10 @@ export const useDumbbellCamera = ({
     }
   };
 
-  // Gemini API call == https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}
+  // Gemini API call
   const callGeminiAPI = async (angle) => {
     try {
-      const response = await fetch(``, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -154,10 +174,10 @@ export const useDumbbellCamera = ({
     }
   };
 
-  // OpenAI TTS API call == https://api.openai.com/v1/audio/speech
+  // OpenAI TTS API call
   const callTTSAPI = async (text) => {
     try {
-      const response = await fetch('', {
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openaiApiKey}`,
@@ -220,39 +240,72 @@ export const useDumbbellCamera = ({
     }
   };
 
+  // Start rest period
+  const startRestPeriod = () => {
+    setResting(true);
+    setRestTimeRemaining(setRestTime);
+    restEndTime.current = Date.now() + (setRestTime * 1000);
+    setCounterLeft(0);
+    setCounterRight(0);
+    restInterval.current = setInterval(() => {
+      const timeLeft = Math.max(0, Math.ceil((restEndTime.current - Date.now()) / 1000));
+      setRestTimeRemaining(timeLeft);
+
+      if (timeLeft <= 0) {
+        clearInterval(restInterval.current);
+        setResting(false);
+      }
+    }, 1000);
+  };
+
   // Check if set is complete
   useEffect(() => {
-    if (counterLeft >= targetReps && counterRight >= targetReps) {
+    if (counterLeft >= targetReps && counterRight >= targetReps && !workoutComplete) {
+      setSets(prev => {
+        const newSets = prev + 1;
+        if (newSets >= targetSets) {
+          setWorkoutComplete(true);
 
-      // Prepare and save session data
-      const sessionData = {
-        timestamp: new Date().toLocaleString('th-TH', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }),
-        set: {
-          target_reps: targetReps,
-          target_sets: targetSets,
-          completed_sets: newSets,
-          arm: {
-            data_right: angleDataRight.current,
-            data_left: angleDataLeft.current
+          // Prepare and save session data
+          const sessionData = {
+            timestamp: new Date().toLocaleString('th-TH', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            }),
+            set: {
+              target_reps: targetReps,
+              target_sets: targetSets,
+              completed_sets: newSets,
+              arm: {
+                data_right: angleDataRight.current,
+                data_left: angleDataLeft.current
+              }
+            }
+          };
+
+          // Auto save to database
+          saveSessionData(sessionData);
+          
+          if (onWorkoutComplete) {
+            onWorkoutComplete(sessionData);
+          }
+        } else {
+          startRestPeriod();
+          if (onSetComplete) {
+            onSetComplete(newSets);
           }
         }
-      };
-
-      // Auto save to database
-      saveSessionData(sessionData);
-
+        return newSets;
+      });
     }
-  }, [counterLeft, counterRight, targetReps, sets, targetSets]);
+  }, [counterLeft, counterRight, targetReps, sets, targetSets, workoutComplete]);
 
   useEffect(() => {
-    if (!isActive || !videoRef.current || !canvasRef.current) {
+    if (!isActive || !videoRef.current || !canvasRef.current || workoutComplete) {
       return;
     }
 
@@ -367,9 +420,40 @@ export const useDumbbellCamera = ({
                 const leftWrist = landmarks[15];
                 const rightWrist = landmarks[16];
 
+                // Get lower body landmark positions
+                const leftAnkle = landmarks[27];  // LEFT_ANKLE
+                const rightAnkle = landmarks[28]; // RIGHT_ANKLE
+                const leftHip = landmarks[23];    // LEFT_HIP
+                const rightHip = landmarks[24];   // RIGHT_HIP
+                const leftKnee = landmarks[25];   // LEFT_KNEE
+                const rightKnee = landmarks[26];  // RIGHT_KNEE
+
                 // คำนวณระยะทาง (normalized coordinates)
+                const shoulderWristDistanceLeft = Math.abs(leftShoulder.x - leftWrist.x);
+                const shoulderWristDistanceRight = Math.abs(rightShoulder.x - rightWrist.x);
+                const elbowDistanceLR = Math.abs(leftElbow.x - rightElbow.x);
+                const wristDistanceLR = Math.abs(leftWrist.x - rightWrist.x);
                 const leftHandDist = Math.abs(leftWrist.x - leftShoulder.x);
                 const rightHandDist = Math.abs(rightWrist.x - rightShoulder.x);
+
+                // คำนวณตัวเลขแบบ normalized สำหรับส่วนล่าง
+                const ankleDistanceNorm = Math.abs(leftAnkle.x - rightAnkle.x);
+                const kneeDistanceNorm = Math.abs(leftKnee.x - rightKnee.x);
+                const hipAnkleDistanceLeft = Math.abs(leftHip.x - leftAnkle.x);
+                const hipAnkleDistanceRight = Math.abs(rightHip.x - rightAnkle.x);
+
+                // บันทึกค่าระยะห่าง
+                setAnkleDistance(ankleDistanceNorm);
+                setKneeDistance(kneeDistanceNorm);
+
+                // ตัดสินว่า stance แบบไหน (ข้อเท้า)
+                let stance = "Normal";
+                if (ankleDistanceNorm > 0.10) {
+                  stance = "Wide";
+                } else if (ankleDistanceNorm < 0.04) {
+                  stance = "Narrow";
+                }
+                setLegStance(stance);
 
                 // คำนวณความต่างของแกน y ระหว่างไหล่
                 const shoulderDiffY = leftShoulder.y - rightShoulder.y;
@@ -385,8 +469,8 @@ export const useDumbbellCamera = ({
                 setPostureTilt(tilt);
 
                 // กำหนดสถานะตำแหน่งแขน
-                const leftPosition = getArmPosition(leftHandDist);
-                const rightPosition = getArmPosition(rightHandDist);
+                const leftPosition = getArmPositionLeft(leftHandDist);
+                const rightPosition = getArmPositionRight(rightHandDist);
                 setLeftArmPosition(leftPosition);
                 setRightArmPosition(rightPosition);
 
@@ -432,9 +516,9 @@ export const useDumbbellCamera = ({
                           angle: Math.round(angleLeft * 100) / 100,
                           timestamp: new Date().toISOString()
                         });
-
+                        
                         if (onRepComplete) onRepComplete('left', newCounter);
-
+                        
                         return newCounter;
                       });
                       isTimingLeft.current = false;
@@ -523,7 +607,7 @@ export const useDumbbellCamera = ({
                 width: 640,
                 height: 480
               });
-
+              
               cameraRef.current = camera;
               camera.start();
             }
@@ -540,7 +624,7 @@ export const useDumbbellCamera = ({
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up camera...');
-
+      
       if (cameraRef.current) {
         try {
           cameraRef.current.stop();
@@ -577,20 +661,24 @@ export const useDumbbellCamera = ({
         clearInterval(restInterval.current);
       }
     };
-  }, [isActive, targetReps]);
+  }, [isActive, targetReps, workoutComplete]);
 
   return {
     counterLeft,
     counterRight,
     sets,
     isSpeaking,
+    workoutComplete,
     saveStatus,
     angleDataLeft: angleDataLeft.current,
     angleDataRight: angleDataRight.current,
     postureTilt,
     leftArmPosition,
     rightArmPosition,
-    landmarksValid
+    landmarksValid,
+    legStance,
+    ankleDistance,
+    kneeDistance
   };
 };
 

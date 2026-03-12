@@ -6,7 +6,7 @@ export const usePlankCamera = ({
   videoRef,
   canvasRef,
   isActive,
-  targetTime = 30,       // Target hold time per set (seconds)
+  targetTime = null,       // Target hold time per set (seconds)
   onSetComplete,
   onWorkoutComplete,
 }) => {
@@ -25,8 +25,8 @@ export const usePlankCamera = ({
   const plankElapsedRef     = useRef(0);      // accumulated time before current in_position stint
 
   // Gemini / TTS
-  const geminiApiKey        = import.meta.env.VITE_GEMINI_API_KEY;
-  const openaiApiKey        = import.meta.env.VITE_OPENAI_API_KEY;
+  // const geminiApiKey        = import.meta.env.VITE_GEMINI_API_KEY;
+  // const openaiApiKey        = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue            = useRef([]);
   const isProcessingTTS     = useRef(false);
   const lastGeminiTime      = useRef(Date.now());
