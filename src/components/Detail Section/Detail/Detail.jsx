@@ -9,7 +9,7 @@ import axios from "axios";
 import Sidebar from "../../Sidebar Section/Sidebar.jsx";
 
 // ---------- Helper Functions ----------
-import { API_BASE } from "../../../apiConfig.js";
+const API_BASE = (import.meta.env?.VITE_API_URL || "").replace(/\/$/, "");
 
 export const getMediaUrl = (p) => {
   if (!p) return "";

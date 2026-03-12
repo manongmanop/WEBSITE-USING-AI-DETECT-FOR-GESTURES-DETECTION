@@ -4,7 +4,6 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import { UserAuthContextProvider } from './context/UserAuthContext.jsx'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import '/index.css'
-import './apiConfig.js'
 
 // Auth & Landing
 import LandingPage from './components/LandingPage/LandingPage.jsx'

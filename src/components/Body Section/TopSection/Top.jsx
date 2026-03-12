@@ -7,7 +7,6 @@ import { useUserAuth } from "../../../context/UserAuthContext";
 import { doc, getDoc } from 'firebase/firestore'; // เพิ่ม import สำหรับ Firestore
 import { db } from '../../../../firebase'; // ต้องเพิ่ม import ตัวนี้ด้วย
 import { getMediaUrl } from "../../Detail Section/Detail/Detail.jsx";
-import { API_BASE } from "../../../../apiConfig.js";
 import "./top.css";
 import "../../style/global.css";
 export const Top = () => {
@@ -41,7 +40,7 @@ export const Top = () => {
 
         // 2. ดึงข้อมูลจาก MongoDB
         try {
-          const response = await fetch(`${API_BASE}/api/users/${user.uid}`);
+          const response = await fetch(`/api/users/${user.uid}`);
           if (response.ok) {
             const data = await response.json();
 
@@ -85,7 +84,7 @@ export const Top = () => {
   useEffect(() => {
     const fetchPrograms = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/workout_programs`);
+        const response = await fetch("/api/workout_programs");
         const data = await response.json();
         setPrograms(Array.isArray(data) ? data : []);
       } catch (error) {
