@@ -140,19 +140,19 @@ function LandingPage() {
               {/* Mockup of Exercise Library */}
               <div className="library-grid-mockup">
                 <div className="lib-card">
-                  <img src="/squat2.jpg" alt="Squat" className="lib-card-img" width="400" height="300" loading="lazy" />
+                  <img src="images/squat2.jpg" alt="Squat" className="lib-card-img" width="400" height="300" loading="lazy" />
                   <span className="lib-card-title">Squat</span>
                 </div>
                 <div className="lib-card">
-                  <img src="/Pushup.jpg" alt="Push Up" className="lib-card-img" width="400" height="300" loading="lazy" />
+                  <img src="images/PushUp.jpg" alt="Push Up" className="lib-card-img" width="400" height="300" loading="lazy" />
                   <span className="lib-card-title">Push Up</span>
                 </div>
                 <div className="lib-card">
-                  <img src="/plank.jpg" alt="Plank" className="lib-card-img" width="400" height="300" loading="lazy" />
+                  <img src="images/plank.jpg" alt="Plank" className="lib-card-img" width="400" height="300" loading="lazy" />
                   <span className="lib-card-title">Plank</span>
                 </div>
                 <div className="lib-card">
-                  <img src="/Legraises.jpg" alt="Legs Raises" className="lib-card-img" width="400" height="300" loading="lazy" />
+                  <img src="images/legraises.jpg" alt="Legs Raises" className="lib-card-img" width="400" height="300" loading="lazy" />
                   <span className="lib-card-title">Legs Raises</span>
                 </div>
               </div>
