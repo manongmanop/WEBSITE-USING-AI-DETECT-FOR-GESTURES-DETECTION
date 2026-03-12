@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import * as Pose from '@mediapipe/pose';
 import * as cam from '@mediapipe/camera_utils';
 
-export const useHipRaiseCamera = ({
-  videoRef,
-  canvasRef,
+export const useHipRaiseCamera = ({ 
+  videoRef, 
+  canvasRef, 
   isActive,
   targetReps = null,
   targetSets = null,
@@ -20,13 +20,13 @@ export const useHipRaiseCamera = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [workoutComplete, setWorkoutComplete] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
-  // const [postureTilt, setPostureTilt] = useState('Straight');
-  // const [leftArmPosition, setLeftArmPosition] = useState('Neutral');
-  // const [rightArmPosition, setRightArmPosition] = useState('Neutral');
+  const [postureTilt, setPostureTilt] = useState('Straight');
+  const [leftArmPosition, setLeftArmPosition] = useState('Neutral');
+  const [rightArmPosition, setRightArmPosition] = useState('Neutral');
   const [landmarksValid, setLandmarksValid] = useState(false);
   const [legStance, setLegStance] = useState('Normal');
   const [ankleDistance, setAnkleDistance] = useState(0);
-  // const [kneeDistance, setKneeDistance] = useState(0);
+  const [kneeDistance, setKneeDistance] = useState(0);
 
   // Refs for tracking state
   const stageLeft = useRef(null);
@@ -37,8 +37,8 @@ export const useHipRaiseCamera = ({
   const holdTimeRight = useRef(0);
   const timerStartLeft = useRef(0);
   const timerStartRight = useRef(0);
-  const holdTimeRequiredLeft = useRef(2);
-  const holdTimeRequiredRight = useRef(2);
+  const holdTimeRequiredLeft = useRef(0.2);
+  const holdTimeRequiredRight = useRef(0.2);
   const restEndTime = useRef(0);
   const restInterval = useRef(null);
 
@@ -51,51 +51,19 @@ export const useHipRaiseCamera = ({
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  // const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const instructions = "Voice: High-energy, upbeat, and encouraging, projecting enthusiasm and motivation.\n\nPunctuation: Short, punchy sentences with strategic pauses to maintain excitement and clarity.\n\nDelivery: Fast-paced and dynamic, with rising intonation to build momentum and keep engagement high.\n\nPhrasing: Action-oriented and direct, using motivational cues to push participants forward.\n\nTone: Positive, energetic, and empowering, creating an atmosphere of encouragement and achievement.";
   const chatHistory = useRef([
     {
       role: "user",
-      parts: [{ text: "ค่ามุมองศาอยู่ที่ 155 มุมองศา หากค่ามากกว่าหรือน้อยกว่าให้ส่งข้อความบอกให้เพิ่มหรือลดตามจำนวนที่ขาดหรือเกิน" }]
+      parts: [{ text: "ค่ามุมองศาอยู่ที่ 30 มุมองศา หากค่ามากกว่าหรือน้อยกว่าให้ส่งข้อความบอกให้เพิ่มหรือลดตามจำนวนที่ขาดหรือเกิน" }]
     },
     {
       role: "model",
-      parts: [{ text: "มุม 155 องศา! ดีมาก! ถ้าต้องการปรับค่า, ทำตามนี้เลย: * **ค่าเกิน:** ลดลง [จำนวนที่เกิน] องศา * **ค่าขาด:** เพิ่มขึ้น [จำนวนที่ขาด] องศา คุณทำได้! ลุย!" }]
-    },
-    {
-      role: "user",
-      parts: [{ text: "145" }]
-    },
-    {
-      role: "model",
-      parts: [{ text: "เหลืออีก 10 องศา! เพิ่มอีกหน่อยนะ!" }]
-    },
-    {
-      role: "user",
-      parts: [{ text: "158" }]
-    },
-    {
-      role: "model",
-      parts: [{ text: "เก่งมาก! เกินมา 3 องศา! ลดลงอีกหน่อย แล้วคุณจะไปถึงเป้าหมาย!" }]
-    },
-    {
-      role: "user",
-      parts: [{ text: "225" }]
-    },
-    {
-      role: "model",
-      parts: [{ text: "โอ้โห! เกินมาเยอะเลย! ลดลง 70 องศานะ! สู้ๆ!" }]
-    },
-    {
-      role: "user",
-      parts: [{ text: "154" }]
-    },
-    {
-      role: "model",
-      parts: [{ text: "ยอดเยี่ยม! อีกนิดเดียว! เพิ่มอีก 1 องศา คุณก็ถึงเป้าหมายแล้ว!" }]
+      parts: [{ text: "มุม 30 องศา! ดีมาก! ถ้าต้องการปรับค่า, ทำตามนี้เลย: * **ค่าเกิน:** ลดลง [จำนวนที่เกิน] องศา * **ค่าขาด:** เพิ่มขึ้น [จำนวนที่ขาด] องศา คุณทำได้! ลุย!" }]
     }
   ]);
 
@@ -109,7 +77,7 @@ export const useHipRaiseCamera = ({
   };
 
   const getColorForAngle = (angle) => {
-    if (angle > 160) {
+    if (angle < 130) {
       return '#ff0000ff'; // Red
     } else if (angle >= 145 && angle <= 165) {
       return '#00ff00ff'; // Green
@@ -119,16 +87,28 @@ export const useHipRaiseCamera = ({
     return '#ffffffff'; // White
   };
 
-  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide/Narrow/Neutral)
-  // const getArmPosition = (dist) => {
-  //   if (dist > 0.25) {
-  //     return "Wide";
-  //   } else if (dist < 0.08) {
-  //     return "Narrow";
-  //   } else {
-  //     return "Neutral";
-  //   }
-  // };
+  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
+  const getArmPositionLeft = (dist) => {
+    if (dist > 0.25) {
+      return "Wide";
+    } else if (dist < 0.08) {
+      return "Narrow";
+    } else {
+      return "Neutral";
+    }
+  };
+
+    // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
+  const getArmPositionRight = (dist) => {
+    if (dist > 0.25) {
+      return "Wide";
+    } else if (dist < 0.08) {
+      return "Narrow";
+    } else {
+      return "Neutral";
+    }
+  };
+
 
   // Save session data to database
   const saveSessionData = async (sessionData) => {
@@ -309,7 +289,7 @@ export const useHipRaiseCamera = ({
 
           // Auto save to database
           saveSessionData(sessionData);
-
+          
           if (onWorkoutComplete) {
             onWorkoutComplete(sessionData);
           }
@@ -412,87 +392,87 @@ export const useHipRaiseCamera = ({
               if (results.poseLandmarks) {
                 const landmarks = results.poseLandmarks;
 
-                // // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
-                // const requiredLandmarks = [
-                //   11, // LEFT_SHOULDER
-                //   12, // RIGHT_SHOULDER
-                //   27,
-                //   28,
-                // ];
+                // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
+                const requiredLandmarks = [
+                  11, // LEFT_SHOULDER
+                  12, // RIGHT_SHOULDER
+                  25, // LEFT_KNEE
+                  26, // RIGHT_KNEE
+                ];
 
-                // // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
-                // const valid = requiredLandmarks.every(
-                //   idx => landmarks[idx] && landmarks[idx].visibility > 0.8
-                // );
-                // setLandmarksValid(valid);
+                // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
+                const valid = requiredLandmarks.every(
+                  idx => landmarks[idx] && landmarks[idx].visibility > 0.8
+                );
+                setLandmarksValid(valid);
 
-                // // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
-                // if (!valid) {
-                //   canvasCtx.restore();
-                //   return;
-                // }
+                // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
+                if (!valid) {
+                  canvasCtx.restore();
+                  return;
+                }
 
                 // Get coordinates
-                // const leftShoulder = landmarks[11];
-                // const rightShoulder = landmarks[12];
-                // const leftElbow = landmarks[13];
-                // const rightElbow = landmarks[14];
-                // const leftWrist = landmarks[15];
-                // const rightWrist = landmarks[16];
+                const leftShoulder = landmarks[11];
+                const rightShoulder = landmarks[12];
+                const leftElbow = landmarks[13];
+                const rightElbow = landmarks[14];
+                const leftWrist = landmarks[15];
+                const rightWrist = landmarks[16];
 
-                // // Get lower body landmark positions
-                // const leftAnkle = landmarks[27];  // LEFT_ANKLE
-                // const rightAnkle = landmarks[28]; // RIGHT_ANKLE
-                // const leftHip = landmarks[23];    // LEFT_HIP
-                // const rightHip = landmarks[24];   // RIGHT_HIP
-                // const leftKnee = landmarks[25];   // LEFT_KNEE
-                // const rightKnee = landmarks[26];  // RIGHT_KNEE
+                // Get lower body landmark positions
+                const leftAnkle = landmarks[27];  // LEFT_ANKLE
+                const rightAnkle = landmarks[28]; // RIGHT_ANKLE
+                const leftHip = landmarks[23];    // LEFT_HIP
+                const rightHip = landmarks[24];   // RIGHT_HIP
+                const leftKnee = landmarks[25];   // LEFT_KNEE
+                const rightKnee = landmarks[26];  // RIGHT_KNEE
 
                 // คำนวณระยะทาง (normalized coordinates)
-                // const shoulderWristDistanceLeft = Math.abs(leftShoulder.x - leftWrist.x);
-                // const shoulderWristDistanceRight = Math.abs(rightShoulder.x - rightWrist.x);
-                // const elbowDistanceLR = Math.abs(leftElbow.x - rightElbow.x);
-                // const wristDistanceLR = Math.abs(leftWrist.x - rightWrist.x);
-                // const leftHandDist = Math.abs(leftWrist.x - leftShoulder.x);
-                // const rightHandDist = Math.abs(rightWrist.x - rightShoulder.x);
+                const shoulderWristDistanceLeft = Math.abs(leftShoulder.x - leftWrist.x);
+                const shoulderWristDistanceRight = Math.abs(rightShoulder.x - rightWrist.x);
+                const elbowDistanceLR = Math.abs(leftElbow.x - rightElbow.x);
+                const wristDistanceLR = Math.abs(leftWrist.x - rightWrist.x);
+                const leftHandDist = Math.abs(leftWrist.x - leftShoulder.x);
+                const rightHandDist = Math.abs(rightWrist.x - rightShoulder.x);
 
                 // คำนวณตัวเลขแบบ normalized สำหรับส่วนล่าง
-                // const ankleDistanceNorm = Math.abs(leftAnkle.x - rightAnkle.x);
-                // const kneeDistanceNorm = Math.abs(leftKnee.x - rightKnee.x);
-                // const hipAnkleDistanceLeft = Math.abs(leftHip.x - leftAnkle.x);
-                // const hipAnkleDistanceRight = Math.abs(rightHip.x - rightAnkle.x);
+                const ankleDistanceNorm = Math.abs(leftAnkle.x - rightAnkle.x);
+                const kneeDistanceNorm = Math.abs(leftKnee.x - rightKnee.x);
+                const hipAnkleDistanceLeft = Math.abs(leftHip.x - leftAnkle.x);
+                const hipAnkleDistanceRight = Math.abs(rightHip.x - rightAnkle.x);
 
                 // บันทึกค่าระยะห่าง
-                // setAnkleDistance(ankleDistanceNorm);
-                // // setKneeDistance(kneeDistanceNorm);
+                setAnkleDistance(ankleDistanceNorm);
+                setKneeDistance(kneeDistanceNorm);
 
-                // // ตัดสินว่า stance แบบไหน (ข้อเท้า)
-                // let stance = "Normal";
-                // if (ankleDistanceNorm > 0.10) {
-                //   stance = "Wide";
-                // } else if (ankleDistanceNorm < 0.04) {
-                //   stance = "Narrow";
-                // }
-                // setLegStance(stance);
+                // ตัดสินว่า stance แบบไหน (ข้อเท้า)
+                let stance = "Normal";
+                if (ankleDistanceNorm > 0.10) {
+                  stance = "Wide";
+                } else if (ankleDistanceNorm < 0.04) {
+                  stance = "Narrow";
+                }
+                setLegStance(stance);
 
                 // คำนวณความต่างของแกน y ระหว่างไหล่
-                // const shoulderDiffY = leftShoulder.y - rightShoulder.y;
-                // const threshold = 0.03;
+                const shoulderDiffY = leftShoulder.y - rightShoulder.y;
+                const threshold = 0.03;
 
                 // ตัดสินว่าตัวเอียงด้านไหน
-                // let tilt = "Straight";
-                // if (shoulderDiffY > threshold) {
-                //   tilt = "Leaning Right";
-                // } else if (shoulderDiffY < -threshold) {
-                //   tilt = "Leaning Left";
-                // }
-                // setPostureTilt(tilt);
+                let tilt = "Straight";
+                if (shoulderDiffY > threshold) {
+                  tilt = "Leaning Right";
+                } else if (shoulderDiffY < -threshold) {
+                  tilt = "Leaning Left";
+                }
+                setPostureTilt(tilt);
 
                 // กำหนดสถานะตำแหน่งแขน
-                // const leftPosition = getArmPosition(leftHandDist);
-                // const rightPosition = getArmPosition(rightHandDist);
-                // setLeftArmPosition(leftPosition);
-                // setRightArmPosition(rightPosition);
+                const leftPosition = getArmPositionLeft(leftHandDist);
+                const rightPosition = getArmPositionRight(rightHandDist);
+                setLeftArmPosition(leftPosition);
+                setRightArmPosition(rightPosition);
 
                 // Left arm processing
                 const shoulderLeft = landmarks[11];
@@ -518,7 +498,7 @@ export const useHipRaiseCamera = ({
                     stageLeft.current = "down";
                     isTimingLeft.current = false;
                     holdTimeLeft.current = 0;
-                  } else if (angleLeft <= 145 && angleLeft <= 165 && stageLeft.current === "down") {
+                  } else if (angleLeft >= 145 && angleLeft <= 165 && stageLeft.current === "down") {
                     if (!isTimingLeft.current) {
                       timerStartLeft.current = Date.now();
                       isTimingLeft.current = true;
@@ -536,9 +516,9 @@ export const useHipRaiseCamera = ({
                           angle: Math.round(angleLeft * 100) / 100,
                           timestamp: new Date().toISOString()
                         });
-
+                        
                         if (onRepComplete) onRepComplete('left', newCounter);
-
+                        
                         return newCounter;
                       });
                       isTimingLeft.current = false;
@@ -546,7 +526,7 @@ export const useHipRaiseCamera = ({
 
                       processGeminiAndTTS(Math.round(angleLeft));
                     }
-                  } else if ((angleLeft < 130 && angleLeft < 145) || angleLeft < 165) {
+                  } else if ((angleLeft > 130 && angleLeft < 145) || angleLeft < 165) {
                     if (isTimingLeft.current) {
                       holdTimeLeft.current += (Date.now() - timerStartLeft.current) / 1000;
                       isTimingLeft.current = false;
@@ -578,7 +558,7 @@ export const useHipRaiseCamera = ({
                     stageRight.current = "down";
                     isTimingRight.current = false;
                     holdTimeRight.current = 0;
-                  } else if (angleRight <= 145 && angleRight <= 165 && stageRight.current === "down") {
+                  } else if (angleRight >= 145 && angleRight <= 165 && stageRight.current === "down") {
                     if (!isTimingRight.current) {
                       timerStartRight.current = Date.now();
                       isTimingRight.current = true;
@@ -606,7 +586,7 @@ export const useHipRaiseCamera = ({
 
                       processGeminiAndTTS(Math.round(angleRight));
                     }
-                  } else if ((angleRight < 130 && angleRight < 145) || angleRight < 165) {
+                  } else if ((angleRight > 130 && angleRight < 145) || angleRight < 165) {
                     if (isTimingRight.current) {
                       holdTimeRight.current += (Date.now() - timerStartRight.current) / 1000;
                       isTimingRight.current = false;
@@ -622,18 +602,12 @@ export const useHipRaiseCamera = ({
             if (videoRef.current) {
               const camera = new cam.Camera(videoRef.current, {
                 onFrame: async () => {
-                  if (videoRef.current && videoRef.current.readyState >= 2 && videoRef.current.videoWidth > 0) {
-                    try {
-                      await pose.send({ image: videoRef.current });
-                    } catch (e) {
-                      console.warn("Pose send error:", e);
-                    }
-                  }
+                  await pose.send({ image: videoRef.current });
                 },
                 width: 640,
                 height: 480
               });
-
+              
               cameraRef.current = camera;
               camera.start();
             }
@@ -650,7 +624,7 @@ export const useHipRaiseCamera = ({
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up camera...');
-
+      
       if (cameraRef.current) {
         try {
           cameraRef.current.stop();
@@ -698,13 +672,13 @@ export const useHipRaiseCamera = ({
     saveStatus,
     angleDataLeft: angleDataLeft.current,
     angleDataRight: angleDataRight.current,
-    // postureTilt,
-    // leftArmPosition,
-    // rightArmPosition,
-    // landmarksValid,
-    // legStance,
-    // ankleDistance,
-    // kneeDistance
+    postureTilt,
+    leftArmPosition,
+    rightArmPosition,
+    landmarksValid,
+    legStance,
+    ankleDistance,
+    kneeDistance
   };
 };
 
