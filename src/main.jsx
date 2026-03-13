@@ -1,81 +1,80 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from "react-router-dom"
-import { UserAuthContextProvider } from './context/UserAuthContext.jsx'
-import 'bootstrap/dist/css/bootstrap.min.css'
-import '/index.css'
+import React, { Suspense, lazy } from "react";
+import ReactDOM from "react-dom/client";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { UserAuthContextProvider } from "./context/UserAuthContext.jsx";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "/index.css";
 
-// Auth & Landing
-import LandingPage from './components/LandingPage/LandingPage.jsx'
-import Login from './components/Login.jsx'
-import Register from './components/Register.jsx'
-import ForgotPassword from "./components/ForgotPassword.jsx"
-import ProtectedRoute from './auth/ProtectedRoute.jsx'
-import Onboarding from './components/Onboarding/Onboarding.jsx'
+// -------- Lazy Load ทุกหน้า --------
 
-// Main App
-import Main from './components/Website/Main'
-import Account from './components/Account Section/Account.jsx'
-import AddInfo from './components/Website/AddInfo.jsx'
-import UpdateInfo from './components/Website/UpdateInfo.jsx'
-import Detail from './components/Detail Section/Detail/Detail.jsx'
+// Public
+const LandingPage = lazy(() => import("./components/LandingPage/LandingPage.jsx"));
+const Login = lazy(() => import("./components/Login.jsx"));
+const Register = lazy(() => import("./components/Register.jsx"));
+const ForgotPassword = lazy(() => import("./components/ForgotPassword.jsx"));
+const TermsOfService = lazy(() => import("./components/Legal/TermsOfService.jsx"));
+const PrivacyPolicy = lazy(() => import("./components/Legal/PrivacyPolicy.jsx"));
 
-// Workout & History
-import WorkoutPlayer from './components/WorkoutPlay/WorkoutPlayer.jsx'
-import SummaryProgram from './components/WorkoutPlay/SummaryProgram.jsx'
-import WorkoutHistory from './components/WorkoutPlay/WorkoutHistory.jsx' // ✅ ตรวจสอบ path ให้ถูก
-// Pose Detectors (ถ้ายังใช้อยู่)
-import PoseDetector from './PoseDetector.jsx'
-import Dumbbell from './Dumbbell.jsx'
-import Hipe_Raise from './Hipe_Raise.jsx'
-import Leg_Raises from './Leg_Raises.jsx'
-import Plank from './Plank.jsx'
-import Push_ups from './Push_ups.jsx'
-import Squat from './Squat.jsx'
-import LinkEmailPassword from "./components/LinkEmailPassword";
-import AdminRegister from './components/AdminRegister.jsx'
+// Auth
+const ProtectedRoute = lazy(() => import("./auth/ProtectedRoute.jsx"));
+const AdminRoute = lazy(() => import("./auth/AdminRoute.jsx"));
 
-// Admin Layout & Pages
-import AdminRoute from './auth/AdminRoute.jsx'
-import AdminLayout from './components/Admin/AdminLayout.jsx'
-import AdminDashboard from './components/Admin/Dashboard/AdminDashboard.jsx'
-import UserManagement from './components/Admin/Users/UserManagement.jsx'
-import UserProgress from './components/Admin/Users/UserProgress.jsx'
-import ProgramManagement from './components/Admin/Programs/ProgramManagement.jsx'
-import AddProgram from './components/Admin/Programs/AddProgram.jsx'
-import EditProgram from './components/Admin/Programs/EditProgram.jsx'
-import ExerciseManagement from './components/Admin/Exercises/ExerciseManagement.jsx'
-import AddExercise from './components/Admin/Exercises/AddExercise.jsx'
-import EditExercise from './components/Admin/Exercises/EditExercise.jsx'
-import TermsOfService from './components/Legal/TermsOfService.jsx'
-import PrivacyPolicy from './components/Legal/PrivacyPolicy.jsx'
+// Main
+const Main = lazy(() => import("./components/Website/Main.jsx"));
+const Account = lazy(() => import("./components/Account Section/Account.jsx"));
+const AddInfo = lazy(() => import("./components/Website/AddInfo.jsx"));
+const UpdateInfo = lazy(() => import("./components/Website/UpdateInfo.jsx"));
+const Detail = lazy(() => import("./components/Detail Section/Detail/Detail.jsx"));
+
+// Workout
+const WorkoutPlayer = lazy(() => import("./components/WorkoutPlay/WorkoutPlayer.jsx"));
+const SummaryProgram = lazy(() => import("./components/WorkoutPlay/SummaryProgram.jsx"));
+const WorkoutHistory = lazy(() => import("./components/WorkoutPlay/WorkoutHistory.jsx"));
+
+// Pose Detector (หนักมาก ควร lazy)
+const PoseDetector = lazy(() => import("./PoseDetector.jsx"));
+const Dumbbell = lazy(() => import("./Dumbbell.jsx"));
+const Hipe_Raise = lazy(() => import("./Hipe_Raise.jsx"));
+const Leg_Raises = lazy(() => import("./Leg_Raises.jsx"));
+const Plank = lazy(() => import("./Plank.jsx"));
+const Push_ups = lazy(() => import("./Push_ups.jsx"));
+const Squat = lazy(() => import("./Squat.jsx"));
+
+// Onboarding
+const Onboarding = lazy(() => import("./components/Onboarding/Onboarding.jsx"));
+const LinkEmailPassword = lazy(() => import("./components/LinkEmailPassword.jsx"));
+
+// Admin
+const AdminLayout = lazy(() => import("./components/Admin/AdminLayout.jsx"));
+const AdminDashboard = lazy(() => import("./components/Admin/Dashboard/AdminDashboard.jsx"));
+const UserManagement = lazy(() => import("./components/Admin/Users/UserManagement.jsx"));
+const UserProgress = lazy(() => import("./components/Admin/Users/UserProgress.jsx"));
+const ProgramManagement = lazy(() => import("./components/Admin/Programs/ProgramManagement.jsx"));
+const AddProgram = lazy(() => import("./components/Admin/Programs/AddProgram.jsx"));
+const EditProgram = lazy(() => import("./components/Admin/Programs/EditProgram.jsx"));
+const ExerciseManagement = lazy(() => import("./components/Admin/Exercises/ExerciseManagement.jsx"));
+const AddExercise = lazy(() => import("./components/Admin/Exercises/AddExercise.jsx"));
+const EditExercise = lazy(() => import("./components/Admin/Exercises/EditExercise.jsx"));
 
 const router = createBrowserRouter([
-  // --- Public Routes ---
   { path: "/", element: <LandingPage /> },
   { path: "/login", element: <Login /> },
   { path: "/register", element: <Register /> },
   { path: "/forgot-password", element: <ForgotPassword /> },
-  { path: "/AdminRegister", element: <AdminRegister /> },
   { path: "/terms", element: <TermsOfService /> },
   { path: "/privacy", element: <PrivacyPolicy /> },
 
-  // --- Protected Routes (ต้อง Login) ---
   { path: "/home", element: <ProtectedRoute><Main /></ProtectedRoute> },
   { path: "/profile", element: <ProtectedRoute><Account /></ProtectedRoute> },
   { path: "/addinfo", element: <ProtectedRoute><AddInfo /></ProtectedRoute> },
   { path: "/updateinfo", element: <ProtectedRoute><UpdateInfo /></ProtectedRoute> },
 
-  // Detail
-  { path: "/detail", element: <ProtectedRoute><Detail /></ProtectedRoute> },
   { path: "/detail/:id", element: <ProtectedRoute><Detail /></ProtectedRoute> },
 
-  // ✅ Workout Flow (เล่น -> สรุป -> ประวัติ)
   { path: "/WorkoutPlayer/:programId", element: <ProtectedRoute><WorkoutPlayer /></ProtectedRoute> },
   { path: "/summary/program/:uid", element: <ProtectedRoute><SummaryProgram /></ProtectedRoute> },
-  { path: "/history/:uid", element: <ProtectedRoute><WorkoutHistory /></ProtectedRoute> }, // ✅ Route นี้ถูกต้อง เชื่อมกับปุ่มในหน้า Summary
+  { path: "/history/:uid", element: <ProtectedRoute><WorkoutHistory /></ProtectedRoute> },
 
-  // Specific Detectors (ถ้าจำเป็น)
   { path: "/PoseDetector", element: <ProtectedRoute><PoseDetector /></ProtectedRoute> },
   { path: "/Dumbbell", element: <ProtectedRoute><Dumbbell /></ProtectedRoute> },
   { path: "/Hipe_Raise", element: <ProtectedRoute><Hipe_Raise /></ProtectedRoute> },
@@ -83,11 +82,10 @@ const router = createBrowserRouter([
   { path: "/Plank", element: <ProtectedRoute><Plank /></ProtectedRoute> },
   { path: "/Push_ups", element: <ProtectedRoute><Push_ups /></ProtectedRoute> },
   { path: "/Squat", element: <ProtectedRoute><Squat /></ProtectedRoute> },
-  // Onboarding
+
   { path: "/onboarding", element: <ProtectedRoute><Onboarding /></ProtectedRoute> },
   { path: "/set-password", element: <ProtectedRoute><LinkEmailPassword /></ProtectedRoute> },
 
-  // --- Admin Routes ---
   {
     path: "/admin",
     element: <AdminRoute><AdminLayout /></AdminRoute>,
@@ -103,12 +101,14 @@ const router = createBrowserRouter([
       { path: "exercises/edit/:id", element: <EditExercise /> }
     ]
   }
-])
+]);
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <UserAuthContextProvider>
-      <RouterProvider router={router} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <RouterProvider router={router} />
+      </Suspense>
     </UserAuthContextProvider>
-  </React.StrictMode>,
-)
+  </React.StrictMode>
+);

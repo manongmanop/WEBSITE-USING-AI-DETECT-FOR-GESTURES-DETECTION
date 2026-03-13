@@ -61,7 +61,7 @@ function LandingPage() {
                   <div className="phone-notch"></div>
                   <div className="phone-screen">
                     <img
-                      src="/images/mockup.png"
+                      src="/images/mockup.webp"
                       alt="Mockup"
                       className="mockup-image"
                       width="350"
