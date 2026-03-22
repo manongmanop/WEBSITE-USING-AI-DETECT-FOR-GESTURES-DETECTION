@@ -66,6 +66,8 @@ function LandingPage() {
                       className="mockup-image"
                       width="350"
                       height="622"
+                      loading="eager"
+                      fetchpriority="high"
                     />
                   </div>
                 </div>
