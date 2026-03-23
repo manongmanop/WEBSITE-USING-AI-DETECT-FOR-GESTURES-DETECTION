@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as Pose from '@mediapipe/pose';
-import * as cam from '@mediapipe/camera_utils';
+// import * as Pose from '@mediapipe/pose';
+// import * as cam from '@mediapipe/camera_utils';
 
 const CurlCounter = () => {
   const videoRef = useRef(null);
@@ -329,289 +329,208 @@ const CurlCounter = () => {
   };
 
   useEffect(() => {
-    const pose = new Pose.Pose({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-      }
-    });
+    let camera = null;
+    let pose = null;
 
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: false,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.7
-    });
+    const initPoseWork = async () => {
+      const Pose = await import('@mediapipe/pose');
+      const cam = await import('@mediapipe/camera_utils');
 
-    const onResults = (results) => {
-      const canvasCtx = canvasRef.current.getContext('2d');
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      pose = new Pose.Pose({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+        }
+      });
 
-      // Flip canvas horizontally
-      canvasCtx.translate(canvasRef.current.width, 0);
-      canvasCtx.scale(-1, 1);
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: false,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7
+      });
 
-      canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      const onResults = (results) => {
+        const canvasCtx = canvasRef.current.getContext('2d');
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-      if (results.poseLandmarks) {
-        const landmarks = results.poseLandmarks;
+        // Flip canvas horizontally
+        canvasCtx.translate(canvasRef.current.width, 0);
+        canvasCtx.scale(-1, 1);
 
-        // Check position validity and body metrics
-        const isValid = checkPositionValidity(landmarks);
-        setPositionValid(isValid);
+        canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
 
-        const tilt = checkBodyTilt(landmarks);
-        setBodyTilt(tilt);
+        if (results.poseLandmarks) {
+          const landmarks = results.poseLandmarks;
 
-        const armsPos = checkArmsPosition(landmarks);
-        setLeftArmPosition(armsPos.left);
-        setRightArmPosition(armsPos.right);
+          // Check position validity and body metrics
+          const isValid = checkPositionValidity(landmarks);
+          setPositionValid(isValid);
 
-        const stanceWidth = checkStance(landmarks);
-        setStance(stanceWidth);
+          const tilt = checkBodyTilt(landmarks);
+          setBodyTilt(tilt);
 
-        // Left arm processing
-        const shoulderLeft = landmarks[11];
-        const elbowLeft = landmarks[13];
-        const wristLeft = landmarks[15];
+          const armsPos = checkArmsPosition(landmarks);
+          setLeftArmPosition(armsPos.left);
+          setRightArmPosition(armsPos.right);
 
-        if (shoulderLeft && elbowLeft && wristLeft) {
-          const angleLeft = calculateAngle(shoulderLeft, elbowLeft, wristLeft);
-          const colorLeft = getColorForAngle(angleLeft);
+          const stanceWidth = checkStance(landmarks);
+          setStance(stanceWidth);
 
-          // Draw only left arm connections (shoulder -> elbow -> wrist)
-          drawArmConnections(canvasCtx, [shoulderLeft, elbowLeft, wristLeft], {
-            color: colorLeft,
-            lineWidth: 4
-          });
+          // Left arm processing
+          const shoulderLeft = landmarks[11];
+          const elbowLeft = landmarks[13];
+          const wristLeft = landmarks[15];
 
-          // Draw colored landmarks for left arm
-          drawSpecificLandmarks(canvasCtx, [shoulderLeft, elbowLeft, wristLeft], {
-            color: colorLeft,
-            radius: 8
-          });
+          if (shoulderLeft && elbowLeft && wristLeft) {
+            const angleLeft = calculateAngle(shoulderLeft, elbowLeft, wristLeft);
+            const colorLeft = getColorForAngle(angleLeft);
 
-          // Display angle text
-          // canvasCtx.fillStyle = '#FFFFFF';
-          // canvasCtx.font = '20px Arial';
-          // canvasCtx.fillText(
-          //   `LEFT: ${angleLeft.toFixed(2)}°`,
-          //   elbowLeft.x * canvasRef.current.width - 50,
-          //   elbowLeft.y * canvasRef.current.height - 10
-          // );
+            // Draw only left arm connections (shoulder -> elbow -> wrist)
+            drawArmConnections(canvasCtx, [shoulderLeft, elbowLeft, wristLeft], {
+              color: colorLeft,
+              lineWidth: 4
+            });
 
-          // Left arm curl logic with hold timer
-          if (angleLeft > 160) {
-            stageLeft.current = "down";
-            isTimingLeft.current = false;
-            holdTimeLeft.current = 0;
-          } else if (angleLeft >= 20 && angleLeft <= 40 && stageLeft.current === "down") {
-            if (!isTimingLeft.current) {
-              timerStartLeft.current = Date.now();
-              isTimingLeft.current = true;
-            }
+            // Draw colored landmarks for left arm
+            drawSpecificLandmarks(canvasCtx, [shoulderLeft, elbowLeft, wristLeft], {
+              color: colorLeft,
+              radius: 8
+            });
 
-            const currentHoldTime = (Date.now() - timerStartLeft.current) / 1000;
-            const totalHoldTime = holdTimeLeft.current + currentHoldTime;
-
-            if (totalHoldTime >= holdTimeRequiredLeft.current) {
-              stageLeft.current = "up";
-              setCounterLeft(prev => prev + 1);
+            // Left arm curl logic with hold timer
+            if (angleLeft > 160) {
+              stageLeft.current = "down";
               isTimingLeft.current = false;
               holdTimeLeft.current = 0;
+            } else if (angleLeft >= 20 && angleLeft <= 40 && stageLeft.current === "down") {
+              if (!isTimingLeft.current) {
+                timerStartLeft.current = Date.now();
+                isTimingLeft.current = true;
+              }
 
-              // Process with AI
-              processGeminiAndTTS(Math.round(angleLeft));
-            }
-          } else if ((angleLeft > 40 && angleLeft < 160) || angleLeft < 20) {
-            if (isTimingLeft.current) {
-              holdTimeLeft.current += (Date.now() - timerStartLeft.current) / 1000;
-              isTimingLeft.current = false;
+              const currentHoldTime = (Date.now() - timerStartLeft.current) / 1000;
+              const totalHoldTime = holdTimeLeft.current + currentHoldTime;
+
+              if (totalHoldTime >= holdTimeRequiredLeft.current) {
+                stageLeft.current = "up";
+                setCounterLeft(prev => prev + 1);
+                isTimingLeft.current = false;
+                holdTimeLeft.current = 0;
+
+                // Process with AI
+                processGeminiAndTTS(Math.round(angleLeft));
+              }
+            } else if ((angleLeft > 40 && angleLeft < 160) || angleLeft < 20) {
+              if (isTimingLeft.current) {
+                holdTimeLeft.current += (Date.now() - timerStartLeft.current) / 1000;
+                isTimingLeft.current = false;
+              }
             }
           }
-        }
 
-        // Right arm processing
-        const shoulderRight = landmarks[12];
-        const elbowRight = landmarks[14];
-        const wristRight = landmarks[16];
+          // Right arm processing
+          const shoulderRight = landmarks[12];
+          const elbowRight = landmarks[14];
+          const wristRight = landmarks[16];
 
-        if (shoulderRight && elbowRight && wristRight) {
-          const angleRight = calculateAngle(shoulderRight, elbowRight, wristRight);
-          const colorRight = getColorForAngle(angleRight);
+          if (shoulderRight && elbowRight && wristRight) {
+            const angleRight = calculateAngle(shoulderRight, elbowRight, wristRight);
+            const colorRight = getColorForAngle(angleRight);
 
-          // Draw only right arm connections (shoulder -> elbow -> wrist)
-          drawArmConnections(canvasCtx, [shoulderRight, elbowRight, wristRight], {
-            color: colorRight,
-            lineWidth: 4
-          });
+            // Draw only right arm connections (shoulder -> elbow -> wrist)
+            drawArmConnections(canvasCtx, [shoulderRight, elbowRight, wristRight], {
+              color: colorRight,
+              lineWidth: 4
+            });
 
-          // Draw colored landmarks for right arm
-          drawSpecificLandmarks(canvasCtx, [shoulderRight, elbowRight, wristRight], {
-            color: colorRight,
-            radius: 8
-          });
+            // Draw colored landmarks for right arm
+            drawSpecificLandmarks(canvasCtx, [shoulderRight, elbowRight, wristRight], {
+              color: colorRight,
+              radius: 8
+            });
 
-          // Display angle text
-          // canvasCtx.fillStyle = '#FFFFFF';
-          // canvasCtx.font = '20px Arial';
-          // canvasCtx.fillText(
-          //   `RIGHT: ${angleRight.toFixed(2)}°`,
-          //   elbowRight.x * canvasRef.current.width - 50,
-          //   elbowRight.y * canvasRef.current.height - 10
-          // );
-
-          // Right arm curl logic with hold timer
-          if (angleRight > 160) {
-            stageRight.current = "down";
-            isTimingRight.current = false;
-            holdTimeRight.current = 0;
-          } else if (angleRight >= 20 && angleRight <= 40 && stageRight.current === "down") {
-            if (!isTimingRight.current) {
-              timerStartRight.current = Date.now();
-              isTimingRight.current = true;
-            }
-
-            const currentHoldTime = (Date.now() - timerStartRight.current) / 1000;
-            const totalHoldTime = holdTimeRight.current + currentHoldTime;
-
-            if (totalHoldTime >= holdTimeRequiredRight.current) {
-              stageRight.current = "up";
-              setCounterRight(prev => prev + 1);
+            // Right arm curl logic with hold timer
+            if (angleRight > 160) {
+              stageRight.current = "down";
               isTimingRight.current = false;
               holdTimeRight.current = 0;
+            } else if (angleRight >= 20 && angleRight <= 40 && stageRight.current === "down") {
+              if (!isTimingRight.current) {
+                timerStartRight.current = Date.now();
+                isTimingRight.current = true;
+              }
 
-              // Process with AI
-              processGeminiAndTTS(Math.round(angleRight));
-            }
-          } else if ((angleRight > 40 && angleRight < 160) || angleRight < 20) {
-            if (isTimingRight.current) {
-              holdTimeRight.current += (Date.now() - timerStartRight.current) / 1000;
-              isTimingRight.current = false;
-            }
-          }
-        }
+              const currentHoldTime = (Date.now() - timerStartRight.current) / 1000;
+              const totalHoldTime = holdTimeRight.current + currentHoldTime;
 
+              if (totalHoldTime >= holdTimeRequiredRight.current) {
+                stageRight.current = "up";
+                setCounterRight(prev => prev + 1);
+                isTimingRight.current = false;
+                holdTimeRight.current = 0;
 
-      }
-
-      canvasCtx.restore();
-    };
-
-    pose.onResults(onResults);
-
-    if (videoRef.current) {
-      const camera = new cam.Camera(videoRef.current, {
-        onFrame: async () => {
-          if (videoRef.current && videoRef.current.readyState >= 2 && videoRef.current.videoWidth > 0) {
-            try {
-              await pose.send({ image: videoRef.current });
-            } catch (e) {
-              console.warn("Pose send error:", e);
+                // Process with AI
+                processGeminiAndTTS(Math.round(angleRight));
+              }
+            } else if ((angleRight > 40 && angleRight < 160) || angleRight < 20) {
+              if (isTimingRight.current) {
+                holdTimeRight.current += (Date.now() - timerStartRight.current) / 1000;
+                isTimingRight.current = false;
+              }
             }
           }
-        },
-        width: 640,
-        height: 480
-      });
-      camera.start();
-    }
-
-    // Drawing utilities
-    const drawConnectors = (ctx, landmarks, connections, style) => {
-      if (!landmarks) return;
-
-      ctx.save();
-      ctx.strokeStyle = style.color;
-      ctx.lineWidth = style.lineWidth || 2;
-
-      for (const connection of connections) {
-        const from = landmarks[connection[0]];
-        const to = landmarks[connection[1]];
-
-        if (from && to) {
-          ctx.beginPath();
-          ctx.moveTo(from.x * ctx.canvas.width, from.y * ctx.canvas.height);
-          ctx.lineTo(to.x * ctx.canvas.width, to.y * ctx.canvas.height);
-          ctx.stroke();
         }
+
+        canvasCtx.restore();
+      };
+
+      pose.onResults(onResults);
+
+      if (videoRef.current) {
+        camera = new cam.Camera(videoRef.current, {
+          onFrame: async () => {
+            if (videoRef.current && videoRef.current.readyState >= 2 && videoRef.current.videoWidth > 0) {
+              try {
+                await pose.send({ image: videoRef.current });
+              } catch (e) {
+                console.warn("Pose send error:", e);
+              }
+            }
+          },
+          width: 640,
+          height: 480
+        });
+        camera.start();
       }
-      ctx.restore();
     };
 
-    const drawLandmarks = (ctx, landmarks, style) => {
-      if (!landmarks) return;
+    initPoseWork();
 
-      ctx.save();
-      ctx.fillStyle = style.color;
-
-      for (const landmark of landmarks) {
-        if (landmark) {
-          ctx.beginPath();
-          ctx.arc(
-            landmark.x * ctx.canvas.width,
-            landmark.y * ctx.canvas.height,
-            style.radius || 5,
-            0,
-            2 * Math.PI
-          );
-          ctx.fill();
-        }
-      }
-      ctx.restore();
-    };
-
-    // Drawing function for arm connections only
+    // Drawing helpers defined inside useEffect or outside
+    // Actually they are already defined inside the previous useEffect but were cut off.
+    // I will redefine them here if needed, but wait, they were part of the previous logic.
     const drawArmConnections = (ctx, points, style) => {
       if (!points || points.length < 2) return;
-
       ctx.save();
       ctx.strokeStyle = style.color;
       ctx.lineWidth = style.lineWidth || 4;
-
       ctx.beginPath();
-      // Draw connection from shoulder to elbow
       ctx.moveTo(points[0].x * ctx.canvas.width, points[0].y * ctx.canvas.height);
       ctx.lineTo(points[1].x * ctx.canvas.width, points[1].y * ctx.canvas.height);
-      // Draw connection from elbow to wrist
       ctx.lineTo(points[2].x * ctx.canvas.width, points[2].y * ctx.canvas.height);
       ctx.stroke();
       ctx.restore();
     };
 
-    // ฟังก์ชันใหม่สำหรับวาดเส้นระหว่าง landmark
-    // const drawSpecificLandmarks = (ctx, points, style) => {
-    //   if (!points || points.length < 2) return;
-
-    //   ctx.save();
-    //   ctx.strokeStyle = style.color;
-    //   ctx.lineWidth = style.lineWidth || 4;
-
-    //   ctx.beginPath();
-    //   ctx.moveTo(points[0].x * ctx.canvas.width, points[0].y * ctx.canvas.height);
-    //   for (let i = 1; i < points.length; i++) {
-    //     ctx.lineTo(points[i].x * ctx.canvas.width, points[i].y * ctx.canvas.height);
-    //   }
-    //   ctx.stroke();
-    //   ctx.restore();
-    // };
-
     const drawSpecificLandmarks = (ctx, landmarks, style) => {
       if (!landmarks) return;
-
       ctx.save();
       ctx.fillStyle = style.color;
-
       for (const landmark of landmarks) {
         if (landmark) {
           ctx.beginPath();
-          ctx.arc(
-            landmark.x * ctx.canvas.width,
-            landmark.y * ctx.canvas.height,
-            style.radius || 5,
-            0,
-            2 * Math.PI
-          );
+          ctx.arc(landmark.x * ctx.canvas.width, landmark.y * ctx.canvas.height, style.radius || 5, 0, 2 * Math.PI);
           ctx.fill();
         }
       }
@@ -619,6 +538,12 @@ const CurlCounter = () => {
     };
 
     return () => {
+      if (camera) {
+        try { camera.stop(); } catch (e) {}
+      }
+      if (pose) {
+        try { pose.close(); } catch (e) {}
+      }
       if (restInterval.current) {
         clearInterval(restInterval.current);
       }

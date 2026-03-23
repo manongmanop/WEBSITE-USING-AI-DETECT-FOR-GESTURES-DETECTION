@@ -1,8 +1,11 @@
 :root {
   /* Typography */
-  --font-primary: 'Prompt', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  @font-face {
+  --font-primary: Prompt:wght@400;
+  --font-primary: Prompt:wght@600;
   color-scheme: light;
-
+  font-display: swap;
+}
   /* Base palette */
   --bg: #ffffff;
   --text: #0f172a;

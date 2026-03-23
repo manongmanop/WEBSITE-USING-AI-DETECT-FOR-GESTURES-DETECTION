@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import mkcert from 'vite-plugin-mkcert'
 
 // เปลี่ยนที่นี่ให้ตรงกับเครื่อง/พอร์ต backend ของคุณ
-const BACKEND = 'http://10.198.200.52:5000'
+const BACKEND = 'https://10.198.200.52:5000'
 
 export default defineConfig({
   plugins: [react(),mkcert()],
@@ -15,16 +15,19 @@ export default defineConfig({
       '/api': {
         target: BACKEND,
         changeOrigin: true,
+        secure: false, // อนุญาต self-signed certificate สำหรับ backend
       },
       // ให้รูป/วิดีโอที่เสิร์ฟจาก Express ใช้งานผ่าน frontend origin ได้
       '/uploads': {
         target: BACKEND,
         changeOrigin: true,
+        secure: false,
       },
       // เผื่อคุณมี /health บน backend
       '/health': {
         target: BACKEND,
         changeOrigin: true,
+        secure: false,
       },
     },
   },

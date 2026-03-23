@@ -3,8 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Form, Alert, Button } from "react-bootstrap";
 import { useUserAuth } from "../context/UserAuthContext";
 // import { sendEmailVerification } from "firebase/auth";
-import { auth, db } from "../../firebase";
-import { doc, getDoc } from "firebase/firestore";
+// import { auth, db } from "../../firebase";
+// import { doc, getDoc } from "firebase/firestore";
 import "./login.scss";
 import "../App.css";
 import "./style/global.css";
@@ -19,7 +19,7 @@ import {
 import { FcGoogle } from "react-icons/fc";
 import { HiSparkles } from "react-icons/hi2";
 import Swal from "sweetalert2";
-import { signOut } from "firebase/auth";
+// import { signOut } from "firebase/auth";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -28,7 +28,7 @@ function Login() {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { logIn, googleSignIn, user } = useUserAuth();
+  const { logIn, googleSignIn, user, auth, db } = useUserAuth();
   let navigate = useNavigate();
 
   // ฟังก์ชันตรวจสอบสถานะผู้ใช้และนำทางไปยังหน้าที่เหมาะสม (รวม admin)
@@ -42,14 +42,16 @@ function Login() {
         showConfirmButton: false,
         didOpen: () => Swal.showLoading(),
       });
+      const { signOut } = await import("firebase/auth");
+      const { doc, getDoc } = await import("firebase/firestore");
 
       const adminDocRef = doc(db, "admin", user.uid);
-      const adminSnap = await getDoc(adminDocRef);
+        const adminSnap = await getDoc(adminDocRef);
 
-      if (adminSnap.exists()) {
-        // ✅ reload เพื่อดึงสถานะล่าสุดจาก Firebase
-        await user.reload();
-        const refreshedUser = auth.currentUser;
+        if (adminSnap.exists()) {
+          // ✅ reload เพื่อดึงสถานะล่าสุดจาก Firebase
+          await user.reload();
+          const refreshedUser = auth.currentUser;
 
         if (!refreshedUser.emailVerified) {
           await signOut(auth);

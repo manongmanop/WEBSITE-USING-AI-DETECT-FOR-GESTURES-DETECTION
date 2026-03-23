@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import * as Pose from '@mediapipe/pose';
-import * as cam from '@mediapipe/camera_utils';
+// import * as Pose from '@mediapipe/pose';
+// import * as cam from '@mediapipe/camera_utils';
 
 export const useLegRaiseCamera = ({ 
   videoRef, 
@@ -114,7 +114,7 @@ export const useLegRaiseCamera = ({
   const saveSessionData = async (sessionData) => {
     try {
       setSaveStatus('Saving...');
-      const response = await fetch('http://127.0.0.1:8000/api/save-exercise', {
+      const response = await fetch('/api/save-exercise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData)
@@ -360,8 +360,11 @@ export const useLegRaiseCamera = ({
           videoRef.current.srcObject = stream;
           videoRef.current.style.display = 'block';
 
-          videoRef.current.onloadedmetadata = () => {
+          videoRef.current.onloadedmetadata = async () => {
             videoRef.current.play();
+            const Pose = await import('@mediapipe/pose');
+            const cam = await import('@mediapipe/camera_utils');
+
             const pose = new Pose.Pose({
               locateFile: (file) => {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;

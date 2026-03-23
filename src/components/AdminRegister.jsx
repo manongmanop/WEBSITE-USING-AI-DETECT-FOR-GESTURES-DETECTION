@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  signOut,
-} from "firebase/auth";
-import { auth, db } from "../../firebase";
-import { doc, setDoc } from "firebase/firestore";
+// import {
+//   createUserWithEmailAndPassword,
+//   sendEmailVerification,
+//   signOut,
+// } from "firebase/auth";
+// import { auth, db } from "../../firebase";
+// import { doc, setDoc } from "firebase/firestore";
 import Swal from "sweetalert2";
 
 import {
@@ -97,6 +97,11 @@ function AdminRegister() {
     setIsLoading(true);
 
     try {
+      const { initFirebase } = await import("../../firebase");
+      const { auth, db } = await initFirebase();
+      const { createUserWithEmailAndPassword, sendEmailVerification, signOut } = await import("firebase/auth");
+      const { doc, setDoc } = await import("firebase/firestore");
+
       // 1) สร้างบัญชีใหม่
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const newAdminUser = result.user;
