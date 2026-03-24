@@ -19,7 +19,7 @@ function normalizeUrl(p) {
   s = s.replace(/^https?:\/\/(localhost|127\.0\.0\.1|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?\//, "/");
   if (s.startsWith("http://") || s.startsWith("https://")) return s;
   if (s.startsWith("/uploads/") || s.startsWith("/stream/")) {
-    return API_BASE ? `${API_BASE}${s}` : s;
+    return API_BASE ? `${API_BASE}${s}` : s; updateWorkoutUI
   }
   if (s.startsWith("uploads/")) {
     return API_BASE ? `${API_BASE}/${s}` : `/${s}`;
@@ -29,8 +29,8 @@ function normalizeUrl(p) {
 
 function parseDurationMs(ex) {
   if (ex.duration && ex.duration > 0) return ex.duration * 1000;
-  if (ex.type === 'time' && ex.value > 0) return ex.value * 60 * 1000;
-  return 60 * 1000;
+  if (ex.type === 'time' && ex.value > 0) return ex.value * 180 * 1000;
+  return 180 * 1000;
 }
 
 /* =========================================
@@ -292,7 +292,7 @@ export default function WorkoutPlayer() {
     exerciseStartTimeRef.current = Date.now();
 
     // 2. ตั้งค่า Duration 60 วิ
-    const duration = 60 * 1000;
+    const duration = parseDurationMs(exercises[currentExercise]);
     currentDurationMsRef.current = duration;
     remainingMsRef.current = duration;
 
@@ -715,9 +715,13 @@ export default function WorkoutPlayer() {
       onWorkoutEnded();
     }, resumeFromMs);
   };
-
   const updateWorkoutUI = (ms) => {
-    setExerciseProgress(100 - (ms / currentDurationMsRef.current) * 100);
+    const progress = Math.min(
+      100,
+      Math.max(0, 100 - (ms / currentDurationMsRef.current) * 100)
+    );
+
+    setExerciseProgress(progress);
     setTimeRemaining(Math.ceil(ms / 1000));
   };
   const exerciseStartTimeRef = useRef(Date.now());
