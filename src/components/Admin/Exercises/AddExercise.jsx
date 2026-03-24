@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import Swal from "sweetalert2";
+import { showAlert } from "../../../utils/showAlert";
 import "./AddExercise.scss";
 
 function AddExercise() {
@@ -40,7 +40,7 @@ function AddExercise() {
         e.preventDefault();
 
         if (!name || (!duration && !value)) {
-            Swal.fire("ข้อผิดพลาด", "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", icon: "error" });
             return;
         }
 
@@ -69,12 +69,12 @@ function AddExercise() {
             });
 
             if (res.status === 201 || res.status === 200) {
-                Swal.fire("สำเร็จ", "เพิ่มท่าออกกำลังกายเรียบร้อยแล้ว", "success");
+                showAlert({ title: "สำเร็จ", text: "เพิ่มท่าออกกำลังกายเรียบร้อยแล้ว", icon: "success" });
                 navigate("/admin/exercises");
             }
         } catch (error) {
             console.error("Error creating exercise:", error);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถเพิ่มท่าออกกำลังกายได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถเพิ่มท่าออกกำลังกายได้", icon: "error" });
         } finally {
             setLoading(false);
         }

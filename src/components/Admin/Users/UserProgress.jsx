@@ -3,7 +3,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../../firebase";
-import { MdArrowBack, MdAccessTime, MdLocalFireDepartment, MdFitnessCenter } from "react-icons/md";
+import { 
+  ArrowBackIcon, 
+  AccessTimeIcon, 
+  LocalFireDepartmentIcon, 
+  FitnessCenterIcon 
+} from "../../Common/Icons";
 import "./UserProgress.scss";
 
 function UserProgress() {
@@ -92,7 +97,7 @@ function UserProgress() {
                 onClick={() => navigate(-1)}
                 className="back-btn"
             >
-                <MdArrowBack size={20} /> กลับไปหน้าจัดการผู้ใช้งาน
+                <ArrowBackIcon size={20} /> กลับไปหน้าจัดการผู้ใช้งาน
             </button>
 
             <h2>
@@ -104,7 +109,7 @@ function UserProgress() {
             <div className="stats-grid">
                 <div className="stat-card card-workouts">
                     <div className="icon-wrapper">
-                        <MdFitnessCenter size={25} color="#059669" />
+                        <FitnessCenterIcon size={25} color="#059669" />
                     </div>
                     <div className="stat-info">
                         <p>จำนวนครั้งที่เล่นจบ</p>
@@ -114,7 +119,7 @@ function UserProgress() {
 
                 <div className="stat-card card-time">
                     <div className="icon-wrapper">
-                        <MdAccessTime size={25} color="#2563eb" />
+                        <AccessTimeIcon size={25} color="#2563eb" />
                     </div>
                     <div className="stat-info">
                         <p>เวลาทั้งหมด</p>
@@ -124,7 +129,7 @@ function UserProgress() {
 
                 <div className="stat-card card-calories">
                     <div className="icon-wrapper">
-                        <MdLocalFireDepartment size={25} color="#dc2626" />
+                        <LocalFireDepartmentIcon size={25} color="#dc2626" />
                     </div>
                     <div className="stat-info">
                         <p>เผาผลาญทั้งหมด</p>

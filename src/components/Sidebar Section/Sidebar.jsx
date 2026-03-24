@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './sidebar.css';
 import logo from "../../LoginAssets/logo-removebg.png";
-import { FaHome, FaBars, FaTimes, FaChartLine, FaHistory } from "react-icons/fa";
-import { ImExit } from "react-icons/im";
+import { 
+  HomeIcon, 
+  BarsIcon, 
+  CloseIcon, 
+  ChartLineIcon, 
+  HistoryIcon, 
+  ExitIcon 
+} from "../Common/Icons";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import Swal from 'sweetalert2';
+import { showAlert } from '../../utils/showAlert';
 import '../style/global.css'
 
 const Sidebar = () => {
@@ -52,20 +58,20 @@ const Sidebar = () => {
   };
 
   const handleLogout = async () => {
-    const result = await Swal.fire({
-      title: 'ยืนยันการออกจากระบบ?',
+    const result = await showAlert({
+      title: 'ต้องการออกจากระบบ?',
       text: 'คุณต้องการออกจากระบบใช่หรือไม่',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#27BAF9',
-      cancelButtonColor: '#dc3545',
-      confirmButtonText: 'ใช่, ออกจากระบบ',
+      confirmButtonColor: '#fe0002',
+      cancelButtonColor: '#aaa',
+      confirmButtonText: 'ออกจากระบบ',
       cancelButtonText: 'ยกเลิก'
     });
     if (result.isConfirmed) {
       try {
         await logOut();
-        await Swal.fire('ออกจากระบบแล้ว', 'หวังว่าจะได้พบคุณอีกครั้ง!', 'success');
+        await showAlert({ title: 'ออกจากระบบแล้ว', text: 'หวังว่าจะได้พบคุณอีกครั้ง!', icon: 'success' });
         navigate('/');
       } catch (err) {
         console.log(err.message);
@@ -76,9 +82,9 @@ const Sidebar = () => {
 
   // เมนูหลัก (ล่าสุด/กราฟ BMI แนบ uid, หน้าแรกไม่ต้อง)
   const menuItems = [
-    { icon: <FaHome className='icon' />, text: 'หน้าแรก', path: '/home' },
-    { icon: <FaHistory className='icon' />, text: 'ประวัติ', path: buildPath('/history') },
-    // { icon: <FaChartLine className='icon' />, text: 'กราฟ BMI', path: buildPath('/bmi-graph') },
+    { icon: <HomeIcon className="icon" />, text: 'หน้าแรก', path: '/home' },
+    { icon: <HistoryIcon className="icon" />, text: 'ประวัติ', path: buildPath('/history') },
+    { icon: <ChartLineIcon className="icon" />, text: 'กราฟ BMI', path: buildPath('/bmi-graph') },
     // โปรไฟล์ถูกย้ายไปคลิกที่การ์ด user-profile ด้านล่าง
   ];
 
@@ -115,7 +121,7 @@ const Sidebar = () => {
         aria-controls="app-sidebar"
         aria-expanded={isOpen}
       >
-        {isOpen ? <FaTimes className="hamburger-icon" /> : <FaBars className="hamburger-icon" />}
+        {isOpen ? <CloseIcon className="hamburger-icon" /> : <BarsIcon className="hamburger-icon" />}
       </button>
 
       {/* Sidebar */}
@@ -170,7 +176,7 @@ const Sidebar = () => {
 
         {/* ออกจากระบบ */}
         <button className="logout-button" onClick={handleLogout} type="button">
-          <ImExit className='logout-icon' />
+          <ExitIcon className='icon' />
           <span>ออกจากระบบ</span>
         </button>
       </aside>

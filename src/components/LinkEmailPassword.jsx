@@ -2,9 +2,14 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 // import { auth } from "../../firebase";
 // import { EmailAuthProvider, linkWithCredential } from "firebase/auth";
-import { MdLockOutline, MdPassword, MdVisibility, MdVisibilityOff } from "react-icons/md";
+import { 
+  LockOutlineIcon, 
+  PasswordIcon, 
+  VisibilityIcon, 
+  VisibilityOffIcon 
+} from "./Common/Icons";
 import { Form, Button } from "react-bootstrap";
-import Swal from "sweetalert2";
+import { showAlert, getSwal } from "../utils/showAlert";
 import "./linkEmailPassword.scss";
 
 function LinkEmailPassword() {
@@ -20,7 +25,7 @@ function LinkEmailPassword() {
     e.preventDefault();
 
     if (!password || !confirmPassword) {
-      return Swal.fire({
+      return showAlert({
         icon: "warning",
         title: "กรอกข้อมูลไม่ครบ",
         confirmButtonColor: "#2563eb",
@@ -28,7 +33,7 @@ function LinkEmailPassword() {
     }
 
     if (password.length < 6) {
-      return Swal.fire({
+      return showAlert({
         icon: "warning",
         title: "รหัสผ่านต้องมีอย่างน้อย 6 ตัว",
         confirmButtonColor: "#2563eb",
@@ -36,7 +41,7 @@ function LinkEmailPassword() {
     }
 
     if (password !== confirmPassword) {
-      return Swal.fire({
+      return showAlert({
         icon: "error",
         title: "รหัสผ่านไม่ตรงกัน",
         confirmButtonColor: "#2563eb",
@@ -88,7 +93,8 @@ function LinkEmailPassword() {
           message = error.message;
       }
 
-      Swal.fire({
+      Swal.close(); // Close loading alert
+      showAlert({
         icon: "error",
         title: message,
         confirmButtonColor: "#2563eb",
@@ -109,7 +115,7 @@ function LinkEmailPassword() {
       <div className="link-email-box">
         <div className="link-email-header">
           <div className="icon-wrapper">
-            <MdPassword className="header-icon" />
+            <PasswordIcon className="input-icon" />
           </div>
           <h2 className="title">เพิ่มรหัสผ่านใหม่</h2>
           <p className="subtitle">
@@ -120,7 +126,7 @@ function LinkEmailPassword() {
         <Form onSubmit={handleSubmit} className="link-email-form">
           <Form.Group className="form-group">
             <div className="input-wrapper">
-              <MdLockOutline className="input-icon" />
+              <LockOutlineIcon className="input-icon" />
               <Form.Control
                 type={showPassword ? "text" : "password"}
                 placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)"
@@ -135,14 +141,14 @@ function LinkEmailPassword() {
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={loading}
               >
-                {showPassword ? <MdVisibilityOff /> : <MdVisibility />}
+                {showPassword ? <VisibilityIcon /> : <VisibilityOffIcon />}
               </button>
             </div>
           </Form.Group>
 
           <Form.Group className="form-group">
             <div className="input-wrapper">
-              <MdLockOutline className="input-icon" />
+              <LockOutlineIcon className="input-icon" />
               <Form.Control
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="ยืนยันรหัสผ่านใหม่"
@@ -157,7 +163,7 @@ function LinkEmailPassword() {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={loading}
               >
-                {showConfirmPassword ? <MdVisibilityOff /> : <MdVisibility />}
+                {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
               </button>
             </div>
           </Form.Group>

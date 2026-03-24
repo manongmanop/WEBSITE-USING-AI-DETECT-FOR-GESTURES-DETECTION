@@ -1,6 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { MdDashboard, MdPeople, MdFitnessCenter, MdLogout, MdOutlineSportsGymnastics } from "react-icons/md";
+import { 
+  DashboardIcon, 
+  PeopleIcon, 
+  FitnessCenterIcon, 
+  LogoutIcon, 
+  SportsGymnasticsIcon 
+} from "../Common/Icons";
 import { useUserAuth } from "../../context/UserAuthContext";
 import "./AdminSidebar.scss";
 
@@ -17,10 +23,10 @@ function AdminSidebar() {
     };
 
     const menuItems = [
-        { name: "แดชบอร์ด", path: "/admin/dashboard", icon: <MdDashboard /> },
-        { name: "จัดการผู้ใช้งาน", path: "/admin/users", icon: <MdPeople /> },
-        { name: "จัดการโปรแกรม", path: "/admin/programs", icon: <MdFitnessCenter /> },
-        { name: "จัดการท่าออกกำลังกาย", path: "/admin/exercises", icon: <MdOutlineSportsGymnastics /> },
+        { name: "แดชบอร์ด", path: "/admin/dashboard", icon: <DashboardIcon /> },
+        { name: "จัดการผู้ใช้งาน", path: "/admin/users", icon: <PeopleIcon /> },
+        { name: "จัดการโปรแกรม", path: "/admin/programs", icon: <FitnessCenterIcon /> },
+        { name: "จัดการท่าออกกำลังกาย", path: "/admin/exercises", icon: <SportsGymnasticsIcon /> },
     ];
 
     return (
@@ -47,7 +53,7 @@ function AdminSidebar() {
 
             <div className="sidebar-footer">
                 <button className="logout-btn" onClick={handleLogout}>
-                    <MdLogout className="logout-icon" /> ออกจากระบบ
+                    <LogoutIcon className="logout-icon" /> ออกจากระบบ
                 </button>
             </div>
         </div>

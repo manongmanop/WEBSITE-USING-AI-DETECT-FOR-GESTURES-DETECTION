@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import Swal from "sweetalert2";
+import { showAlert } from "../../../utils/showAlert";
 import "./ExerciseManagement.scss";
 
 function ExerciseManagement() {
@@ -16,7 +16,7 @@ function ExerciseManagement() {
             setExercises(res.data);
         } catch (err) {
             console.error("Error fetching exercises:", err);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลท่าออกกำลังกายได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถโหลดข้อมูลท่าออกกำลังกายได้", icon: "error" });
         } finally {
             setLoading(false);
         }
@@ -27,7 +27,7 @@ function ExerciseManagement() {
     }, []);
 
     const handleDelete = async (id, name) => {
-        const result = await Swal.fire({
+        const result = await showAlert({
             title: "ลบท่าออกกำลังกาย?",
             text: `คุณต้องการลบ "${name}" หรือไม่? ข้อมูลจะไม่สามารถกู้คืนได้`,
             icon: "warning",
@@ -41,11 +41,11 @@ function ExerciseManagement() {
         if (result.isConfirmed) {
             try {
                 await axios.delete(`/api/exercises/${id}`);
-                Swal.fire("สำเร็จ", "ลบท่าออกกำลังกายเรียบร้อยแล้ว", "success");
+                showAlert({ title: "สำเร็จ", text: "ลบท่าออกกำลังกายเรียบร้อยแล้ว", icon: "success" });
                 fetchExercises();
             } catch (err) {
                 console.error("Error deleting exercise:", err);
-                Swal.fire("ข้อผิดพลาด", "ไม่สามารถลบท่าออกกำลังกายได้", "error");
+                showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถลบท่าออกกำลังกายได้", icon: "error" });
             }
         }
     };

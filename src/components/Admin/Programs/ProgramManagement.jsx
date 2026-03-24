@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import Swal from "sweetalert2";
+import { showAlert } from "../../../utils/showAlert";
 import "./ProgramManagement.scss";
 
 function ProgramManagement() {
@@ -20,7 +20,7 @@ function ProgramManagement() {
             setPrograms(res.data);
         } catch (err) {
             console.error("Error fetching programs:", err);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลโปรแกรมได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถโหลดข้อมูลโปรแกรมได้", icon: "error" });
         } finally {
             setLoading(false);
         }
@@ -31,7 +31,7 @@ function ProgramManagement() {
     }, []);
 
     const handleDelete = async (id, name) => {
-        const result = await Swal.fire({
+        const result = await showAlert({
             title: "ลบโปรแกรม?",
             text: `คุณต้องการลบโปรแกรม "${name}" หรือไม่? ข้อมูลจะไม่สามารถกู้คืนได้`,
             icon: "warning",
@@ -45,11 +45,11 @@ function ProgramManagement() {
         if (result.isConfirmed) {
             try {
                 await axios.delete(`/api/workout_programs/${id}`);
-                Swal.fire("สำเร็จ", "ลบโปรแกรมเรียบร้อยแล้ว", "success");
+                showAlert({ title: "สำเร็จ", text: "ลบโปรแกรมเรียบร้อยแล้ว", icon: "success" });
                 fetchPrograms();
             } catch (err) {
                 console.error("Error deleting program:", err);
-                Swal.fire("ข้อผิดพลาด", "ไม่สามารถลบโปรแกรมได้", "error");
+                showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถลบโปรแกรมได้", icon: "error" });
             }
         }
     };

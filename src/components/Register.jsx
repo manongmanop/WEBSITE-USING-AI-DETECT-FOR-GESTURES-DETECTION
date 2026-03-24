@@ -1,20 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Form, Alert, Button } from "react-bootstrap";
-import {
-  MdEmail,
-  MdLock,
-  MdVisibility,
-  MdVisibilityOff,
-  MdPersonAdd,
-  MdLogin,
-  MdCheck
-} from "react-icons/md";
-import { HiSparkles } from "react-icons/hi2";
+import { 
+  EmailIcon, 
+  LockIcon, 
+  VisibilityIcon, 
+  VisibilityOffIcon, 
+  PersonAddIcon, 
+  LoginIcon, 
+  CheckIcon, 
+  SparklesIcon 
+} from "./Common/Icons";
 import { useUserAuth } from "../context/UserAuthContext";
 import "./Register.css";
 import video from "../LoginAssets/video.mp4";
-import Swal from "sweetalert2";
+import { showAlert, getSwal } from "../utils/showAlert";
 
 function Register() {
   const [email, setEmail] = useState("");
@@ -75,48 +75,48 @@ function Register() {
     setSuccess("");
 
     // Validation
-    if (!email) {
-      return Swal.fire({
+    if (!email || !password || !confirmPassword) {
+      return showAlert({
         icon: "warning",
         title: "ข้อมูลไม่ครบ",
-        text: "กรุณากรอกอีเมล",
-        confirmButtonColor: "#27BAF9",
-      });
-    }
-
-    if (!password) {
-      return Swal.fire({
-        icon: "warning",
-        title: "ข้อมูลไม่ครบ",
-        text: "กรุณากรอกรหัสผ่าน",
-        confirmButtonColor: "#27BAF9",
-      });
-    }
-
-    if (password.length < 6) {
-      return Swal.fire({
-        icon: "warning",
-        title: "รหัสผ่านไม่ปลอดภัย",
-        text: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
+        text: "กรุณากรอกข้อมูลให้ครบถ้วน",
         confirmButtonColor: "#27BAF9",
       });
     }
 
     if (password !== confirmPassword) {
-      return Swal.fire({
+      return showAlert({
         icon: "error",
         title: "รหัสผ่านไม่ตรงกัน",
-        text: "กรุณาตรวจสอบรหัสผ่านและยืนยันรหัสผ่านให้ตรงกัน",
+        text: "กรุณาตรวจสอบรหัสผ่านอีกครั้ง",
+        confirmButtonColor: "#27BAF9",
+      });
+    }
+
+    if (passwordStrength < 3) {
+      return showAlert({
+        icon: "warning",
+        title: "รหัสผ่านไม่ปลอดภัย",
+        text: "กรุณาใช้รหัสผ่านที่ยากต่อการเดา (มีตัวใหญ่ ตัวเล็ก และตัวเลข)",
         confirmButtonColor: "#27BAF9",
       });
     }
 
     setIsLoading(true);
+    const Swal = await getSwal();
+    showAlert({
+      title: "กำลังลงทะเบียน...",
+      text: "กรุณารอสักครู่",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      didOpen: () => Swal.showLoading(),
+    });
 
     try {
       await signUp(email, password);
 
-      Swal.fire({
+      Swal.close(); // Close the loading alert
+      showAlert({
         icon: "success",
         title: "สมัครสมาชิกสำเร็จ!",
         html: `
@@ -136,6 +136,7 @@ function Register() {
 
     } catch (err) {
       setIsLoading(false);
+      Swal.close(); // Close the loading alert
       console.log(err);
 
       let message = "เกิดข้อผิดพลาดในการสมัครสมาชิก";
@@ -179,7 +180,7 @@ function Register() {
           {/* <video src={video} autoPlay muted loop></video> */}
           <div className="video-overlay">
             <div className="brand-section">
-              <HiSparkles className="brand-icon" />
+              <SparklesIcon className="brand-icon" />
               <h1 className="brand-title">HealthCare</h1>
               <p className="brand-subtitle">Your Health Journey Starts Here</p>
             </div>
@@ -190,7 +191,7 @@ function Register() {
             <div className="footer-section">
               <span className="footer-text">มีบัญชีอยู่แล้ว?</span>
               <Link to="/login" className="footer-link">
-                <MdLogin className="footer-icon" />
+                <LoginIcon className="me-2" /> เข้าสู่ระบบที่นี่
                 เข้าสู่ระบบ
               </Link>
             </div>
@@ -200,7 +201,7 @@ function Register() {
         <div className="form-section">
           {/* Mobile Back Button */}
           <Link to="/login" className="mobile-back-link">
-            <MdLogin className="back-icon" />
+            <LoginIcon className="back-icon" />
             กลับไปหน้าเข้าสู่ระบบ
           </Link>
 
@@ -215,7 +216,7 @@ function Register() {
           <Form onSubmit={handleSubmit} className="register-form">
             <Form.Group className="form-group">
               <div className="input-wrapper">
-                <MdEmail className="input-icon" />
+                <EmailIcon className="input-icon" />
                 <Form.Control
                   type="email"
                   placeholder="อีเมล"
@@ -229,7 +230,7 @@ function Register() {
 
             <Form.Group className="form-group">
               <div className="input-wrapper">
-                <MdLock className="input-icon" />
+                <LockIcon className="input-icon" />
                 <Form.Control
                   type={showPassword ? "text" : "password"}
                   placeholder="รหัสผ่าน"
@@ -244,25 +245,27 @@ function Register() {
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
                 >
-                  {showPassword ? <MdVisibilityOff /> : <MdVisibility />}
+                  {showPassword ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </button>
               </div>
               {password && (
-                <div className="password-strength">
-                  <div className="strength-bar">
-                    <div
-                      className="strength-fill"
-                      style={{
-                        width: `${(passwordStrength / 5) * 100}%`,
-                        backgroundColor: getPasswordStrengthColor(passwordStrength)
-                      }}
-                    ></div>
+                <div className="password-strength-meter">
+                  <div className="strength-bars-container">
+                    {[...Array(5)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`strength-bar ${i < passwordStrength ? "active" : ""}`}
+                        style={{
+                          backgroundColor: i < passwordStrength ? getPasswordStrengthColor(passwordStrength) : undefined
+                        }}
+                      ></div>
+                    ))}
                   </div>
                   <span
                     className="strength-text"
                     style={{ color: getPasswordStrengthColor(passwordStrength) }}
                   >
-                    {getPasswordStrengthText(passwordStrength)}
+                    <CheckIcon className="me-1" size={14} /> {getPasswordStrengthText(passwordStrength)}
                   </span>
                 </div>
               )}
@@ -270,7 +273,7 @@ function Register() {
 
             <Form.Group className="form-group">
               <div className="input-wrapper">
-                <MdLock className="input-icon" />
+                <LockIcon className="input-icon" />
                 <Form.Control
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="ยืนยันรหัสผ่าน"
@@ -287,10 +290,10 @@ function Register() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   disabled={isLoading}
                 >
-                  {showConfirmPassword ? <MdVisibilityOff /> : <MdVisibility />}
+                  {showConfirmPassword ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </button>
                 {confirmPassword && password === confirmPassword && (
-                  <MdCheck className="validation-icon success" />
+                  <CheckIcon className="validation-icon success" />
                 )}
               </div>
               {confirmPassword && password !== confirmPassword && (
@@ -325,7 +328,7 @@ function Register() {
                 className="primary-button"
                 disabled={isLoading}
               >
-                <MdPersonAdd className="button-icon" />
+                <PersonAddIcon className="button-icon" />
                 {isLoading ? "กำลังสมัครสมาชิก..." : "สมัครสมาชิก"}
               </Button>
 

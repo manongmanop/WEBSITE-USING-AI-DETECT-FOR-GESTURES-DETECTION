@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import Swal from "sweetalert2";
+import { showAlert, getSwal } from "../../../utils/showAlert";
 import { useNavigate } from "react-router-dom";
 import { doc, setDoc, deleteDoc, updateDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../../../../firebase";
@@ -92,7 +92,7 @@ function UserManagement() {
             setAdminUids(adminSet);
         } catch (err) {
             console.error("Error fetching data:", err);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลผู้ใช้งานได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถโหลดข้อมูลผู้ใช้งานได้", icon: "error" });
         } finally {
             setLoading(false);
         }
@@ -103,7 +103,7 @@ function UserManagement() {
     }, []);
 
     const handleDelete = async (id, uid) => {
-        const result = await Swal.fire({
+        const result = await showAlert({
             title: "แน่ใจหรือไม่?",
             text: "บัญชีผู้ใช้นี้จะถูกลบถาวร รวมถึงข้อมูลประวัติการออกกำลังกาย",
             icon: "warning",
@@ -119,11 +119,11 @@ function UserManagement() {
                 // Delete from both collections to ensure complete removal
                 await deleteDoc(doc(db, "users", uid));
                 await deleteDoc(doc(db, "admin", uid));
-                Swal.fire("ลบสำเร็จ", "ผู้ใช้ถูกลบออกจากระบบฐานข้อมูลแล้ว", "success");
+                showAlert({ title: "ลบสำเร็จ", text: "ผู้ใช้ถูกลบออกจากระบบฐานข้อมูลแล้ว", icon: "success" });
                 fetchData(); // Refresh list
             } catch (err) {
                 console.error("Error deleting user:", err);
-                Swal.fire("ข้อผิดพลาด", "ไม่สามารถลบผู้ใช้งานได้", "error");
+                showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถลบผู้ใช้งานได้", icon: "error" });
             }
         }
     };
