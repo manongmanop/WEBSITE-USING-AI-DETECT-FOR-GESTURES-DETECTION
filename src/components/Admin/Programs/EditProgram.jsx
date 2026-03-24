@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import Swal from "sweetalert2";
+import { showAlert, getSwal } from "../../../utils/showAlert";
 import "./EditProgram.scss";
 
 function EditProgram() {
@@ -62,7 +62,7 @@ function EditProgram() {
                 setAllExercises(exercisesRes.data || []);
             } catch (error) {
                 console.error("Error fetching program:", error);
-                Swal.fire("ข้อผิดพลาด", "ไม่สามารถดึงข้อมูลโปรแกรมได้", "error");
+                showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถดึงข้อมูลโปรแกรมได้", icon: "error" });
                 navigate("/admin/programs");
             } finally {
                 setFetching(false);
@@ -83,7 +83,7 @@ function EditProgram() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!name || !description || !duration) {
-            Swal.fire("ข้อผิดพลาด", "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", icon: "error" });
             return;
         }
         setLoading(true);
@@ -116,11 +116,11 @@ function EditProgram() {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             if (res.status === 200) {
-                Swal.fire("สำเร็จ", "แก้ไขข้อมูลโปรแกรมเรียบร้อยแล้ว", "success");
+                showAlert({ title: "สำเร็จ", text: "แก้ไขข้อมูลโปรแกรมเรียบร้อยแล้ว", icon: "success" });
             }
         } catch (error) {
             console.error("Error updating program:", error);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถแก้ไขโปรแกรมได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถแก้ไขโปรแกรมได้", icon: "error" });
         } finally {
             setLoading(false);
         }
@@ -139,7 +139,7 @@ function EditProgram() {
 
     const handleAddExercise = () => {
         if (!newEx.exercise) {
-            Swal.fire("แจ้งเตือน", "กรุณาเลือกท่าออกกำลังกาย", "warning");
+            showAlert({ title: "แจ้งเตือน", text: "กรุณาเลือกท่าออกกำลังกาย", icon: "warning" });
             return;
         }
         setWorkoutList((prev) => [
@@ -191,10 +191,10 @@ function EditProgram() {
                 headers: { "Content-Type": "multipart/form-data" },
             });
 
-            Swal.fire("สำเร็จ", "บันทึกรายการท่าออกกำลังกายเรียบร้อยแล้ว", "success");
+            showAlert({ title: "สำเร็จ", text: "บันทึกรายการท่าออกกำลังกายเรียบร้อยแล้ว", icon: "success" });
         } catch (error) {
             console.error("Error saving workout list:", error);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถบันทึกรายการท่าได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถบันทึกรายการท่าได้", icon: "error" });
         } finally {
             setIsSavingList(false);
         }

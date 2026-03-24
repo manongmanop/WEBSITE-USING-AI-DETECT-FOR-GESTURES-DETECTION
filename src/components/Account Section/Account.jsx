@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import './Account.css';
 import '../../App.css';
-import { CiEdit } from "react-icons/ci";
+import { EditIcon } from "../Common/Icons";
 import WorkoutStats from './WorkoutStats';
-import { FaGoogle, FaEnvelope, FaShieldAlt, FaVenusMars, FaMars, FaVenus } from "react-icons/fa";
-import { MdToggleOff, MdToggleOn } from "react-icons/md";
+import { 
+  GoogleIcon, 
+  EnvelopeIcon, 
+  ShieldAltIcon, 
+  VenusMarsIcon, 
+  MarsIcon, 
+  VenusIcon, 
+  ToggleOffIcon, 
+  ToggleOnIcon 
+} from "../Common/Icons";
 import Sidebar from "../Sidebar Section/Sidebar.jsx";
 import MetricCard from './MetricCard.jsx';
 import BodyMetricsChart from './BodyMetricsChart.jsx';
 import { useUserAuth } from "../../context/UserAuthContext.jsx";
 import { doc, getDoc, setDoc, deleteDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../../../firebase.js';
-import Swal from 'sweetalert2';
+import { showAlert, getSwal } from '../../utils/showAlert';
 import { useNavigate } from 'react-router-dom';
 import {
   EmailAuthProvider,
@@ -73,7 +81,8 @@ function Account() {
     const fetchUserData = async () => {
       if (!user?.uid) return; // ✅ Check UID specifically
 
-      Swal.fire({
+      const Swal = await getSwal();
+      showAlert({
         title: 'กำลังโหลดข้อมูล...',
         allowOutsideClick: false,
         didOpen: () => {
@@ -103,13 +112,13 @@ function Account() {
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
-        Swal.fire({
+        showAlert({
           icon: 'error',
           title: 'เกิดข้อผิดพลาด',
           text: 'ไม่สามารถโหลดข้อมูลผู้ใช้ได้',
         });
       } finally {
-        Swal.close();
+        (await getSwal()).close();
       }
     };
 
@@ -455,7 +464,7 @@ function Account() {
     if (!user) return;
 
     // 1. ยืนยันกับผู้ใช้ก่อน เพราะเป็นการกระทำที่ลบข้อมูลถาวร
-    const result = await Swal.fire({
+    const result = await showAlert({
       title: 'คุณแน่ใจหรือไม่?',
       text: "การกระทำนี้จะลบบัญชีและข้อมูลทั้งหมดของคุณอย่างถาวรและไม่สามารถกู้คืนได้!",
       icon: 'warning',
@@ -474,7 +483,8 @@ function Account() {
     const providerId = user.providerData[0]?.providerId;
 
     try {
-      Swal.fire({
+      const Swal = await getSwal();
+      showAlert({
         title: 'กรุณายืนยันตัวตนเพื่อดำเนินการต่อ',
         text: 'เพื่อความปลอดภัย เราต้องการให้คุณลงชื่อเข้าใช้อีกครั้ง',
         allowOutsideClick: false,
@@ -486,7 +496,7 @@ function Account() {
       // 3. ทำการ Re-authentication
       if (providerId === 'password') {
         // กรณีล็อกอินด้วย Email/Password
-        const { value: password } = await Swal.fire({
+        const { value: password } = await showAlert({
           title: 'กรุณาใส่รหัสผ่านของคุณ',
           input: 'password',
           inputPlaceholder: 'กรอกรหัสผ่านเพื่อยืนยัน',
@@ -515,10 +525,11 @@ function Account() {
       }
 
       // 4. ถ้า Re-auth สำเร็จ, ทำการลบบัญชีและข้อมูล
-      Swal.fire({
+      const SwalForDelete = await getSwal();
+      showAlert({
         title: 'กำลังลบบัญชี...',
         allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
+        didOpen: () => SwalForDelete.showLoading()
       });
 
       // ลบข้อมูลจาก Firestore
@@ -528,11 +539,11 @@ function Account() {
       // ลบบัญชีผู้ใช้จาก Firebase Authentication
       await deleteUser(user);
 
-      Swal.fire(
-        'ลบสำเร็จ!',
-        'บัญชีของคุณถูกลบเรียบร้อยแล้ว',
-        'success'
-      ).then(() => {
+      showAlert({
+        icon: 'success',
+        title: 'ลบสำเร็จ!',
+        text: 'บัญชีของคุณถูกลบเรียบร้อยแล้ว'
+      }).then(() => {
         logOut(); // ล็อกเอาท์จาก state ของแอป
         navigate('/login'); // กลับไปหน้าล็อกอิน
       });
@@ -548,7 +559,7 @@ function Account() {
         errorMessage = 'เซสชั่นหมดอายุ กรุณาล็อกอินใหม่อีกครั้งเพื่อดำเนินการต่อ';
       }
 
-      Swal.fire({
+      showAlert({
         icon: 'error',
         title: 'เกิดข้อผิดพลาด',
         text: errorMessage,
@@ -565,11 +576,12 @@ function Account() {
       setSaving(true);
       setError(null);
 
-      Swal.fire({
+      const SwalSave = await getSwal();
+      showAlert({
         title: 'กำลังบันทึกข้อมูล...',
         allowOutsideClick: false,
         didOpen: () => {
-          Swal.showLoading();
+          SwalSave.showLoading();
         }
       });
 
@@ -605,7 +617,7 @@ function Account() {
       // โหลดข้อมูลประวัติใหม่
       await fetchMetricsHistory();
 
-      Swal.fire({
+      showAlert({
         icon: 'success',
         title: 'บันทึกข้อมูลสำเร็จ!',
         showConfirmButton: false,
@@ -615,7 +627,7 @@ function Account() {
     } catch (err) {
       console.error(err);
       setError('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-      Swal.fire({
+      showAlert({
         icon: 'error',
         title: 'เกิดข้อผิดพลาด',
         text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
@@ -755,7 +767,7 @@ function Account() {
                         src={
                           user?.photoURL ||
                           user?.providerData?.[0]?.photoURL ||
-                          "C:\\inetpub\\summer_code\\react_firebase_auth_V2\\public\\pngtree-no-image-available-icon-flatvector-illustration-pic-design-profile-vector-png-image_40966566.jpg"
+                          "/pngtree-no-image-available-icon-flatvector-illustration-pic-design-profile-vector-png-image_40966566.jpg"
                         }
                         alt="Profile"
                         className="profile-avatar"

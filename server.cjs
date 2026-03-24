@@ -13,7 +13,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://detectexerciseuser.vercel.app"
+    "https://exercise-backend-zzrm.onrender.com",
+    "https://10.54.54.131:4173",
+    "http://10.54.54.131:4173"
   ],
   credentials: true
 }));
@@ -865,7 +867,10 @@ app.get("/api/workout_programs/:id", async (req, res) => {
     });
     const image = (program.image || "").replace(/\\/g, "/");
     res.json({ ...program, image, workoutList });
-  } catch (err) { res.status(500).json({ message: "Server error" }); }
+  } catch (err) {
+    console.error("GET Workout Program Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 });
 app.post('/api/workout_programs', upload.single('image'), async (req, res) => {
   try {

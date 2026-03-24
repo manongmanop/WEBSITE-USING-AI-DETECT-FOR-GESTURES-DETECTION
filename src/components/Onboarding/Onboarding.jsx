@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useUserAuth } from "../../context/UserAuthContext";
 import './Onboarding.scss';
-import Swal from 'sweetalert2';
+import { showAlert } from '../../utils/showAlert';
 
 const Onboarding = () => {
     const { user } = useUserAuth();
@@ -41,7 +41,7 @@ const Onboarding = () => {
             // Create or Update User
             await axios.post('/api/users', payload);
 
-            Swal.fire({
+            showAlert({
                 icon: 'success',
                 title: 'Plan Created!',
                 text: 'Your personalized workout plan is ready.',
@@ -69,10 +69,10 @@ const Onboarding = () => {
                     });
                     navigate('/home');
                 } catch (e) {
-                    Swal.fire('Error', 'Failed to save profile', 'error');
+                    await showAlert({ title: 'Error', text: 'Failed to save profile', icon: 'error' });
                 }
             } else {
-                Swal.fire('Error', 'Something went wrong', 'error');
+                await showAlert({ title: 'Error', text: 'Something went wrong', icon: 'error' });
             }
         } finally {
             setLoading(false);

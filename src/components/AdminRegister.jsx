@@ -1,24 +1,24 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  signOut,
-} from "firebase/auth";
-import { auth, db } from "../../firebase";
-import { doc, setDoc } from "firebase/firestore";
-import Swal from "sweetalert2";
+// import {
+//   createUserWithEmailAndPassword,
+//   sendEmailVerification,
+//   signOut,
+// } from "firebase/auth";
+// import { auth, db } from "../../firebase";
+// import { doc, setDoc } from "firebase/firestore";
+import { showAlert, getSwal } from "../utils/showAlert";
 
-import {
-  MdEmail,
-  MdLock,
-  MdVisibility,
-  MdVisibilityOff,
-  MdPersonAdd,
-  MdPerson,
-  MdLogin,
-  MdSupervisorAccount
-} from "react-icons/md";
+import { 
+  EmailIcon, 
+  LockIcon, 
+  VisibilityIcon, 
+  VisibilityOffIcon, 
+  PersonAddIcon, 
+  PersonIcon, 
+  LoginIcon, 
+  SupervisorAccountIcon 
+} from "./Common/Icons";
 import "./Register.css";
 
 function AdminRegister() {
@@ -76,27 +76,40 @@ function AdminRegister() {
     e.preventDefault();
     setError("");
 
-    if (!name || !email || !password) {
-      return Swal.fire({
+    if (!email || !password || !name) {
+      return showAlert({
         icon: "warning",
         title: "ข้อมูลไม่ครบ",
-        text: "กรุณากรอกชื่อ อีเมล และรหัสผ่าน",
+        text: "กรุณากรอกข้อมูลให้ครบถ้วน",
         confirmButtonColor: "#27BAF9",
       });
     }
 
-    if (password.length < 6) {
-      return Swal.fire({
+    if (passwordStrength < 3) {
+      return showAlert({
         icon: "warning",
         title: "รหัสผ่านไม่ปลอดภัย",
-        text: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
+        text: "กรุณาใช้รหัสผ่านที่ยากต่อการเดา (มีตัวใหญ่ ตัวเล็ก และตัวเลข)",
         confirmButtonColor: "#27BAF9",
       });
     }
 
     setIsLoading(true);
+    const Swal = await getSwal();
+    showAlert({
+      title: "กำลังลงทะเบียน Admin...",
+      text: "กรุณารอสักครู่",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      didOpen: () => Swal.showLoading(),
+    });
 
     try {
+      const { initFirebase } = await import("../../firebase");
+      const { auth, db } = await initFirebase();
+      const { createUserWithEmailAndPassword, sendEmailVerification, signOut } = await import("firebase/auth");
+      const { doc, setDoc } = await import("firebase/firestore");
+
       // 1) สร้างบัญชีใหม่
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const newAdminUser = result.user;
@@ -128,7 +141,8 @@ function AdminRegister() {
       await signOut(auth);
 
       // 5) แจ้งผล
-      Swal.fire({
+      Swal.close(); // Close loading alert
+      showAlert({
         icon: "success",
         title: "สมัคร Admin สำเร็จ",
         html: `ระบบได้ส่งอีเมลยืนยันไปยัง <strong>${email}</strong><br/>กรุณาตรวจสอบอีเมลและกดลิงก์ยืนยันก่อนเข้าสู่ระบบ`,
@@ -149,7 +163,8 @@ function AdminRegister() {
         message = "รูปแบบอีเมลไม่ถูกต้อง";
       }
 
-      Swal.fire({
+      Swal.close(); // Close loading alert
+      showAlert({
         icon: "error",
         title: "สมัคร Admin ไม่สำเร็จ",
         text: message,
@@ -170,7 +185,7 @@ function AdminRegister() {
         <div className="video-section">
           <div className="video-overlay" style={{ background: "linear-gradient(135deg, rgba(31, 41, 55, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%)" }}>
             <div className="brand-section">
-              <MdSupervisorAccount className="brand-icon" style={{ fontSize: "3.5rem", color: "#60a5fa" }} />
+              <SupervisorAccountIcon className="brand-icon" style={{ fontSize: "3.5rem", color: "#60a5fa" }} />
               <h1 className="brand-title" style={{ fontSize: "2rem", marginTop: "1rem" }}>ระบบผู้ดูแล</h1>
               <p className="brand-subtitle">HealthCare Admin Portal</p>
             </div>
@@ -181,8 +196,7 @@ function AdminRegister() {
             <div className="footer-section">
               <span className="footer-text">มีบัญชีผู้ดูแลระบบแบบพิเศษอยู่แล้ว?</span>
               <Link to="/login" className="footer-link">
-                <MdLogin className="footer-icon" />
-                เข้าสู่ระบบ (หน้าเข้าถึง)
+                <LoginIcon className="me-2" /> เข้าสู่ระบบที่นี่
               </Link>
             </div>
           </div>
@@ -203,7 +217,7 @@ function AdminRegister() {
           <form onSubmit={handleSubmit} className="register-form">
             <div className="form-group" style={{ marginBottom: "1rem" }}>
               <div className="input-wrapper">
-                <MdPerson className="input-icon" />
+                <PersonIcon className="input-icon" />
                 <input
                   type="text"
                   placeholder="ชื่อ-นามสกุลผู้แลระบบ"
@@ -217,7 +231,7 @@ function AdminRegister() {
 
             <div className="form-group" style={{ marginBottom: "1rem" }}>
               <div className="input-wrapper">
-                <MdEmail className="input-icon" />
+                <EmailIcon className="input-icon" />
                 <input
                   type="email"
                   placeholder="อีเมลองค์กร (เช่น @healthcare.com)"
@@ -231,7 +245,7 @@ function AdminRegister() {
 
             <div className="form-group" style={{ marginBottom: "1rem" }}>
               <div className="input-wrapper">
-                <MdLock className="input-icon" />
+                <LockIcon className="input-icon" />
                 <input
                   type={showPass ? "text" : "password"}
                   placeholder="ตั้งรหัสผ่านที่ปลอดภัย"
@@ -246,7 +260,7 @@ function AdminRegister() {
                   onClick={() => setShowPass(!showPass)}
                   disabled={isLoading}
                 >
-                  {showPass ? <MdVisibilityOff /> : <MdVisibility />}
+                  {showPass ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </button>
               </div>
               {password && (
@@ -277,7 +291,7 @@ function AdminRegister() {
                 style={{ background: "linear-gradient(45deg, #10b981, #059669)" }}
                 disabled={isLoading}
               >
-                <MdPersonAdd className="button-icon" />
+                <PersonAddIcon className="button-icon" />
                 {isLoading ? "กำลังตรวจสอบข้อมูล..." : "ลงทะเบียน Admin"}
               </button>
 

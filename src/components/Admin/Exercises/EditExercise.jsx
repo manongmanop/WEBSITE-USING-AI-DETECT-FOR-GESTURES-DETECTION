@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import Swal from "sweetalert2";
+import { showAlert, getSwal } from "../../../utils/showAlert";
 import "./EditExercise.scss";
 
 function EditExercise() {
@@ -43,7 +43,7 @@ function EditExercise() {
                 setExistingVideoUrl(data.videoUrl || data.video || "");
             } catch (error) {
                 console.error("Error fetching exercise:", error);
-                Swal.fire("ข้อผิดพลาด", "ไม่สามารถดึงข้อมูลท่าออกกำลังกายได้", "error");
+                showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถดึงข้อมูลท่าออกกำลังกายได้", icon: "error" });
                 navigate("/admin/exercises");
             } finally {
                 setFetching(false);
@@ -71,7 +71,7 @@ function EditExercise() {
         e.preventDefault();
 
         if (!name || (!duration && !value)) {
-            Swal.fire("ข้อผิดพลาด", "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", icon: "error" });
             return;
         }
 
@@ -99,12 +99,12 @@ function EditExercise() {
             });
 
             if (res.status === 200) {
-                Swal.fire("สำเร็จ", "แก้ไขข้อมูลเรียบร้อยแล้ว", "success");
+                showAlert({ title: "สำเร็จ", text: "แก้ไขข้อมูลเรียบร้อยแล้ว", icon: "success" });
                 navigate("/admin/exercises");
             }
         } catch (error) {
             console.error("Error updating exercise:", error);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถแก้ไขท่าออกกำลังกายได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถแก้ไขท่าออกกำลังกายได้", icon: "error" });
         } finally {
             setLoading(false);
         }

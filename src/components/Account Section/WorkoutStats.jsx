@@ -1,6 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import './WorkoutStats.scss';
-import { FaFire, FaDumbbell, FaTrophy, FaChevronLeft, FaChevronRight, FaCheck } from 'react-icons/fa';
+import { 
+  FireIcon, 
+  DumbbellIcon, 
+  TrophyIcon, 
+  ChevronLeftIcon, 
+  ChevronRightIcon, 
+  CheckIcon 
+} from "../Common/Icons";
 
 const WorkoutStats = ({ userData, workoutHistory = [] }) => {
     // 1. Process Data from Props
@@ -78,7 +85,7 @@ const WorkoutStats = ({ userData, workoutHistory = [] }) => {
 
     return (
         <div className="stats-dashboard animate-entry">
-            <h4 className="section-title"><FaTrophy className="text-yellow-500" /> ภาพรวมสถิติ</h4>
+            <h4 className="section-title"><TrophyIcon className="text-yellow-500" /> ภาพรวมสถิติ</h4>
 
             {/* 1. Dashboard Cards */}
             <DashboardCards stats={stats} />
@@ -101,7 +108,7 @@ const DashboardCards = ({ stats }) => {
             <div className="stat-card card-calories">
                 <div className="card-header">
                     <div className="icon-wrapper fire-pulse">
-                        <FaFire />
+                        <FireIcon />
                     </div>
                 </div>
                 <div className="card-content">
@@ -124,7 +131,7 @@ const DashboardCards = ({ stats }) => {
             <div className="stat-card card-workouts">
                 <div className="card-header">
                     <div className="icon-wrapper blue-glow">
-                        <FaDumbbell />
+                        <DumbbellIcon />
                     </div>
                 </div>
                 <div className="card-content">
@@ -181,7 +188,7 @@ const WeeklyTimeline = ({ stats, preferredDays }) => {
                         return (
                             <div key={idx} className={`day-node ${statusClass}`}>
                                 <div className="node-circle">
-                                    {isDone ? <FaCheck /> : (isScheduled || isToday ? '●' : '')}
+                                    {isDone ? <CheckIcon /> : (isScheduled || isToday ? '●' : '')}
                                 </div>
                                 <div className="node-label">{label}</div>
                             </div>
@@ -283,9 +290,9 @@ const ActivityCalendar = ({ workoutHistory }) => {
             <div className="calendar-header">
                 <h5>📅 ความสม่ำเสมอ</h5>
                 <div className="nav-controls">
-                    <button onClick={prevMonth}><FaChevronLeft /></button>
+                    <button onClick={prevMonth}><ChevronLeftIcon /></button>
                     <span>{monthNames[currentDate.getMonth()]} {currentDate.getFullYear() + 543}</span>
-                    <button onClick={nextMonth}><FaChevronRight /></button>
+                    <button onClick={nextMonth}><ChevronRightIcon /></button>
                 </div>
             </div>
 

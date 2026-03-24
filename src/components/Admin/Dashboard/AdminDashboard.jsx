@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../../../../firebase";
-import { MdPeople, MdFitnessCenter, MdOutlineAdminPanelSettings, MdFormatListBulleted } from "react-icons/md";
+import { 
+  PeopleIcon, 
+  FitnessCenterIcon, 
+  AdminPanelSettingsIcon, 
+  FormatListBulletedIcon 
+} from "../../Common/Icons";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -155,7 +160,7 @@ function AdminDashboard() {
                         <h4>ผู้ใช้งานทั้งหมด</h4>
                         <p>{stats.totalUsers}</p>
                     </div>
-                    <MdPeople className="icon-users" />
+                        <PeopleIcon className="summary-icon" />
                 </div>
 
                 {/* Card 2: Programs */}
@@ -164,7 +169,7 @@ function AdminDashboard() {
                         <h4>โปรแกรมทั้งหมด</h4>
                         <p>{stats.totalPrograms}</p>
                     </div>
-                    <MdFitnessCenter className="icon-programs" />
+                        <FitnessCenterIcon className="summary-icon" />
                 </div>
 
                 {/* Card 3: Exercises */}
@@ -173,7 +178,7 @@ function AdminDashboard() {
                         <h4>ท่าออกกำลังกายรวม</h4>
                         <p>{stats.totalExercises}</p>
                     </div>
-                    <MdFormatListBulleted className="icon-exercises" />
+                        <FormatListBulletedIcon className="summary-icon" />
                 </div>
 
                 {/* Card 4: Admins */}
@@ -182,7 +187,7 @@ function AdminDashboard() {
                         <h4>ผู้ดูแลระบบ</h4>
                         <p>{stats.totalAdmins}</p>
                     </div>
-                    <MdOutlineAdminPanelSettings className="icon-admins" />
+                        <AdminPanelSettingsIcon className="summary-icon" />
                 </div>
 
             </div>

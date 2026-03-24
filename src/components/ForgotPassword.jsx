@@ -2,8 +2,12 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Form, Alert, Button } from "react-bootstrap";
 import { useUserAuth } from "../context/UserAuthContext";
-import { MdEmail, MdLockReset, MdArrowBack } from "react-icons/md";
-import Swal from "sweetalert2";
+import { 
+  EmailIcon, 
+  LockResetIcon, 
+  ArrowBackIcon 
+} from "./Common/Icons";
+import { showAlert } from "../utils/showAlert";
 import "./forgotPassword.scss";
 import "../App.css";
 
@@ -21,7 +25,7 @@ function ForgotPassword() {
     setMessage("");
 
     if (!email) {
-      return Swal.fire({
+      return showAlert({
         icon: "warning",
         title: "ข้อมูลไม่ครบ",
         text: "กรุณากรอกอีเมลที่ใช้สมัคร",
@@ -34,7 +38,7 @@ function ForgotPassword() {
     try {
       await resetPassword(email);
       setMessage("ส่งลิงก์สำหรับรีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว");
-      Swal.fire({
+      showAlert({
         icon: "success",
         title: "ส่งลิงก์สำเร็จ!",
         text: "กรุณาตรวจสอบกล่องจดหมายเข้าของคุณ (หากไม่พบโปรดตรวจสอบในกล่องจดหมายขยะ/Spam)",
@@ -51,7 +55,7 @@ function ForgotPassword() {
       }
 
       setError(errorMessage);
-      Swal.fire({
+      showAlert({
         icon: "error",
         title: "เกิดข้อผิดพลาด",
         text: errorMessage,
@@ -73,7 +77,7 @@ function ForgotPassword() {
       <div className="forgot-box">
         <div className="forgot-header">
           <div className="icon-wrapper">
-            <MdLockReset className="header-icon" />
+            <LockResetIcon className="button-icon" />
           </div>
           <h2 className="forgot-title">ลืมรหัสผ่าน?</h2>
           <p className="forgot-subtitle">
@@ -87,7 +91,7 @@ function ForgotPassword() {
         <Form onSubmit={handleSubmit} className="forgot-form">
           <Form.Group className="form-group" controlId="formBasicEmail">
             <div className="input-wrapper">
-              <MdEmail className="input-icon" />
+              <EmailIcon className="input-icon" />
               <Form.Control
                 type="email"
                 placeholder="กรอกอีเมลของคุณ"
@@ -111,7 +115,7 @@ function ForgotPassword() {
 
         <div className="back-to-login">
           <Link to="/login" className="back-link">
-            <MdArrowBack className="back-icon" />
+            <ArrowBackIcon className="back-icon" />
             <span>กลับไปหน้าเข้าสู่ระบบ</span>
           </Link>
         </div>

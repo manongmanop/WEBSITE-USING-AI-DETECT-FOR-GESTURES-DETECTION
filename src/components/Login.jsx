@@ -1,25 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Form, Alert, Button } from "react-bootstrap";
 import { useUserAuth } from "../context/UserAuthContext";
 // import { sendEmailVerification } from "firebase/auth";
-import { auth, db } from "../../firebase";
-import { doc, getDoc } from "firebase/firestore";
-import "./login.scss";
-import "../App.css";
+// import { auth, db } from "../../firebase";
+// import { doc, getDoc } from "firebase/firestore";
+import "./login.css";
 import "./style/global.css";
 import {
-  MdEmail,
-  MdLock,
-  MdVisibility,
-  MdVisibilityOff,
-  MdLogin,
-  MdPersonAdd
-} from "react-icons/md";
-import { FcGoogle } from "react-icons/fc";
-import { HiSparkles } from "react-icons/hi2";
-import Swal from "sweetalert2";
-import { signOut } from "firebase/auth";
+  EmailIcon,
+  LockIcon,
+  VisibilityIcon,
+  VisibilityOffIcon,
+  LoginIcon,
+  PersonAddIcon,
+  GoogleIcon,
+  SparklesIcon
+} from "./Common/Icons";
+import { showAlert, getSwal } from "../utils/showAlert";
+// import { signOut } from "firebase/auth";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -28,20 +27,23 @@ function Login() {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { logIn, googleSignIn, user } = useUserAuth();
+  const { logIn, googleSignIn, user, auth, db } = useUserAuth();
   let navigate = useNavigate();
 
   // ฟังก์ชันตรวจสอบสถานะผู้ใช้และนำทางไปยังหน้าที่เหมาะสม (รวม admin)
   const checkUserStatusAndNavigate = async (user) => {
     try {
       setIsLoading(true);
-      Swal.fire({
+      const Swal = await getSwal();
+      showAlert({
         title: "กำลังเข้าสู่ระบบ...",
         text: "กรุณารอสักครู่",
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => Swal.showLoading(),
       });
+      const { signOut } = await import("firebase/auth");
+      const { doc, getDoc } = await import("firebase/firestore");
 
       const adminDocRef = doc(db, "admin", user.uid);
       const adminSnap = await getDoc(adminDocRef);
@@ -53,7 +55,7 @@ function Login() {
 
         if (!refreshedUser.emailVerified) {
           await signOut(auth);
-          Swal.fire({
+          showAlert({
             icon: "error",
             title: "อีเมลยังไม่ยืนยัน",
             text: "กรุณายืนยันอีเมลของคุณก่อนเข้าสู่ระบบในฐานะ Admin",
@@ -63,7 +65,7 @@ function Login() {
           return;
         }
 
-        Swal.close();
+        (await getSwal()).close();
         setIsLoading(false);
         return navigate("/admin/dashboard");
       }
@@ -88,13 +90,13 @@ function Login() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError("");
     setMessage("");
 
     if (!email) {
-      return Swal.fire({
+      return showAlert({
         icon: "warning",
         title: "ข้อมูลไม่ครบ",
         text: "กรุณากรอกอีเมล",
@@ -103,7 +105,7 @@ function Login() {
     }
 
     if (!password) {
-      return Swal.fire({
+      return showAlert({
         icon: "warning",
         title: "ข้อมูลไม่ครบ",
         text: "กรุณากรอกรหัสผ่าน",
@@ -115,15 +117,6 @@ function Login() {
 
     try {
       const userCredential = await logIn(email, password);
-      // if (!userCredential.user.emailVerified) {
-      //   setIsLoading(false);
-      //   return Swal.fire({
-      //     icon: "error",
-      //     title: "อีเมลยังไม่ยืนยัน",
-      //     text: "กรุณายืนยันอีเมลของคุณก่อนเข้าสู่ระบบ",
-      //     confirmButtonColor: "#27BAF9",
-      //   });
-      // }
 
       await checkUserStatusAndNavigate(userCredential.user);
     } catch (err) {
@@ -156,7 +149,7 @@ function Login() {
         confirmButtonColor: "#27BAF9",
       });
     }
-  };
+  }, [email, password]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -168,44 +161,6 @@ function Login() {
       setError(err.message);
     }
   };
-
-  // const handleResendVerification = async () => {
-  //   try {
-  //     const user = auth.currentUser;
-  //     if (!user) {
-  //       return Swal.fire({
-  //         icon: "error",
-  //         title: "ไม่มีผู้ใช้",
-  //         text: "กรุณาเข้าสู่ระบบก่อน",
-  //         confirmButtonColor: "#27BAF9",
-  //       });
-  //     }
-  //     if (user.emailVerified) {
-  //       return Swal.fire({
-  //         icon: "info",
-  //         title: "ยืนยันแล้ว",
-  //         text: "อีเมลของคุณได้รับการยืนยันแล้ว",
-  //         confirmButtonColor: "#27BAF9",
-  //       });
-  //     }
-
-  //     await sendEmailVerification(user);
-  //     Swal.fire({
-  //       icon: "success",
-  //       title: "ส่งอีเมลยืนยันแล้ว",
-  //       text: "กรุณาตรวจสอบกล่องจดหมายของคุณ (หากไม่พบโปรดตรวจสอบในกล่องจดหมายขยะ/Spam)",
-  //       confirmButtonColor: "#27BAF9",
-  //     });
-  //   } catch (err) {
-  //     Swal.fire({
-  //       icon: "error",
-  //       title: "เกิดข้อผิดพลาด",
-  //       text: "ไม่สามารถส่งอีเมลยืนยันได้ กรุณาลองใหม่ภายหลัง",
-  //       confirmButtonColor: "#27BAF9",
-  //     });
-  //   }
-  // };
-
   return (
     <div className="login-container">
       <div className="floating-elements">
@@ -219,7 +174,7 @@ function Login() {
           {/* <video src={video} autoPlay muted loop></video> */}
           <div className="video-overlay">
             <div className="brand-section">
-              <HiSparkles className="brand-icon" />
+              <SparklesIcon className="brand-icon" />
               <h1 className="brand-title">HealthCare</h1>
               <p className="brand-subtitle">Your Health, Our Priority</p>
             </div>
@@ -242,7 +197,7 @@ function Login() {
           <Form onSubmit={handleSubmit} className="login-form">
             <Form.Group className="form-group">
               <div className="input-wrapper">
-                <MdEmail className="input-icon" />
+                <EmailIcon className="input-icon" />
                 <Form.Control
                   type="email"
                   placeholder="อีเมล"
@@ -256,7 +211,7 @@ function Login() {
 
             <Form.Group className="form-group">
               <div className="input-wrapper">
-                <MdLock className="input-icon" />
+                <LockIcon className="input-icon" />
                 <Form.Control
                   type={showPassword ? "text" : "password"}
                   placeholder="รหัสผ่าน"
@@ -271,7 +226,7 @@ function Login() {
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
                 >
-                  {showPassword ? <MdVisibilityOff /> : <MdVisibility />}
+                  {showPassword ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </button>
               </div>
               <div className="forgot-password">
@@ -288,7 +243,7 @@ function Login() {
                 className="primary-button"
                 disabled={isLoading}
               >
-                <MdLogin className="button-icon" />
+                <LoginIcon className="button-icon" />
                 {isLoading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
               </Button>
 
@@ -298,7 +253,7 @@ function Login() {
                 onClick={() => navigate("/register")}
                 disabled={isLoading}
               >
-                <MdPersonAdd className="button-icon" />
+                <PersonAddIcon className="button-icon" />
                 สมัครสมาชิก
               </Button>
             </div>
@@ -314,7 +269,7 @@ function Login() {
                 className="google-button"
                 disabled={isLoading}
               >
-                <FcGoogle className="google-icon" />
+                <GoogleIcon className="google-icon" />
                 <span>Google</span>
               </Button>
             </div>
@@ -330,16 +285,6 @@ function Login() {
             </div>
           </Form>
 
-          {/* {error && error.includes("verify your email") && (
-            <Button
-              variant="link"
-              onClick={handleResendVerification}
-              className="resend-button"
-              disabled={isLoading}
-            >
-              ส่งอีเมลยืนยันอีกครั้ง
-            </Button>
-          )} */}
         </div>
       </div>
     </div>

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useUserAuth } from '../context/UserAuthContext';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+// import { doc, getDoc } from 'firebase/firestore';
+// import { db } from '../../firebase';
 
 function AdminRoute({ children }) {
-    const { user, loading: globalLoading } = useUserAuth();
+    const { user, loading: globalLoading, db } = useUserAuth();
     const [isAdmin, setIsAdmin] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -15,6 +15,7 @@ function AdminRoute({ children }) {
 
             if (user) {
                 try {
+                    const { doc, getDoc } = await import('firebase/firestore');
                     const docRef = doc(db, 'admin', user.uid);
                     const docSnap = await getDoc(docRef);
 

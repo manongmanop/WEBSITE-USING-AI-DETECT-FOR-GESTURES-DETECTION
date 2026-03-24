@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import "./detail.css";
-import { IoIosFitness, IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
-import { AiFillFire } from "react-icons/ai";
-import { MdAccessTime } from "react-icons/md";
+import { 
+  FitnessCenterIcon as FitnessIcon, 
+  ArrowBackIcon, 
+  ArrowForwardIcon, 
+  FireIcon, 
+  AccessTimeIcon 
+} from "../../Common/Icons";
 import Swal from "sweetalert2";
 import axios from "axios";
 import Sidebar from "../../Sidebar Section/Sidebar.jsx";
@@ -160,11 +164,11 @@ const WorkoutDetailModal = ({
 
           <div className="modal-stats-row">
             <div className="modal-stat-pill">
-              <MdAccessTime /> {durationDisplay}
+              <AccessTimeIcon /> {durationDisplay}
             </div>
             {caloriesValue > 0 && (
               <div className="modal-stat-pill fire">
-                <AiFillFire /> {caloriesValue} kcal
+                <FireIcon /> {caloriesValue} kcal
               </div>
             )}
           </div>
@@ -176,10 +180,10 @@ const WorkoutDetailModal = ({
 
           <div className="modal-nav-actions">
             <button className="nav-circle-btn prev" onClick={onPrev} disabled={currentIndex === 1}>
-              <IoIosArrowBack />
+               <ArrowBackIcon />
             </button>
             <button className="nav-circle-btn next" onClick={onNext} disabled={currentIndex === totalWorkouts}>
-              <IoIosArrowForward />
+               <ArrowForwardIcon />
             </button>
           </div>
         </div>
@@ -298,13 +302,13 @@ function TrainingCard() {
 
                 <div className="hero-badges">
                   <div className="hero-badge">
-                    <MdAccessTime /> {program.duration} นาที
+                    <AccessTimeIcon /> {program.duration} นาที
                   </div>
                   <div className="hero-badge fire">
-                    <AiFillFire /> {program.caloriesBurned} kcal
+                    <FireIcon /> {program.caloriesBurned} kcal
                   </div>
                   <div className="hero-badge count">
-                    <IoIosFitness /> {program.workoutList?.length || 0} ท่า
+                    <FitnessIcon /> {program.workoutList?.length || 0} ท่า
                   </div>
                 </div>
               </div>

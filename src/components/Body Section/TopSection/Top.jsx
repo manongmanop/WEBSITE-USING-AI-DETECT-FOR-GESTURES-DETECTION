@@ -86,7 +86,7 @@ export const Top = () => {
       try {
         const response = await fetch("/api/workout_programs");
         const data = await response.json();
-        setPrograms(data);
+        setPrograms(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error fetching programs:", error);
       } finally {

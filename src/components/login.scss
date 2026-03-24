@@ -35,7 +35,7 @@
   justify-content: center;
   padding: 2rem;
   overflow: hidden;
-  font-family: 'Noto Sans Thai Looped', Arial, sans-serif;
+  font-family: 'Prompt', sans-serif;
 }
 
 /* Background decorations */
@@ -44,7 +44,7 @@
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
+  filter: blur(40px);
   z-index: 0;
 }
 
@@ -327,4 +327,9 @@
   .form-section { padding: 2.5rem 1.5rem; }
   .brand-title { font-size: 2rem; }
   .primary-button, .secondary-button { font-size: 1rem; padding: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .floating-circle {
+    animation: none;
+  }
 }

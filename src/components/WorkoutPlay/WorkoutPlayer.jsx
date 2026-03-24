@@ -8,7 +8,9 @@ import "./WorkoutPlayer.css";
 // Removed asset imports, relying on public folder
 import { useUserAuth } from "../../context/UserAuthContext.jsx";
 const API_BASE = import.meta.env?.VITE_API_URL || "";
-import { ExerciseCameraManager } from '../../ExerciseCameraManager.jsx';
+const ExerciseCameraManager = React.lazy(() =>
+  import("../../ExerciseCameraManager.jsx")
+);
 /* =========================================
    SECTION 1: Helpers & Utilities
    ========================================= */
@@ -406,7 +408,7 @@ export default function WorkoutPlayer() {
     (async () => {
       try {
         setIsLoading(true); setLoadError(null);
-        const res = await axios.get(`/api/workout_programs/${programId}`);
+        const res = await axios.get(`${API_BASE}/api/workout_programs/${programId}`);
         if (ignore) return;
 
         setProgram(res.data);
@@ -1112,7 +1114,7 @@ export default function WorkoutPlayer() {
 
               {/* Layer 2: AI Logic Overlay (ทับอยู่ข้างบน) */}
               {/* ต้องมี pointer-events-none เพื่อให้คลิกทะลุได้ (ถ้าจำเป็น) */}
-              <div className="ai-overlay" style={{ pointerEvents: 'none' }}>
+              <Suspense fallback={<div>Loading AI...</div>}>
                 <ExerciseCameraManager
                   exerciseName={current?.name}
                   isActive={isPlaying && !isPaused}
@@ -1120,7 +1122,7 @@ export default function WorkoutPlayer() {
                   onRepComplete={handleRepComplete}
                   onSetComplete={handleSetComplete}
                 />
-              </div>
+              </Suspense>
 
               {/* Layer 3: UI Label (อยู่บนสุด) */}
               <div className="video-label">กล้องของคุณ</div>

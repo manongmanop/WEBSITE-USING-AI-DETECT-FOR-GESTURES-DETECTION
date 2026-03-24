@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import * as Pose from '@mediapipe/pose';
-import * as cam from '@mediapipe/camera_utils';
+// import * as Pose from '@mediapipe/pose';
+// import * as cam from '@mediapipe/camera_utils';
 
-export const useDumbbellCamera = ({ 
-  videoRef, 
-  canvasRef, 
+export const useDumbbellCamera = ({
+  videoRef,
+  canvasRef,
   isActive,
   targetReps = null,
   targetSets = null,
@@ -13,6 +13,7 @@ export const useDumbbellCamera = ({
   onSetComplete,
   onWorkoutComplete
 }) => {
+
   // State variables
   const [counterLeft, setCounterLeft] = useState(0);
   const [counterRight, setCounterRight] = useState(0);
@@ -98,7 +99,7 @@ export const useDumbbellCamera = ({
     }
   };
 
-    // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
+  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
   const getArmPositionRight = (dist) => {
     if (dist > 0.25) {
       return "Wide";
@@ -114,7 +115,7 @@ export const useDumbbellCamera = ({
   const saveSessionData = async (sessionData) => {
     try {
       setSaveStatus('Saving...');
-      const response = await fetch('http://127.0.0.1:8000/api/save-exercise', {
+      const response = await fetch('/api/save-exercise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData)
@@ -289,7 +290,7 @@ export const useDumbbellCamera = ({
 
           // Auto save to database
           saveSessionData(sessionData);
-          
+
           if (onWorkoutComplete) {
             onWorkoutComplete(sessionData);
           }
@@ -360,8 +361,11 @@ export const useDumbbellCamera = ({
           videoRef.current.srcObject = stream;
           videoRef.current.style.display = 'block';
 
-          videoRef.current.onloadedmetadata = () => {
+          videoRef.current.onloadedmetadata = async () => {
             videoRef.current.play();
+            const Pose = await import('@mediapipe/pose');
+            const cam = await import('@mediapipe/camera_utils');
+
             const pose = new Pose.Pose({
               locateFile: (file) => {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
@@ -516,9 +520,9 @@ export const useDumbbellCamera = ({
                           angle: Math.round(angleLeft * 100) / 100,
                           timestamp: new Date().toISOString()
                         });
-                        
+
                         if (onRepComplete) onRepComplete('left', newCounter);
-                        
+
                         return newCounter;
                       });
                       isTimingLeft.current = false;
@@ -607,7 +611,7 @@ export const useDumbbellCamera = ({
                 width: 640,
                 height: 480
               });
-              
+
               cameraRef.current = camera;
               camera.start();
             }
@@ -624,7 +628,7 @@ export const useDumbbellCamera = ({
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up camera...');
-      
+
       if (cameraRef.current) {
         try {
           cameraRef.current.stop();

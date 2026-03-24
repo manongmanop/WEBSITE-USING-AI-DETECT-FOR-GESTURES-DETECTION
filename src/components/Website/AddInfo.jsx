@@ -4,17 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import Swal from 'sweetalert2';
-import {
-  MdPerson,
-  MdHeight,
-  MdFitnessCenter,
-  MdEmail,
-  MdFace,
-  MdFace3,
-  MdSave,
-  MdArrowBack
-} from 'react-icons/md';
-import { HiSparkles } from 'react-icons/hi2';
+import { 
+  PersonIcon, 
+  HeightIcon, 
+  FitnessCenterIcon, 
+  EmailIcon, 
+  FaceIcon, 
+  Face3Icon as FemaleIcon, 
+  SaveIcon, 
+  ArrowBackIcon, 
+  SparklesIcon 
+} from "../Common/Icons";
 import './addinfo.scss';
 import '../style/global.css';
 
@@ -146,13 +146,13 @@ const AddUserDataForm = () => {
       <div className="addinfo-box">
         <div className="form-header">
           <div className="icon-wrapper">
-            <HiSparkles className="header-icon" />
+            <SparklesIcon className="header-icon" />
           </div>
           <h2 className="form-title">ตั้งค่าโปรไฟล์สุขภาพ</h2>
           <p className="form-subtitle">เพื่อประสิทธิภาพสูงสุดในการใช้งานระบบ AI ของเรา</p>
 
           <div className="email-badge">
-            <MdEmail />
+            <EmailIcon />
             <span>{email || 'กำลังโหลดอีเมล...'}</span>
           </div>
         </div>
@@ -168,7 +168,7 @@ const AddUserDataForm = () => {
           <div className="form-group">
             <label className="form-label" htmlFor="name">ชื่อที่ใช้แสดงผล</label>
             <div className="input-wrapper">
-              <MdPerson className="input-icon" />
+              <PersonIcon className="input-icon" />
               <input
                 id="name"
                 className="custom-input no-suffix"
@@ -185,7 +185,7 @@ const AddUserDataForm = () => {
             <div className="form-group">
               <label className="form-label" htmlFor="height">ส่วนสูง</label>
               <div className="input-wrapper">
-                <MdHeight className="input-icon" />
+                <HeightIcon className="input-icon" />
                 <input
                   id="height"
                   type="text"
@@ -210,7 +210,7 @@ const AddUserDataForm = () => {
             <div className="form-group">
               <label className="form-label" htmlFor="weight">น้ำหนัก</label>
               <div className="input-wrapper">
-                <MdFitnessCenter className="input-icon" />
+                <FitnessCenterIcon className="input-icon" />
                 <input
                   id="weight"
                   type="text"
@@ -247,7 +247,7 @@ const AddUserDataForm = () => {
                   required
                 />
                 <div className="card-content">
-                  <MdFace className="gender-icon" />
+                  <FaceIcon className="gender-icon" />
                   <span>ชาย</span>
                 </div>
               </label>
@@ -262,7 +262,7 @@ const AddUserDataForm = () => {
                   disabled={isLoading}
                 />
                 <div className="card-content">
-                  <MdFace3 className="gender-icon" />
+                  <FemaleIcon className="gender-icon" />
                   <span>หญิง</span>
                 </div>
               </label>
@@ -288,14 +288,14 @@ const AddUserDataForm = () => {
               onClick={() => navigate(-1)}
               disabled={isLoading}
             >
-              <MdArrowBack /> ย้อนกลับ
+              <ArrowBackIcon /> ย้อนกลับ
             </button>
             <button
               type="submit"
               className="btn-submit"
               disabled={isLoading}
             >
-              <MdSave /> {isLoading ? 'กำลังบันทึก...' : 'บันทึกและเริ่มต้นใช้งาน'}
+              <SaveIcon /> {isLoading ? 'กำลังบันทึก...' : 'บันทึกและเริ่มต้นใช้งาน'}
             </button>
           </div>
         </form>

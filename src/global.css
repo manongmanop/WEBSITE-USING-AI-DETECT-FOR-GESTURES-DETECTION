@@ -1,6 +1,5 @@
 @charset "UTF-8";
-/* นำเข้าฟอนต์ Noto Sans Thai Looped จาก Google Fonts */
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@100..900&display=swap");
+/* Noto Sans Thai Looped and Prompt are loaded in index.html for better performance */
 :root {
   --font-primary: 'Noto Sans Thai Looped', Arial, sans-serif;
 }

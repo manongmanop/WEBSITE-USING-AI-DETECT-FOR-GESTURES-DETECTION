@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MdArrowBack } from 'react-icons/md';
+import { ArrowBackIcon } from '../Common/Icons';
 import './TermsOfService.scss';
 
 const TermsOfService = () => {
@@ -8,7 +8,7 @@ const TermsOfService = () => {
         <div className="legal-container">
             <div className="legal-header">
                 <Link to="/login" className="back-button">
-                    <MdArrowBack /> กลับสู่หน้าหลัก
+                    <ArrowBackIcon /> กลับสู่หน้าหลัก
                 </Link>
                 <h1>เงื่อนไขการใช้งาน</h1>
                 <p className="last-updated">ปรับปรุงล่าสุด: 21 กุมภาพันธ์ 2026</p>

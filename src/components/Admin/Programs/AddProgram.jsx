@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import Swal from "sweetalert2";
+import { showAlert } from "../../../utils/showAlert";
 import "./AddProgram.scss";
 
 function AddProgram() {
@@ -37,7 +37,7 @@ function AddProgram() {
         e.preventDefault();
 
         if (!name || !description || !duration) {
-            Swal.fire("ข้อผิดพลาด", "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", icon: "error" });
             return;
         }
 
@@ -63,12 +63,12 @@ function AddProgram() {
             });
 
             if (res.status === 201 || res.status === 200) {
-                Swal.fire("สำเร็จ", "เพิ่มโปรแกรมเรียบร้อยแล้ว", "success");
+                showAlert({ title: "สำเร็จ", text: "เพิ่มโปรแกรมเรียบร้อยแล้ว", icon: "success" });
                 navigate("/admin/programs");
             }
         } catch (error) {
             console.error("Error creating program:", error);
-            Swal.fire("ข้อผิดพลาด", "ไม่สามารถเพิ่มโปรแกรมได้", "error");
+            showAlert({ title: "ข้อผิดพลาด", text: "ไม่สามารถเพิ่มโปรแกรมได้", icon: "error" });
         } finally {
             setLoading(false);
         }
