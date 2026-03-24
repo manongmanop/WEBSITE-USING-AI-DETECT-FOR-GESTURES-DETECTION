@@ -8,53 +8,53 @@ import "/index.css";
 // -------- Lazy Load ทุกหน้า --------
 
 // Public
-const LandingPage = lazy(() => import("./components/LandingPage/LandingPage.jsx"));
-const Login = lazy(() => import("./components/Login.jsx"));
-const Register = lazy(() => import("./components/Register.jsx"));
-const ForgotPassword = lazy(() => import("./components/ForgotPassword.jsx"));
-const TermsOfService = lazy(() => import("./components/Legal/TermsOfService.jsx"));
-const PrivacyPolicy = lazy(() => import("./components/Legal/PrivacyPolicy.jsx"));
+const LandingPage = React.lazy(() => import("./components/LandingPage/LandingPage.jsx"));
+const Login = React.lazy(() => import("./components/Login.jsx"));
+const Register = React.lazy(() => import("./components/Register.jsx"));
+const ForgotPassword = React.lazy(() => import("./components/ForgotPassword.jsx"));
+const TermsOfService = React.lazy(() => import("./components/Legal/TermsOfService.jsx"));
+const PrivacyPolicy = React.lazy(() => import("./components/Legal/PrivacyPolicy.jsx"));
 
 // Auth
-const ProtectedRoute = lazy(() => import("./auth/ProtectedRoute.jsx"));
-const AdminRoute = lazy(() => import("./auth/AdminRoute.jsx"));
+const ProtectedRoute = React.lazy(() => import("./auth/ProtectedRoute.jsx"));
+const AdminRoute = React.lazy(() => import("./auth/AdminRoute.jsx"));
 
 // Main
-const Main = lazy(() => import("./components/Website/Main.jsx"));
-const Account = lazy(() => import("./components/Account Section/Account.jsx"));
-const AddInfo = lazy(() => import("./components/Website/AddInfo.jsx"));
-const UpdateInfo = lazy(() => import("./components/Website/UpdateInfo.jsx"));
-const Detail = lazy(() => import("./components/Detail Section/Detail/Detail.jsx"));
+const Main = React.lazy(() => import("./components/Website/Main.jsx"));
+const Account = React.lazy(() => import("./components/Account Section/Account.jsx"));
+const AddInfo = React.lazy(() => import("./components/Website/AddInfo.jsx"));
+const UpdateInfo = React.lazy(() => import("./components/Website/UpdateInfo.jsx"));
+const Detail = React.lazy(() => import("./components/Detail Section/Detail/Detail.jsx"));
 
 // Workout
-const WorkoutPlayer = lazy(() => import("./components/WorkoutPlay/WorkoutPlayer.jsx"));
-const SummaryProgram = lazy(() => import("./components/WorkoutPlay/SummaryProgram.jsx"));
-const WorkoutHistory = lazy(() => import("./components/WorkoutPlay/WorkoutHistory.jsx"));
+const WorkoutPlayer = React.lazy(() => import("./components/WorkoutPlay/WorkoutPlayer.jsx"));
+const SummaryProgram = React.lazy(() => import("./components/WorkoutPlay/SummaryProgram.jsx"));
+const WorkoutHistory = React.lazy(() => import("./components/WorkoutPlay/WorkoutHistory.jsx"));
 
 // Pose Detector (หนักมาก ควร lazy)
-const PoseDetector = lazy(() => import("./PoseDetector.jsx"));
-const Dumbbell = lazy(() => import("./Dumbbell.jsx"));
-const Hipe_Raise = lazy(() => import("./Hipe_Raise.jsx"));
-const Leg_Raises = lazy(() => import("./Leg_Raises.jsx"));
-const Plank = lazy(() => import("./Plank.jsx"));
-const Push_ups = lazy(() => import("./Push_ups.jsx"));
-const Squat = lazy(() => import("./Squat.jsx"));
+const PoseDetector = React.lazy(() => import("./PoseDetector.jsx"));
+const Dumbbell = React.lazy(() => import("./Dumbbell.jsx"));
+const Hipe_Raise = React.lazy(() => import("./Hipe_Raise.jsx"));
+const Leg_Raises = React.lazy(() => import("./Leg_Raises.jsx"));
+const Plank = React.lazy(() => import("./Plank.jsx"));
+const Push_ups = React.lazy(() => import("./Push_ups.jsx"));
+const Squat = React.lazy(() => import("./Squat.jsx"));
 
 // Onboarding
-const Onboarding = lazy(() => import("./components/Onboarding/Onboarding.jsx"));
-const LinkEmailPassword = lazy(() => import("./components/LinkEmailPassword.jsx"));
+const Onboarding = React.lazy(() => import("./components/Onboarding/Onboarding.jsx"));
+const LinkEmailPassword = React.lazy(() => import("./components/LinkEmailPassword.jsx"));
 
 // Admin
-const AdminLayout = lazy(() => import("./components/Admin/AdminLayout.jsx"));
-const AdminDashboard = lazy(() => import("./components/Admin/Dashboard/AdminDashboard.jsx"));
-const UserManagement = lazy(() => import("./components/Admin/Users/UserManagement.jsx"));
-const UserProgress = lazy(() => import("./components/Admin/Users/UserProgress.jsx"));
-const ProgramManagement = lazy(() => import("./components/Admin/Programs/ProgramManagement.jsx"));
-const AddProgram = lazy(() => import("./components/Admin/Programs/AddProgram.jsx"));
-const EditProgram = lazy(() => import("./components/Admin/Programs/EditProgram.jsx"));
-const ExerciseManagement = lazy(() => import("./components/Admin/Exercises/ExerciseManagement.jsx"));
-const AddExercise = lazy(() => import("./components/Admin/Exercises/AddExercise.jsx"));
-const EditExercise = lazy(() => import("./components/Admin/Exercises/EditExercise.jsx"));
+const AdminLayout = React.lazy(() => import("./components/Admin/AdminLayout.jsx"));
+const AdminDashboard = React.lazy(() => import("./components/Admin/Dashboard/AdminDashboard.jsx"));
+const UserManagement = React.lazy(() => import("./components/Admin/Users/UserManagement.jsx"));
+const UserProgress = React.lazy(() => import("./components/Admin/Users/UserProgress.jsx"));
+const ProgramManagement = React.lazy(() => import("./components/Admin/Programs/ProgramManagement.jsx"));
+const AddProgram = React.lazy(() => import("./components/Admin/Programs/AddProgram.jsx"));
+const EditProgram = React.lazy(() => import("./components/Admin/Programs/EditProgram.jsx"));
+const ExerciseManagement = React.lazy(() => import("./components/Admin/Exercises/ExerciseManagement.jsx"));
+const AddExercise = React.lazy(() => import("./components/Admin/Exercises/AddExercise.jsx"));
+const EditExercise = React.lazy(() => import("./components/Admin/Exercises/EditExercise.jsx"));
 
 const router = createBrowserRouter([
   { path: "/", element: <LandingPage /> },
