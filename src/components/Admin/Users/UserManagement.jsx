@@ -81,11 +81,14 @@ function UserManagement() {
                 }
             });
 
-            // Sort by createdAt descending
+            // Sort by createdAt descending (with fallback to updatedAt/createdAt with space)
             usersData.sort((a, b) => {
-                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                return dateB - dateA;
+                const getBestDate = (u) => {
+                    const dateObj = u.createdAt || u["createdAt "] || u.updatedAt;
+                    if (!dateObj) return 0;
+                    return dateObj.toDate ? dateObj.toDate() : new Date(dateObj);
+                };
+                return getBestDate(b) - getBestDate(a);
             });
 
             setUsers(usersData);
@@ -198,7 +201,7 @@ function UserManagement() {
                                             <span className="status-badge badge-user">User</span>
                                         )}
                                     </td>
-                                    <td>{formatDate(user.createdAt || user["createdAt "])}</td>
+                                    <td>{formatDate(user.createdAt || user["createdAt "] || user.updatedAt)}</td>
                                     <td className="action-buttons">
                                         <button
                                             onClick={() => navigate(`/admin/users/progress/${user.firebaseUid}`)}

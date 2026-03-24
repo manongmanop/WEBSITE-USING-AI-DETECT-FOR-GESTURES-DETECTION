@@ -75,11 +75,14 @@ function AdminDashboard() {
                     usersList.push({ id: doc.id, ...data });
                 });
 
-                // 1. Sort users by newest
+                // 1. Sort users by newest (with fallback to updatedAt/createdAt with space)
                 usersList.sort((a, b) => {
-                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                    return dateB - dateA;
+                    const getBestDate = (u) => {
+                        const dateObj = u.createdAt || u["createdAt "] || u.updatedAt;
+                        if (!dateObj) return 0;
+                        return dateObj.toDate ? dateObj.toDate() : new Date(dateObj);
+                    };
+                    return getBestDate(b) - getBestDate(a);
                 });
 
                 setNewUsers(usersList.slice(0, 5));
@@ -89,7 +92,8 @@ function AdminDashboard() {
                 const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
                 usersList.forEach(user => {
-                    const d = user.createdAt?.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
+                    const dateObj = user.createdAt || user["createdAt "] || user.updatedAt;
+                    const d = dateObj?.toDate ? dateObj.toDate() : new Date(dateObj);
                     if (!isNaN(d.getTime())) {
                         const monthKey = d.getMonth();
                         monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
@@ -115,7 +119,7 @@ function AdminDashboard() {
                     activities.push({
                         id: `u_${u.id}`,
                         title: `มีผู้ใช้งานใหม่สมัครสมาชิก: ${u.name || 'ไม่มีชื่อ'}`,
-                        time: formatDate(u.createdAt),
+                        time: formatDate(u.createdAt || u["createdAt "] || u.updatedAt),
                         type: 'user'
                     });
                 });
@@ -215,7 +219,7 @@ function AdminDashboard() {
                                         <p className="item-sub">{u.email}</p>
                                     </div>
                                 </div>
-                                <span className="item-meta">{formatDate(u.createdAt || u["createdAt "])}</span>
+                                <span className="item-meta">{formatDate(u.createdAt || u["createdAt "] || u.updatedAt)}</span>
                             </li>
                         )) : <li className="empty-message">ยังไม่มีข้อมูลผู้ใช้</li>}
                     </ul>

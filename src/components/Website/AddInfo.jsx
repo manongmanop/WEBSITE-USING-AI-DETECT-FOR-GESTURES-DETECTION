@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -91,6 +91,12 @@ const AddUserDataForm = () => {
       const bmi = calculateBMI();
 
       const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      const existingData = userDocSnap.exists() ? userDocSnap.data() : {};
+      
+      // Keep existing createdAt if it exists (including the one with a space)
+      const createdAt = existingData.createdAt || existingData["createdAt "] || new Date();
+
       await setDoc(userDocRef, {
         email: user.email,
         name: name,
@@ -99,7 +105,8 @@ const AddUserDataForm = () => {
         bmi: parseFloat(bmi),
         userstatus,
         gender,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        createdAt: createdAt
       }, { merge: true });
 
       Swal.fire({
