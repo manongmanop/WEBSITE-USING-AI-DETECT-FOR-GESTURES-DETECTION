@@ -16,7 +16,7 @@ export const ExerciseCameraManager = ({
   targetReps = null,
   targetSets = null,
   targetTimePerSet = null,
-  setRestTime = 30,
+  setRestTime = 1,
   onRepComplete,
   onSetComplete,
   onWorkoutComplete,
@@ -132,8 +132,8 @@ export const ExerciseCameraManager = ({
         fontSize: '18px',
         display: counterLeft > 0 || counterRight > 0 ? 'block' : 'none'
       }}>
-        {counterLeft > 0 && <div>Left: {counterLeft}/{targetReps}</div>}
-        {counterRight > 0 && <div>Right: {counterRight}/{targetReps}</div>}
+        {counterLeft > 0 && <div>จำนวนครั้ง: {counterLeft}/{targetReps}</div>}
+        {/* {counterRight > 0 && <div>Right: {counterRight}/{targetReps}</div>} */}
       </div>
     </div>
   );

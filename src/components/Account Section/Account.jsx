@@ -243,6 +243,15 @@ function Account() {
     const getStartOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 
     switch (range) {
+      case '1d': {
+        // เฉพาะวันนี้
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        filtered = filtered.filter(item => {
+          const d = new Date(type === 'weight' ? item.date : item.finishedAt);
+          return d >= startOfDay && d <= today;
+        });
+        break;
+      }
       case '1m': {
         // เฉพาะเดือนปัจจุบัน
         const currentMonth = today.getMonth();
@@ -371,6 +380,7 @@ function Account() {
   const getChangeText = (change, unit, type = 'weight') => {
     if (change === 0) return { text: `คงที่`, type: 'default' };
     const timeRangeText = {
+      
       '3m': '3 เดือน',
       '6m': '6 เดือน',
       '1y': '1 ปี',
@@ -896,6 +906,7 @@ function Account() {
                 <div className="chart-container">
                   {/* Time range selection */}
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                  
                     <button
                       onClick={() => handleTimeRangeChange('1m')}
                       style={{

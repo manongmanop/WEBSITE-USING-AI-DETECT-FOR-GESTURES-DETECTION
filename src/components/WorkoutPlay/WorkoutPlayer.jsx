@@ -29,8 +29,8 @@ function normalizeUrl(p) {
 
 function parseDurationMs(ex) {
   if (ex.duration && ex.duration > 0) return ex.duration * 1000;
-  if (ex.type === 'time' && ex.value > 0) return ex.value * 60 * 1000;
-  return 60 * 1000;
+  if (ex.type === 'time' && ex.value > 0) return ex.value * 300 * 1000;
+  return 300 * 1000;
 }
 
 /* =========================================

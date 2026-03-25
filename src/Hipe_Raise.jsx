@@ -1,10 +1,46 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Pose from '@mediapipe/pose';
 import * as cam from '@mediapipe/camera_utils';
+// const SOUND_MAP = {
+//   // Posture tilt
+//   'Leaning Left': '/sounds/Leaning_Right.mp3',
+//   'Leaning Right': '/sounds/Leaning_Left.mp3',
+//   // 'Straight': '/sounds/Straight.mp3',
+//   // Arm position
+//   'ArmWide': '/sounds/Wide.mp3',
+//   'ArmNarrow': '/sounds/Narrow.mp3',
+//   // 'ArmNeutral': '/sounds/Neutral.mp3',
+//   // Knee / stance position
+//   'StanceWide': '/sounds/Stance_Wide.mp3',
+//   'StanceNarrow': '/sounds/Stance_Narrow.mp3',
+//   // 'StanceNormal': '/sounds/Stance_Normal.mp3',
+//   // Landmarks
+//   'NoLandmarks': '/sounds/NoLandmarks.mp3',
+//   'Landmarks': '/sounds/Landmarks.mp3',
+// };
 
-export const useHipRaiseCamera = ({ 
-  videoRef, 
-  canvasRef, 
+// const createSoundPlayer = () => {
+//   const cache = {};
+//   const cooldowns = {};
+//   const COOLDOWN_MS = 9000;
+
+//   const play = (key) => {
+//     const now = Date.now();
+//     if (cooldowns[key] && now - cooldowns[key] < COOLDOWN_MS) return;
+//     cooldowns[key] = now;
+//     const src = SOUND_MAP[key];
+//     if (!src) return;
+//     if (!cache[key]) cache[key] = new Audio(src);
+//     const a = cache[key];
+//     a.currentTime = 0;
+//     a.play().catch(() => { });
+//   };
+
+//   return { play };
+// };
+export const useHipRaiseCamera = ({
+  videoRef,
+  canvasRef,
   isActive,
   targetReps = null,
   targetSets = null,
@@ -27,7 +63,13 @@ export const useHipRaiseCamera = ({
   const [legStance, setLegStance] = useState('Normal');
   const [ankleDistance, setAnkleDistance] = useState(0);
   const [kneeDistance, setKneeDistance] = useState(0);
-
+  // const soundPlayer = useRef(createSoundPlayer());
+  // // Previous state refs for change-based sound triggers
+  // const prevTilt = useRef('Straight');
+  // const prevLeftPos = useRef('Neutral');
+  // const prevRightPos = useRef('Neutral');
+  // const prevStance = useRef('Normal');
+  // const prevLandmarks = useRef(false);
   // Refs for tracking state
   const stageLeft = useRef(null);
   const stageRight = useRef(null);
@@ -37,8 +79,8 @@ export const useHipRaiseCamera = ({
   const holdTimeRight = useRef(0);
   const timerStartLeft = useRef(0);
   const timerStartRight = useRef(0);
-  const holdTimeRequiredLeft = useRef(0.2);
-  const holdTimeRequiredRight = useRef(0.2);
+  const holdTimeRequiredLeft = useRef(0.1);
+  const holdTimeRequiredRight = useRef(0.1);
   const restEndTime = useRef(0);
   const restInterval = useRef(null);
 
@@ -51,19 +93,51 @@ export const useHipRaiseCamera = ({
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  // const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const instructions = "Voice: High-energy, upbeat, and encouraging, projecting enthusiasm and motivation.\n\nPunctuation: Short, punchy sentences with strategic pauses to maintain excitement and clarity.\n\nDelivery: Fast-paced and dynamic, with rising intonation to build momentum and keep engagement high.\n\nPhrasing: Action-oriented and direct, using motivational cues to push participants forward.\n\nTone: Positive, energetic, and empowering, creating an atmosphere of encouragement and achievement.";
   const chatHistory = useRef([
     {
       role: "user",
-      parts: [{ text: "ค่ามุมองศาอยู่ที่ 30 มุมองศา หากค่ามากกว่าหรือน้อยกว่าให้ส่งข้อความบอกให้เพิ่มหรือลดตามจำนวนที่ขาดหรือเกิน" }]
+      parts: [{ text: "ค่ามุมองศาอยู่ที่ 130 มุมองศา หากค่ามากกว่าหรือน้อยกว่าให้ส่งข้อความบอกให้เพิ่มหรือลดตามจำนวนที่ขาดหรือเกิน" }]
     },
     {
       role: "model",
-      parts: [{ text: "มุม 30 องศา! ดีมาก! ถ้าต้องการปรับค่า, ทำตามนี้เลย: * **ค่าเกิน:** ลดลง [จำนวนที่เกิน] องศา * **ค่าขาด:** เพิ่มขึ้น [จำนวนที่ขาด] องศา คุณทำได้! ลุย!" }]
+      parts: [{ text: "มุม 130 องศา! ดีมาก! ถ้าต้องการปรับค่า, ทำตามนี้เลย: * **ค่าเกิน:** ลดลง [จำนวนที่เกิน] องศา * **ค่าขาด:** เพิ่มขึ้น [จำนวนที่ขาด] องศา คุณทำได้! ลุย!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "120" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "เหลืออีก 10 องศา! เพิ่มอีกหน่อยนะ!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "127" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "เก่งมาก! เกินมา 3 องศา! ลดลงอีกหน่อย แล้วคุณจะไปถึงเป้าหมาย!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "200" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "โอ้โห! เกินมาเยอะเลย! ลดลง 70 องศานะ! สู้ๆ!" }]
+    },
+    {
+      role: "user",
+      parts: [{ text: "129" }]
+    },
+    {
+      role: "model",
+      parts: [{ text: "ยอดเยี่ยม! อีกนิดเดียว! เพิ่มอีก 1 องศา คุณก็ถึงเป้าหมายแล้ว!" }]
     }
   ]);
 
@@ -98,7 +172,7 @@ export const useHipRaiseCamera = ({
     }
   };
 
-    // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
+  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
   const getArmPositionRight = (dist) => {
     if (dist > 0.25) {
       return "Wide";
@@ -137,10 +211,10 @@ export const useHipRaiseCamera = ({
     }
   };
 
-  // Gemini API call
+  // Gemini API call gemini-2.5-flash ใช้ตัวนี้แทนตอนนำเสนอ
   const callGeminiAPI = async (angle) => {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,7 +235,7 @@ export const useHipRaiseCamera = ({
 
       const data = await response.json();
       const responseText = data.candidates[0].content.parts[0].text;
-
+      console.log("Gemini response text:", responseText)
       chatHistory.current.push(
         { role: "user", parts: [{ text: Math.round(angle).toString() }] },
         { role: "model", parts: [{ text: responseText }] }
@@ -174,7 +248,7 @@ export const useHipRaiseCamera = ({
     }
   };
 
-  // OpenAI TTS API call
+  // OpenAI TTS API call — uses Web Audio API to avoid CSP blob: media-src block
   const callTTSAPI = async (text) => {
     try {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -195,22 +269,26 @@ export const useHipRaiseCamera = ({
 
       if (!response.ok) throw new Error('OpenAI TTS API request failed');
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Use Web Audio API — not subject to media-src CSP
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
       return new Promise((resolve) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
+        const source = audioCtx.createBufferSource();
+        source.buffer = decodedBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => {
+          audioCtx.close();
           resolve();
         };
-        audio.play();
+        source.start(0);
       });
     } catch (error) {
       console.error('TTS API Error:', error);
     }
   };
-
   // Process TTS queue
   const processTTSQueue = async () => {
     if (isProcessingTTS.current || ttsQueue.current.length === 0) return;
@@ -260,7 +338,7 @@ export const useHipRaiseCamera = ({
 
   // Check if set is complete
   useEffect(() => {
-    if (counterLeft >= targetReps && counterRight >= targetReps && !workoutComplete) {
+    if (counterLeft >= targetReps && !workoutComplete) {
       setSets(prev => {
         const newSets = prev + 1;
         if (newSets >= targetSets) {
@@ -289,7 +367,7 @@ export const useHipRaiseCamera = ({
 
           // Auto save to database
           saveSessionData(sessionData);
-          
+
           if (onWorkoutComplete) {
             onWorkoutComplete(sessionData);
           }
@@ -303,7 +381,107 @@ export const useHipRaiseCamera = ({
       });
     }
   }, [counterLeft, counterRight, targetReps, sets, targetSets, workoutComplete]);
+  // ── Position guide overlay (shown when landmarks invalid) ──────────────
+  const drawPositionGuide = (ctx) => {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
 
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.60)';
+    ctx.fillRect(0, 0, w, h);
+
+    // Pulsing border
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 400);
+    ctx.strokeStyle = `rgba(255,200,0,${0.55 + 0.45 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([12, 6]);
+    ctx.strokeRect(w * 0.08, h * 0.03, w * 0.84, h * 0.94);
+    ctx.setLineDash([]);
+
+    // ── Stick figure: squat stance ──────────────────────────────────────
+    const cx = w / 2;
+    const top = h * 0.05;
+    ctx.strokeStyle = 'rgba(255,220,60,0.88)';
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(255,200,0,0.5)';
+    ctx.shadowBlur = 12;
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(cx, top + h * 0.055, h * 0.048, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Torso
+    ctx.beginPath();
+    ctx.moveTo(cx, top + h * 0.105);
+    ctx.lineTo(cx, top + h * 0.35);
+    ctx.stroke();
+
+    // Arms (spread wide for squat)
+    ctx.beginPath();
+    ctx.moveTo(cx - w * 0.06, top + h * 0.115);
+    ctx.lineTo(cx - w * 0.22, top + h * 0.18);
+    ctx.lineTo(cx - w * 0.26, top + h * 0.30);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + w * 0.06, top + h * 0.115);
+    ctx.lineTo(cx + w * 0.22, top + h * 0.18);
+    ctx.lineTo(cx + w * 0.26, top + h * 0.30);
+    ctx.stroke();
+
+    // Squat legs (bent at ~130° hip-knee angle)
+    // Left leg
+    ctx.beginPath();
+    ctx.moveTo(cx, top + h * 0.35);            // hip center
+    ctx.lineTo(cx - w * 0.12, top + h * 0.55); // left hip
+    ctx.lineTo(cx - w * 0.14, top + h * 0.74); // left knee (bent outward)
+    ctx.lineTo(cx - w * 0.12, top + h * 0.90); // left ankle
+    ctx.stroke();
+    // Right leg
+    ctx.beginPath();
+    ctx.moveTo(cx, top + h * 0.35);
+    ctx.lineTo(cx + w * 0.12, top + h * 0.55);
+    ctx.lineTo(cx + w * 0.14, top + h * 0.74);
+    ctx.lineTo(cx + w * 0.12, top + h * 0.90);
+    ctx.stroke();
+
+    // Target zone arc hint at knee
+    // ctx.strokeStyle = 'rgba(0,255,136,0.6)';
+    // ctx.lineWidth = 2;
+    // ctx.beginPath();
+    // ctx.arc(cx - w * 0.14, top + h * 0.74, h * 0.05, -0.5, 1.5);
+    // ctx.stroke();
+    // ctx.beginPath();
+    // ctx.arc(cx + w * 0.14, top + h * 0.74, h * 0.05, 1.6, 3.7);
+    // ctx.stroke();
+
+    // Labels
+    ctx.shadowBlur = 0;
+
+    // ✅ reset transform ก่อนวาด text
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    ctx.fillStyle = 'rgba(255,220,60,0.95)';
+    ctx.font = `bold ${Math.round(w * 0.038)}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = 'center';
+
+    // ❗ ใช้ w/2 แทน cx
+    ctx.fillText('อยู่ในกรอบให้เห็นทั้งตัว', w / 2, h * 0.93);
+
+    ctx.font = `${Math.round(w * 0.026)}px 'Segoe UI', sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.fillText(
+      '',
+      w / 2,
+      h * 0.965
+    );
+
+    ctx.restore(); // กลับไปใช้ transform เดิม
+
+    ctx.restore(); // ของเดิมคุณ
+  };
   useEffect(() => {
     if (!isActive || !videoRef.current || !canvasRef.current || workoutComplete) {
       return;
@@ -408,6 +586,7 @@ export const useHipRaiseCamera = ({
 
                 // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
                 if (!valid) {
+                  drawPositionGuide(canvasCtx);
                   canvasCtx.restore();
                   return;
                 }
@@ -516,15 +695,17 @@ export const useHipRaiseCamera = ({
                           angle: Math.round(angleLeft * 100) / 100,
                           timestamp: new Date().toISOString()
                         });
-                        
+
                         if (onRepComplete) onRepComplete('left', newCounter);
-                        
+                        if (newCounter % 3 === 0) {
+                          processGeminiAndTTS(Math.round(angleLeft));
+                        }
                         return newCounter;
                       });
                       isTimingLeft.current = false;
                       holdTimeLeft.current = 0;
 
-                      processGeminiAndTTS(Math.round(angleLeft));
+
                     }
                   } else if ((angleLeft > 130 && angleLeft < 145) || angleLeft < 165) {
                     if (isTimingLeft.current) {
@@ -584,7 +765,6 @@ export const useHipRaiseCamera = ({
                       isTimingRight.current = false;
                       holdTimeRight.current = 0;
 
-                      processGeminiAndTTS(Math.round(angleRight));
                     }
                   } else if ((angleRight > 130 && angleRight < 145) || angleRight < 165) {
                     if (isTimingRight.current) {
@@ -607,7 +787,7 @@ export const useHipRaiseCamera = ({
                 width: 640,
                 height: 480
               });
-              
+
               cameraRef.current = camera;
               camera.start();
             }
@@ -624,7 +804,7 @@ export const useHipRaiseCamera = ({
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up camera...');
-      
+
       if (cameraRef.current) {
         try {
           cameraRef.current.stop();

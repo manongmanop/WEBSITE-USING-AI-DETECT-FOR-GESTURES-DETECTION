@@ -6,40 +6,40 @@ export const usePlankCamera = ({
   videoRef,
   canvasRef,
   isActive,
-  targetTime = null,       // Target hold time per set (seconds)
+  targetTime = 30,       // Target hold time per set (seconds)
   onSetComplete,
   onWorkoutComplete,
 }) => {
   // ── State ────────────────────────────────────────────────────────────────────
-  const [plankState, setPlankState]               = useState('not_in_position'); // 'in_position' | 'not_in_position'
-  const [elapsedTime, setElapsedTime]             = useState(0);   // total accumulated correct-position time (sec)
-  const [workoutComplete, setWorkoutComplete]      = useState(false);
-  const [saveStatus, setSaveStatus]               = useState('');
-  const [isSpeaking, setIsSpeaking]               = useState(false);
-  const [landmarksValid, setLandmarksValid]        = useState(false);
-  const [currentAngle, setCurrentAngle]           = useState(0);
-  const [connectionColor, setConnectionColor]     = useState('#ffffff');
+  const [plankState, setPlankState] = useState('not_in_position'); // 'in_position' | 'not_in_position'
+  const [elapsedTime, setElapsedTime] = useState(0);   // total accumulated correct-position time (sec)
+  const [workoutComplete, setWorkoutComplete] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [landmarksValid, setLandmarksValid] = useState(false);
+  const [currentAngle, setCurrentAngle] = useState(0);
+  const [connectionColor, setConnectionColor] = useState('#ffffff');
 
   // ── Refs ─────────────────────────────────────────────────────────────────────
-  const plankStartTimeRef   = useRef(null);   // timestamp when current in_position started
-  const plankElapsedRef     = useRef(0);      // accumulated time before current in_position stint
+  const plankStartTimeRef = useRef(null);   // timestamp when current in_position started
+  const plankElapsedRef = useRef(0);      // accumulated time before current in_position stint
 
   // Gemini / TTS
-  // const geminiApiKey        = import.meta.env.VITE_GEMINI_API_KEY;
-  // const openaiApiKey        = import.meta.env.VITE_OPENAI_API_KEY;
-  const ttsQueue            = useRef([]);
-  const isProcessingTTS     = useRef(false);
-  const lastGeminiTime      = useRef(Date.now());
-  const geminiInterval      = 24_000; // ms
+  const geminiApiKey        = import.meta.env.VITE_GEMINI_API_KEY;
+  const openaiApiKey        = import.meta.env.VITE_OPENAI_API_KEY;
+  const ttsQueue = useRef([]);
+  const isProcessingTTS = useRef(false);
+  const lastGeminiTime = useRef(Date.now());
+  const geminiInterval = 24_000; // ms
 
   // DB angle log
-  const angleDataRef        = useRef([]);
-  const lastSaveTimeRef     = useRef(Date.now());
-  const saveInterval        = 6_000; // ms
+  const angleDataRef = useRef([]);
+  const lastSaveTimeRef = useRef(Date.now());
+  const saveInterval = 6_000; // ms
 
   // Camera / Pose
   const cameraRef = useRef(null);
-  const poseRef   = useRef(null);
+  const poseRef = useRef(null);
 
   const instructions =
     "Voice: Calm, steady, and encouraging. Speak slowly and clearly to help the user stay focused during a plank hold.";
@@ -130,29 +130,45 @@ export const usePlankCamera = ({
   };
 
   // ── TTS API ──────────────────────────────────────────────────────────────────
+  // OpenAI TTS API call — uses Web Audio API to avoid CSP blob: media-src block
   const callTTSAPI = async (text) => {
     try {
-      const res = await fetch('https://api.openai.com/v1/audio/speech', {
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           model: 'gpt-4o-mini-tts',
-          voice: 'sage',
+          voice: 'ballad',
           input: text,
           instructions,
-          response_format: 'mp3',
-        }),
+          speed: 1.5,
+          response_format: 'mp3'
+        })
       });
-      if (!res.ok) throw new Error('TTS API failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
+
+      if (!response.ok) throw new Error('OpenAI TTS API request failed');
+
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Use Web Audio API — not subject to media-src CSP
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
       return new Promise((resolve) => {
-        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-        audio.play();
+        const source = audioCtx.createBufferSource();
+        source.buffer = decodedBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => {
+          audioCtx.close();
+          resolve();
+        };
+        source.start(0);
       });
-    } catch (err) {
-      console.error('TTS Error:', err);
+    } catch (error) {
+      console.error('TTS API Error:', error);
     }
   };
 
@@ -299,19 +315,19 @@ export const usePlankCamera = ({
             // if (!valid) return;
 
             // Landmark aliases (mediapipe is mirrored, so LEFT in code = right side visually)
-            const leftShoulder  = lm[11];
+            const leftShoulder = lm[11];
             const rightShoulder = lm[12];
-            const leftHip       = lm[23];
-            const rightHip      = lm[24];
-            const leftKnee      = lm[25];
-            const rightKnee     = lm[26];
-            const leftAnkle     = lm[27];
-            const rightAnkle    = lm[28];
+            const leftHip = lm[23];
+            const rightHip = lm[24];
+            const leftKnee = lm[25];
+            const rightKnee = lm[26];
+            const leftAnkle = lm[27];
+            const rightAnkle = lm[28];
 
             // Calculate shoulder-hip-ankle angle (both sides, then average)
             const angleRight = calculateAngle(rightShoulder, rightHip, rightAnkle);
-            const angleLeft  = calculateAngle(leftShoulder,  leftHip,  leftAnkle);
-            const angleAvg   = (angleRight + angleLeft) / 2;
+            const angleLeft = calculateAngle(leftShoulder, leftHip, leftAnkle);
+            const angleAvg = (angleRight + angleLeft) / 2;
             setCurrentAngle(Math.round(angleAvg));
 
             const color = getConnectionColor(angleAvg);
@@ -323,10 +339,10 @@ export const usePlankCamera = ({
             ctx.scale(-1, 1);
 
             drawBodyConnections(ctx, [rightShoulder, rightHip, rightKnee, rightAnkle], color);
-            drawBodyConnections(ctx, [leftShoulder,  leftHip,  leftKnee,  leftAnkle], color);
+            drawBodyConnections(ctx, [leftShoulder, leftHip, leftKnee, leftAnkle], color);
             drawLandmarkDots(ctx,
               [rightShoulder, rightHip, rightKnee, rightAnkle,
-               leftShoulder,  leftHip,  leftKnee,  leftAnkle],
+                leftShoulder, leftHip, leftKnee, leftAnkle],
               color
             );
 
@@ -368,7 +384,7 @@ export const usePlankCamera = ({
             // ── Draw status box ──────────────────────────────────────────
             ctx.save();
             const stateLabel = isCorrect ? 'CORRECT POSITION' : 'INCORRECT POSITION';
-            const boxColor   = isCorrect ? '#00ff00' : '#ff0000';
+            const boxColor = isCorrect ? '#00ff00' : '#ff0000';
             drawStatusBox(ctx, totalElapsed, targetTime, stateLabel, totalElapsed / targetTime, boxColor);
             ctx.restore();
 
@@ -433,11 +449,11 @@ export const usePlankCamera = ({
       console.log('🧹 Cleaning up plank camera...');
 
       if (cameraRef.current) {
-        try { cameraRef.current.stop(); } catch (_) {}
+        try { cameraRef.current.stop(); } catch (_) { }
         cameraRef.current = null;
       }
       if (poseRef.current) {
-        try { poseRef.current.close(); } catch (_) {}
+        try { poseRef.current.close(); } catch (_) { }
         poseRef.current = null;
       }
       if (videoRef.current?.srcObject) {
