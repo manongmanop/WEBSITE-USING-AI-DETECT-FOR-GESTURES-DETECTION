@@ -589,25 +589,35 @@ app.put('/api/users/:uid/workoutPlan', async (req, res) => {
 const exerciseSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String },
+  // Legacy fields (kept for backward compatibility)
   imageUrl: { type: String },
-  video: { type: String, default: null },     // path ไฟล์จริง
   videoUrl: { type: String, default: null },
+  image: { type: String },
+  
+  // New nested fields
+  media: {
+    imageUrl: { type: String },
+    videoUrl: { type: String }
+  },
+  met: {
+    base: { type: Number, default: 5.0 },
+    min: { type: Number, default: 4.0 },
+    max: { type: Number, default: 6.0 },
+    source: { type: String, default: "Compendium of Physical Activities" },
+    mappedFrom: { type: String, default: "Weight training (general)" }
+  },
+
   type: { type: String, enum: ['reps', 'time'], required: true },
-  value: { type: Number }, // target reps or duration in minutes
   duration: { type: Number }, // for time-based exercises (in seconds)
   time: { type: Number }, // alternative field for time
   minutes: { type: Number }, // alternative field for minutes
   reps: { type: Number }, // target reps for rep-based exercises
-  caloriesBurned: { type: Number, default: 0 }, // calories for completing target
-  caloriesPerRep: { type: Number, default: 0.5 }, // calories per rep
-  caloriesPerMinute: { type: Number, default: 5 }, // calories per minute
-  muscleGroups: [{ type: String }],
-  muscles: [{ type: String }], // ✅ Added muscles field
-  difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },
+  muscles: [{ type: String }],
+  difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' },
   equipment: [{ type: String }],
   instructions: [{ type: String }],
-  tips: [{ type: String }]
-});
+  tips: [{ type: String }] // ✅ reverted to array of strings
+}, { timestamps: true });
 
 const Exercise = mongoose.model('Exercise', exerciseSchema);
 
@@ -673,19 +683,33 @@ app.post('/api/exercises', upload.fields([
       videoUrl = `/uploads/${req.files.video[0].filename}`; // URL สำหรับเข้าถึง
     }
 
+    // Parse MET string if exists
+    let parsedMet = {
+      base: 5.0, min: 4.0, max: 6.0,
+      source: "Compendium of Physical Activities", mappedFrom: "Weight training (general)"
+    };
+    if (req.body.met) {
+      try { parsedMet = JSON.parse(req.body.met); } catch(e){}
+    }
+
     // สร้าง Exercise ใหม่
     const exercise = new Exercise({
       name,
       type,
       description,
+      tips: req.body.tips ? (Array.isArray(req.body.tips) ? req.body.tips : JSON.parse(req.body.tips)) : [],
       duration,
-      caloriesBurned: parseInt(caloriesBurned) || 0,
-      value: value ? JSON.parse(value) : null,
-      muscles: muscles ? (Array.isArray(muscles) ? muscles : JSON.parse(muscles)) : [], // ✅ Save muscles
-      image: imagePath,     // เก็บ path
-      video: videoPath,     // เก็บ path
-      imageUrl: imageUrl,   // เก็บ URL
-      videoUrl: videoUrl    // เก็บ URL
+      muscles: muscles ? (Array.isArray(muscles) ? muscles : JSON.parse(muscles)) : [],
+      difficulty: req.body.difficulty || "beginner",
+      met: parsedMet,
+      media: {
+        imageUrl: imageUrl,
+        videoUrl: videoUrl
+      },
+      // Legacy
+      image: imagePath,
+      imageUrl: imageUrl,
+      videoUrl: videoUrl
     });
 
     const newExercise = await exercise.save();
@@ -711,19 +735,31 @@ app.put('/api/exercises/:id', upload.fields([
       return res.status(404).json({ message: 'ไม่พบข้อมูลการฝึก' });
     }
     const existing = await Exercise.findById(req.params.id);
+    let parsedMet = existing.met;
+    if (req.body.met) {
+      try { parsedMet = JSON.parse(req.body.met); } catch(e){}
+    }
+
     const updateData = {
       name: name ?? existing.name,
       type: type ?? existing.type,
       description: description ?? existing.description,
       duration: (duration !== undefined ? Number(duration) : existing.duration),
-      caloriesBurned: (caloriesBurned !== undefined ? Number(caloriesBurned) : existing.caloriesBurned),
-      muscles: muscles ? (Array.isArray(muscles) ? muscles : JSON.parse(muscles)) : existing.muscles, // ✅ Update muscles
+      muscles: muscles ? (Array.isArray(muscles) ? muscles : JSON.parse(muscles)) : existing.muscles,
+      difficulty: req.body.difficulty ?? existing.difficulty,
+      tips: req.body.tips ? (Array.isArray(req.body.tips) ? req.body.tips : JSON.parse(req.body.tips)) : existing.tips,
+      met: parsedMet
     };
+
+    // Prepare media object fallback
+    updateData.media = existing.media || { imageUrl: existing.imageUrl, videoUrl: existing.videoUrl };
 
     // อัพเดทรูปภาพหากมีการอัปโหลดใหม่
     if (req.files && req.files.image && req.files.image[0]) {
       updateData.image = req.files.image[0].path;
-      updateData.imageUrl = `/uploads/${req.files.image[0].filename}`;
+      const newImageUrl = `/uploads/${req.files.image[0].filename}`;
+      updateData.imageUrl = newImageUrl;
+      updateData.media.imageUrl = newImageUrl;
 
       // ลบไฟล์เดิม (ถ้าต้องการ)
       if (existingExercise.image && fs.existsSync(existingExercise.image)) {
@@ -734,7 +770,9 @@ app.put('/api/exercises/:id', upload.fields([
     // อัพเดทวิดีโอหากมีการอัปโหลดใหม่
     if (req.files && req.files.video && req.files.video[0]) {
       updateData.video = req.files.video[0].path;
-      updateData.videoUrl = `/uploads/${req.files.video[0].filename}`;
+      const newVideoUrl = `/uploads/${req.files.video[0].filename}`;
+      updateData.videoUrl = newVideoUrl;
+      updateData.media.videoUrl = newVideoUrl;
 
       // ลบไฟล์เดิม (ถ้าต้องการ)
       if (existingExercise.video && fs.existsSync(existingExercise.video)) {

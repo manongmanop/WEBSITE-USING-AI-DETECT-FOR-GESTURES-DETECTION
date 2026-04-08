@@ -101,8 +101,8 @@ function ExerciseManagement() {
                                 <tr key={exercise._id}>
                                     <td>{index + 1}</td>
                                     <td>
-                                        {exercise.imageUrl ? (
-                                            <img src={exercise.imageUrl.startsWith("http") ? exercise.imageUrl : exercise.imageUrl} alt="Exercise" className="thumbnail" />
+                                        {(exercise.media?.imageUrl || exercise.imageUrl || exercise.image) ? (
+                                            <img src={(exercise.media?.imageUrl || exercise.imageUrl || exercise.image)} alt="Exercise" className="thumbnail" />
                                         ) : (
                                             <div className="placeholder-img"></div>
                                         )}
