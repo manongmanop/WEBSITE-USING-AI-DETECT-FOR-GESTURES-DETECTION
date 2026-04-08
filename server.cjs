@@ -858,8 +858,8 @@ const dailyPlanSchema = new mongoose.Schema({
 });
 const DailyPlan = mongoose.model("DailyPlan", dailyPlanSchema);
 
-const { generateDailyPlan } = require('./utils/planGenerator.js');
-const { calculateCalories } = require('./utils/calories.js');
+const { generateDailyPlan } = require('./utils/planGenerator.cjs');
+const { calculateCalories } = require('./utils/calories.cjs');
 
 // POST /api/daily-plan/generate — สร้างแผนรายวัน AI สำหรับผู้ใช้
 app.post('/api/daily-plan/generate', async (req, res) => {
