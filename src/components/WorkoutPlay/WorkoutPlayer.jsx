@@ -312,8 +312,8 @@ export default function WorkoutPlayer() {
 
   const activeExerciseIndexRef = useRef(-1);
   useEffect(() => {
-    // ถ้า index ยังไม่เปลี่ยน หรือไม่มีข้อมูลท่า -> ไม่ต้องทำอะไร
-    if (activeExerciseIndexRef.current === currentExercise || !exercises[currentExercise]) {
+    // ถ้าหน้าจอยังเป็นกล้องไกด์อยู่ หรือ index ยังไม่เปลี่ยน หรือไม่มีข้อมูลท่า -> ไม่ต้องทำอะไร
+    if (showGuide || activeExerciseIndexRef.current === currentExercise || !exercises[currentExercise]) {
       return;
     }
 
@@ -337,7 +337,7 @@ export default function WorkoutPlayer() {
 
     console.log(`🎬 Init Exercise ${currentExercise}: StartTime Fixed at ${exerciseStartTimeRef.current}`);
 
-    // 3. เริ่มนับถอยหลัง
+    // 3. เริ่มนับถอยหลัง (ถ้าไม่ได้อยู่ในช่วงพัก หรือเตรียมนับ 3 2 1)
     if (!isResting && !isCounting) {
       setIsPlaying(true);
       if (duration > 0) {
@@ -348,7 +348,7 @@ export default function WorkoutPlayer() {
       }
     }
 
-  }, [currentExercise, isResting, isCounting, exercises]);
+  }, [currentExercise, isResting, isCounting, exercises, showGuide]);
 
   useEffect(() => {
     console.log("Current User UID:", uid);
@@ -504,7 +504,7 @@ export default function WorkoutPlayer() {
     const currentEx = exercises[currentExercise];
     // Check both currentEx.tips and currentEx.exercise.tips
     const currentTips = currentEx?.tips || (currentEx?.exercise && typeof currentEx.exercise === "object" ? currentEx.exercise.tips : null);
-    
+
     let tipsArray = [];
     if (Array.isArray(currentTips)) {
       // Split by newline just in case array items have newlines inside
@@ -524,17 +524,17 @@ export default function WorkoutPlayer() {
     let currentIndex = 0;
     let timeoutId = null;
     let isActive = true;
-    
+
     // Global array to prevent Garbage Collection bug in Chrome/Windows breaking onend
     window.__ttsUtterances = window.__ttsUtterances || [];
 
     const speakNext = () => {
       if (!isActive || isPaused) return;
       if (currentIndex >= tipsArray.length) {
-         window.__ttsUtterances = []; // free memory
-         return;
+        window.__ttsUtterances = []; // free memory
+        return;
       }
-      
+
       const utterance = new SpeechSynthesisUtterance(tipsArray[currentIndex]);
       utterance.lang = "th-TH";
       utterance.rate = 1.0;
@@ -547,7 +547,7 @@ export default function WorkoutPlayer() {
           timeoutId = setTimeout(speakNext, 2000); // 2 วินาที
         }
       };
-      
+
       utterance.onerror = (e) => {
         console.warn("TTS Error:", e);
         // Fallback progress just in case
@@ -1319,7 +1319,9 @@ export default function WorkoutPlayer() {
                     <span className="wp-time-number">{restRemaining}</span>
                     <span className="wp-time-unit">วินาที</span>
                   </div>
-                  <button className="wp-btn wp-btn-primary" onClick={() => addRestSeconds(10)}>เพิ่มเวลาพัก +10 วินาที</button>
+                  <button className="wp-btn wp-btn-primary" onClick={() => addRestSeconds(10)}>
+                    {currentExercise === 0 ? "เพิ่มเวลาเตรียมตัว 10 วินาที" : "เพิ่มเวลาพัก 10 วินาที"}
+                  </button>
                 </div>
                 <ProgressRing progress={restProgress} />
               </div>

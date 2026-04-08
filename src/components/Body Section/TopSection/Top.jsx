@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { AiOutlineSearch, AiOutlineClockCircle } from "react-icons/ai";
 import { IoFitnessOutline } from "react-icons/io5";
 import { BsLightning, BsFire, BsArrowRight } from "react-icons/bs";
+import { GiArtificialIntelligence } from "react-icons/gi";
 import { useUserAuth } from "../../../context/UserAuthContext";
-import { doc, getDoc } from 'firebase/firestore'; // เพิ่ม import สำหรับ Firestore
-import { db } from '../../../../firebase'; // ต้องเพิ่ม import ตัวนี้ด้วย
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../../firebase';
 import { getMediaUrl } from "../../Detail Section/Detail/Detail.jsx";
 import "./top.css";
 import "../../style/global.css";
@@ -16,8 +17,11 @@ export const Top = () => {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All"); // default เป็น All
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [userStats, setUserStats] = useState({ caloriesBurned: 0, workoutsDone: 0 });
+  const [dailyPlan, setDailyPlan] = useState(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState("");
 
   // ดึงชื่อจาก Firestore และสถิติผู้ใช้จาก MongoDB
   useEffect(() => {
@@ -79,6 +83,43 @@ export const Top = () => {
 
     fetchUserData();
   }, [user]);
+
+  // ดึงแผนออกกำลังกายวันนี้ถ้ามี
+  useEffect(() => {
+    const fetchDailyPlan = async () => {
+      if (!user?.uid) return;
+      try {
+        const res = await fetch(`/api/daily-plan/${user.uid}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDailyPlan(data);
+        }
+      } catch (e) {
+        // ยังไม่มีแผน ไม่ต้องแสดง error
+      }
+    };
+    fetchDailyPlan();
+  }, [user]);
+
+  const handleGeneratePlan = async () => {
+    if (!user?.uid) return;
+    setPlanLoading(true);
+    setPlanError("");
+    try {
+      const res = await fetch("/api/daily-plan/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid })
+      });
+      if (!res.ok) throw new Error("สร้างแผนไม่สำเร็จ");
+      const data = await res.json();
+      setDailyPlan(data);
+    } catch (e) {
+      setPlanError("ไม่สามารถสร้างแผนวันนี้ได้ กรุณาลองใหม่");
+    } finally {
+      setPlanLoading(false);
+    }
+  };
 
   // ดึงโปรแกรมทั้งหมด
   useEffect(() => {
@@ -191,6 +232,51 @@ export const Top = () => {
           </div>
         </div>
       </div> */}
+
+      {/* === AI Daily Plan Card === */}
+      <div className="daily-plan-section">
+        <div className="daily-plan-header">
+          <h2 className="daily-plan-title">🤖 แผนออกกำลังกายวันนี้ (AI)</h2>
+          <button
+            className="generate-plan-btn"
+            onClick={handleGeneratePlan}
+            disabled={planLoading}
+          >
+            {planLoading ? "กำลังสร้าง..." : dailyPlan ? "🔄 สร้างแผนใหม่" : "✨ สร้างแผนวันนี้"}
+          </button>
+        </div>
+
+        {planError && <p className="plan-error">{planError}</p>}
+
+        {dailyPlan ? (
+          <div className="daily-plan-card">
+            <div className="plan-summary">
+              <span>⏱️ {dailyPlan.totalDuration} วินาที</span>
+              <span>🔥 ~{dailyPlan.estimatedCalories} kcal</span>
+              <span>💪 {dailyPlan.exercises?.length} ท่า</span>
+            </div>
+            <div className="plan-exercises-list">
+              {dailyPlan.exercises?.map((ex, i) => (
+                <div key={i} className="plan-exercise-item">
+                  {ex.imageUrl && (
+                    <img src={getMediaUrl(ex.imageUrl)} alt={ex.name} className="plan-ex-img" onError={e => e.currentTarget.style.display='none'} />
+                  )}
+                  <div className="plan-ex-info">
+                    <span className="plan-ex-name">{ex.name}</span>
+                    <span className="plan-ex-detail">
+                      {ex.type === 'time' ? `⏱️ ${ex.time} วินาที` : `🔁 ${ex.reps} ครั้ง`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : !planLoading && (
+          <div className="no-plan-placeholder">
+            <p>กดปุ่มด้านบนเพื่อให้ AI สร้างแผนออกกำลังกายของคุณวันนี้!</p>
+          </div>
+        )}
+      </div>
 
       <div className="programs-section">
         <div className="section-header">
