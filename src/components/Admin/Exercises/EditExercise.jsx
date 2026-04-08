@@ -15,9 +15,17 @@ function EditExercise() {
     const [type, setType] = useState("reps");
     const [description, setDescription] = useState("");
     const [duration, setDuration] = useState("");
-    const [caloriesBurned, setCaloriesBurned] = useState("");
-    const [value, setValue] = useState("");
+    const [reps, setReps] = useState("");
     const [muscles, setMuscles] = useState("");
+
+    // New fields
+    const [difficulty, setDifficulty] = useState("beginner");
+    const [tips, setTips] = useState("");
+    const [metBase, setMetBase] = useState(5.0);
+    const [metMin, setMetMin] = useState(4.0);
+    const [metMax, setMetMax] = useState(6.0);
+    const [metSource, setMetSource] = useState("Compendium of Physical Activities");
+    const [metMappedFrom, setMetMappedFrom] = useState("Weight training (general)");
 
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState("");
@@ -35,12 +43,22 @@ function EditExercise() {
                 setType(data.type || "reps");
                 setDescription(data.description || "");
                 setDuration(data.duration || "");
-                setCaloriesBurned(data.caloriesBurned || "");
-                setValue(data.value || "");
+                setReps(data.reps || data.value || "");
                 setMuscles(Array.isArray(data.muscles) ? data.muscles.join(", ") : "");
 
-                setExistingImageUrl(data.imageUrl || data.image || "");
-                setExistingVideoUrl(data.videoUrl || data.video || "");
+                setDifficulty(data.difficulty || "beginner");
+                setTips(Array.isArray(data.tips) ? data.tips.join("\n") : (typeof data.tips === 'string' ? data.tips : ""));
+                
+                if (data.met) {
+                    setMetBase(data.met.base ?? 5.0);
+                    setMetMin(data.met.min ?? 4.0);
+                    setMetMax(data.met.max ?? 6.0);
+                    setMetSource(data.met.source || "Compendium of Physical Activities");
+                    setMetMappedFrom(data.met.mappedFrom || "Weight training (general)");
+                }
+
+                setExistingImageUrl(data.media?.imageUrl || data.imageUrl || data.image || "");
+                setExistingVideoUrl(data.media?.videoUrl || data.videoUrl || data.video || "");
             } catch (error) {
                 console.error("Error fetching exercise:", error);
                 Swal.fire("ข้อผิดพลาด", "ไม่สามารถดึงข้อมูลท่าออกกำลังกายได้", "error");
@@ -70,7 +88,7 @@ function EditExercise() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!name || (!duration && !value)) {
+        if (!name || (!duration && !reps)) {
             Swal.fire("ข้อผิดพลาด", "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน", "error");
             return;
         }
@@ -83,11 +101,24 @@ function EditExercise() {
             formData.append("type", type);
             formData.append("description", description);
             formData.append("duration", duration || 60);
-            formData.append("caloriesBurned", caloriesBurned || 0);
-            formData.append("value", value || 0);
+            if (type === "reps") formData.append("reps", reps || 0);
 
             const musclesArray = muscles.split(",").map(m => m.trim()).filter(Boolean);
             formData.append("muscles", JSON.stringify(musclesArray));
+
+            formData.append("difficulty", difficulty);
+            
+            const tipsArray = tips.split("\n").map(t => t.trim()).filter(Boolean);
+            formData.append("tips", JSON.stringify(tipsArray));
+            
+            const metData = {
+                base: parseFloat(metBase) || 5.0,
+                min: parseFloat(metMin) || 4.0,
+                max: parseFloat(metMax) || 6.0,
+                source: metSource,
+                mappedFrom: metMappedFrom
+            };
+            formData.append("met", JSON.stringify(metData));
 
             if (imageFile) formData.append("image", imageFile);
             if (videoFile) formData.append("video", videoFile);
@@ -171,8 +202,8 @@ function EditExercise() {
                         </label>
                         <input
                             type="number"
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
+                            value={type === "reps" ? reps : duration}
+                            onChange={(e) => type === "reps" ? setReps(e.target.value) : setDuration(e.target.value)}
                             className="form-input"
                             required
                         />
@@ -190,15 +221,6 @@ function EditExercise() {
 
                 <div className="form-row">
                     <div className="col form-group">
-                        <label>แคลอรี่ที่เผาผลาญ (kcal)</label>
-                        <input
-                            type="number"
-                            value={caloriesBurned}
-                            onChange={(e) => setCaloriesBurned(e.target.value)}
-                            className="form-input"
-                        />
-                    </div>
-                    <div className="col form-group">
                         <label>กล้ามเนื้อเป้าหมาย (คั่นด้วยลูกน้ำ)</label>
                         <input
                             type="text"
@@ -207,6 +229,61 @@ function EditExercise() {
                             className="form-input"
                             placeholder="อก, ไหล่, หลังแขน"
                         />
+                    </div>
+                </div>
+
+                <div className="form-row">
+                    <div className="col form-group">
+                        <label>ระดับความยาก</label>
+                        <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="form-select">
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div className="col form-group">
+                        <label>Tips (ข้อแนะนำ - แยกด้วยการขึ้นบรรทัดใหม่)</label>
+                        <textarea value={tips} onChange={(e) => setTips(e.target.value)} className="form-textarea" placeholder={"เช่น\nหลังตรง\nไม่กลั้นหายใจ"} rows="3" />
+                    </div>
+                </div>
+
+                <div className="form-group-section" style={{ border: "1px dashed #ccc", padding: "15px", marginBottom: "20px", borderRadius: "8px" }}>
+                    <h4 style={{ marginTop: 0, marginBottom: "15px", color: "#555" }}>MET Configuration (อัตราการเผาผลาญ)</h4>
+                    <div className="form-row">
+                        <div className="col form-group">
+                            <label>Base MET</label>
+                            <input type="number" step="0.1" value={metBase} onChange={(e) => setMetBase(e.target.value)} className="form-input" />
+                        </div>
+                        <div className="col form-group">
+                            <label>Min MET</label>
+                            <input type="number" step="0.1" value={metMin} onChange={(e) => setMetMin(e.target.value)} className="form-input" />
+                        </div>
+                        <div className="col form-group">
+                            <label>Max MET</label>
+                            <input type="number" step="0.1" value={metMax} onChange={(e) => setMetMax(e.target.value)} className="form-input" />
+                        </div>
+                    </div>
+                    <div className="form-row">
+                        <div className="col form-group">
+                            <label>Source</label>
+                            <input type="text" value={metSource} onChange={(e) => setMetSource(e.target.value)} className="form-input" />
+                        </div>
+                        <div className="col form-group">
+                            <label>Mapped From</label>
+                            <select value={metMappedFrom} onChange={(e) => setMetMappedFrom(e.target.value)} className="form-select">
+                                <option value="Calisthenics (light)">Calisthenics (light)</option>
+                                <option value="Calisthenics (moderate)">Calisthenics (moderate)</option>
+                                <option value="Calisthenics (vigorous)">Calisthenics (vigorous)</option>
+                                <option value="Weight training (light)">Weight training (light)</option>
+                                <option value="Weight training (moderate)">Weight training (moderate)</option>
+                                <option value="Weight training (vigorous)">Weight training (vigorous)</option>
+                                <option value="Resistance training (general)">Resistance training (general)</option>
+                                <option value="Core exercise">Core exercise</option>
+                                <option value="Floor exercise">Floor exercise</option>
+                                <option value="Stretching">Stretching</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 

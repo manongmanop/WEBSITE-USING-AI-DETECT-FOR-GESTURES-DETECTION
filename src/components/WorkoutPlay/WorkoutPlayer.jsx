@@ -29,8 +29,8 @@ function normalizeUrl(p) {
 
 function parseDurationMs(ex) {
   if (ex.duration && ex.duration > 0) return ex.duration * 1000;
-  if (ex.type === 'time' && ex.value > 0) return ex.value * 300 * 1000;
-  return 300 * 1000;
+  if (ex.type === 'time' && ex.value > 0) return ex.value * 1000;
+  return 0;
 }
 
 /* =========================================
@@ -54,6 +54,38 @@ const ProgressRing = ({ progress, size = 80, strokeWidth = 6 }) => {
     </svg>
   );
 };
+
+function CountdownWheel({ timeRemaining, totalDuration }) {
+  const size = 110;
+  const r = size * 0.38;
+  const cx = size / 2, cy = size / 2;
+  const circ = 2 * Math.PI * r;
+  const ratio = totalDuration > 0 ? timeRemaining / totalDuration : 0;
+  const offset = circ * (1 - ratio);
+
+  const color = ratio > 0.5 ? "#1D9E75" : ratio > 0.25 ? "#EF9F27" : "#E24B4A";
+
+  return (
+    <svg width={size} height={size} style={{ display: "block", margin: "8px auto" }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={size * 0.09} />
+      <circle
+        cx={cx} cy={cy} r={r} fill="none"
+        stroke={color} strokeWidth={size * 0.09} strokeLinecap="round"
+        strokeDasharray={circ} strokeDashoffset={offset}
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{ transition: "stroke-dashoffset 0.9s linear, stroke 0.5s" }}
+      />
+      <text x={cx} y={cy + size * 0.07} textAnchor="middle"
+        fontSize={size * 0.22} fontWeight="500" fill={color}>
+        {timeRemaining}
+      </text>
+      <text x={cx} y={cy + size * 0.25} textAnchor="middle"
+        fontSize={size * 0.11} fill="#888">
+        วินาที
+      </text>
+    </svg>
+  );
+}
 
 function CameraGuide({ mode = "gate", images = [], onAccept, onClose }) {
   const safeImages = (images || []).filter(Boolean);
@@ -291,8 +323,15 @@ export default function WorkoutPlayer() {
     // 1. ตั้งค่าเวลาเริ่ม (จุดสำคัญ: ทำครั้งเดียว ไม่มีการรีเซ็ตอีกจนกว่าจะเปลี่ยนท่า)
     exerciseStartTimeRef.current = Date.now();
 
-    // 2. ตั้งค่า Duration 60 วิ
-    const duration = 60 * 1000;
+    // 2. ตั้งค่า Duration ตามประเภท
+    const cur = exercises[currentExercise];
+    const isDuration = cur?.duration > 0 || cur?.type === 'time';
+    let duration = 0;
+    if (isDuration) {
+      if (cur.duration && cur.duration > 0) duration = cur.duration * 1000;
+      else if (cur.type === 'time' && cur.value > 0) duration = cur.value * 1000;
+    }
+
     currentDurationMsRef.current = duration;
     remainingMsRef.current = duration;
 
@@ -301,7 +340,12 @@ export default function WorkoutPlayer() {
     // 3. เริ่มนับถอยหลัง
     if (!isResting && !isCounting) {
       setIsPlaying(true);
-      resumeWorkoutTimers();
+      if (duration > 0) {
+        resumeWorkoutTimers();
+      } else {
+        setExerciseProgress(0);
+        setTimeRemaining(0);
+      }
     }
 
   }, [currentExercise, isResting, isCounting, exercises]);
@@ -411,11 +455,15 @@ export default function WorkoutPlayer() {
 
         setProgram(res.data);
         const list = Array.isArray(res.data?.workoutList) ? res.data.workoutList : [];
-        setExercises(list.map((it) => ({
-          ...it,
-          imageUrl: normalizeUrl(it.imageUrl || it.image),
-          video: normalizeUrl(it.videoUrl || it.video),
-        })));
+        setExercises(list.map((it) => {
+          const exObj = it?.exercise && typeof it.exercise === "object" ? it.exercise : it;
+          return {
+            ...it,
+            imageUrl: normalizeUrl(exObj?.media?.imageUrl || exObj?.imageUrl || exObj?.image || it?.imageUrl || it?.image),
+            video: normalizeUrl(exObj?.media?.videoUrl || exObj?.videoUrl || exObj?.video || it?.videoUrl || it?.video),
+            met: exObj?.met || { base: 5.0 }
+          };
+        }));
         // Initial Reset
         setCurrentExercise(0);
         stopCamera();
@@ -445,6 +493,82 @@ export default function WorkoutPlayer() {
       return () => clearTimeout(t);
     }
   }, [isPaused, isResting, showGuide]);
+
+  // TTS for Tips
+  useEffect(() => {
+    if (!isPlaying || isPaused || isResting || isCounting) {
+      window.speechSynthesis.cancel();
+      return;
+    }
+
+    const currentEx = exercises[currentExercise];
+    // Check both currentEx.tips and currentEx.exercise.tips
+    const currentTips = currentEx?.tips || (currentEx?.exercise && typeof currentEx.exercise === "object" ? currentEx.exercise.tips : null);
+    
+    let tipsArray = [];
+    if (Array.isArray(currentTips)) {
+      // Split by newline just in case array items have newlines inside
+      tipsArray = currentTips.flatMap(t => t.split("\n"));
+    } else if (typeof currentTips === 'string') {
+      tipsArray = currentTips.split("\n");
+    }
+
+    // fallback split comma if user just wrote commas instead of newlines
+    tipsArray = tipsArray
+      .flatMap(t => t.split(","))
+      .map(t => t.trim())
+      .filter(Boolean);
+
+    if (tipsArray.length === 0) return;
+
+    let currentIndex = 0;
+    let timeoutId = null;
+    let isActive = true;
+    
+    // Global array to prevent Garbage Collection bug in Chrome/Windows breaking onend
+    window.__ttsUtterances = window.__ttsUtterances || [];
+
+    const speakNext = () => {
+      if (!isActive || isPaused) return;
+      if (currentIndex >= tipsArray.length) {
+         window.__ttsUtterances = []; // free memory
+         return;
+      }
+      
+      const utterance = new SpeechSynthesisUtterance(tipsArray[currentIndex]);
+      utterance.lang = "th-TH";
+      utterance.rate = 1.0;
+
+      window.__ttsUtterances.push(utterance); // prevent GC
+
+      utterance.onend = () => {
+        currentIndex++;
+        if (currentIndex < tipsArray.length && isActive && !isPaused) {
+          timeoutId = setTimeout(speakNext, 2000); // 2 วินาที
+        }
+      };
+      
+      utterance.onerror = (e) => {
+        console.warn("TTS Error:", e);
+        // Fallback progress just in case
+        currentIndex++;
+        if (currentIndex < tipsArray.length && isActive && !isPaused) {
+          timeoutId = setTimeout(speakNext, 2000);
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    speakNext();
+
+    return () => {
+      isActive = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      window.speechSynthesis.cancel();
+      window.__ttsUtterances = [];
+    };
+  }, [isPlaying, isPaused, isResting, isCounting, currentExercise, exercises]);
 
   // Camera Management
   useEffect(() => {
@@ -614,7 +738,7 @@ export default function WorkoutPlayer() {
     const exerciseId = ex?._id || exerciseDoc?._id;
 
     const type = ex?.type;
-    const rawValue = ex?.value ?? ex?.time ?? ex?.duration ?? 0;
+    const rawValue = ex?.value ?? ex?.reps ?? ex?.time ?? ex?.duration ?? 0;
     const value = Number(rawValue);
 
     if (!exerciseId || (type !== "reps" && type !== "time") || !Number.isFinite(value)) {
@@ -622,8 +746,14 @@ export default function WorkoutPlayer() {
     }
 
     // ✅ เพิ่มการคำนวณแคลอรี่ตรงนี้
-    // สูตรสมมติ: 5 kcal ต่อ 1 นาที (ปรับเปลี่ยนตัวเลข 5 ได้ตามความหนักเบา)
-    const rawCalories = (Number(performedSeconds) / 60) * 5;
+    // ใช้ค่า MET จริงของท่าออกกำลังกาย (แทนที่ค่าคงที่ 5.0)
+    // สูตร Calories = MET × Weight(kg) × Time(hours)
+    // โดยถ้าผู้ใช้ยังไม่มีประวัติน้ำหนัก จะขอตีความที่ 70kg เป็นค่าเริ่มต้น
+    const MET = ex?.met?.base || 5.0;
+    const weightInKg = parseFloat(weight) || 70;
+    const timeInHours = Number(performedSeconds) / 3600;
+
+    const rawCalories = MET * weightInKg * timeInHours;
 
     // ✅ แปลงเป็นทศนิยม 2 ตำแหน่ง (และแปลงกลับเป็น Number เพื่อไม่ให้เป็น String)
     const calories = Number(rawCalories.toFixed(2));
@@ -670,14 +800,25 @@ export default function WorkoutPlayer() {
 
   const startWorkoutTimersForCurrent = () => {
     const cur = exercises[currentExercise]; if (!cur) return;
-    const durationMs = parseDurationMs(cur);
-    if (durationMs <= 0) {
-      //onWorkoutEnded(); return;
+
+    const isDuration = cur?.duration > 0 || cur?.type === 'time';
+    let durationMs = 0;
+    if (isDuration) {
+      if (cur.duration && cur.duration > 0) durationMs = cur.duration * 1000;
+      else if (cur.type === 'time' && cur.value > 0) durationMs = cur.value * 1000;
     }
 
-    currentDurationMsRef.current = durationMs > 0 ? durationMs : 60000; // Default 60s
-    remainingMsRef.current = currentDurationMsRef.current;
-    resumeWorkoutTimers();
+    currentDurationMsRef.current = durationMs;
+    remainingMsRef.current = durationMs;
+
+    if (durationMs > 0) {
+      resumeWorkoutTimers();
+    } else {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
+      setExerciseProgress(0);
+      setTimeRemaining(0);
+    }
   };
 
   const pauseWorkoutTimers = () => {
@@ -926,6 +1067,14 @@ export default function WorkoutPlayer() {
     }
 
     if (isPlaying) {
+      const cur = exercises[currentExercise];
+      const isDuration = cur?.duration > 0 || cur?.type === 'time';
+      if (isDuration && remainingMsRef.current > 0) {
+        const wantsToSkip = window.confirm("เวลาของท่านี้ยังไม่หมด คุณแน่ใจหรือไม่ที่จะข้ามไปยังท่าถัดไป?");
+        if (!wantsToSkip) {
+          return;
+        }
+      }
       onWorkoutEnded();
       return;
     }
@@ -1064,8 +1213,8 @@ export default function WorkoutPlayer() {
         <main className="wp-main">
           {/* ส่วน Header บอกชื่อท่าและเวลา คงเดิมไว้ */}
           <div className="wp-exercise-header">
-            <h2 className="wp-current-exercise-name">
-              {current?.name}
+            <h2 className="wp-current-exercise-name" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span>{current?.name}</span>
               {current?.sets || current?.reps || current?.duration || current?.rest ? (
                 <div style={{ fontSize: "0.6em", fontWeight: "normal", opacity: 0.8, marginTop: "4px" }}>
                   {[
@@ -1077,6 +1226,15 @@ export default function WorkoutPlayer() {
                 </div>
               ) : null}
             </h2>
+            <div className="wp-exercise-stats">
+              {(current?.duration > 0 || current?.type === 'time') && currentDurationMsRef.current > 0 && (
+                <CountdownWheel
+                  timeRemaining={timeRemaining}
+                  totalDuration={current?.duration || Math.ceil(currentDurationMsRef.current / 1000)}
+                />
+              )}
+            </div>
+
           </div>
 
           {/* ✅ เปลี่ยนส่วนแสดงผลวิดีโอตรงนี้ เป็น Layout ใหม่ */}
