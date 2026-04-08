@@ -664,7 +664,7 @@ app.post('/api/exercises', upload.fields([
   { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { name, type, description, duration, caloriesBurned, value, muscles } = req.body;
+    const { name, type, description, duration, reps, muscles } = req.body;
 
     let imageUrl = null;
     let videoUrl = null;
@@ -697,8 +697,9 @@ app.post('/api/exercises', upload.fields([
       name,
       type,
       description,
-      tips: req.body.tips ? (Array.isArray(req.body.tips) ? req.body.tips : JSON.parse(req.body.tips)) : [],
-      duration,
+      tips: req.body.tips ? (Array.isArray(req.body.tips) ? req.body.tips : (typeof req.body.tips === 'string' && req.body.tips.startsWith('[') ? JSON.parse(req.body.tips) : [req.body.tips])) : [],
+      duration: duration ? Number(duration) : undefined,
+      reps: reps ? Number(reps) : undefined,
       muscles: muscles ? (Array.isArray(muscles) ? muscles : JSON.parse(muscles)) : [],
       difficulty: req.body.difficulty || "beginner",
       met: parsedMet,
@@ -727,7 +728,7 @@ app.put('/api/exercises/:id', upload.fields([
   { name: 'video', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { name, type, description, duration, caloriesBurned, value, muscles } = req.body;
+    const { name, type, description, duration, reps, muscles } = req.body;
 
     // หาข้อมูลเดิม
     const existingExercise = await Exercise.findById(req.params.id);
@@ -745,9 +746,10 @@ app.put('/api/exercises/:id', upload.fields([
       type: type ?? existing.type,
       description: description ?? existing.description,
       duration: (duration !== undefined ? Number(duration) : existing.duration),
+      reps: (reps !== undefined ? Number(reps) : existing.reps),
       muscles: muscles ? (Array.isArray(muscles) ? muscles : JSON.parse(muscles)) : existing.muscles,
       difficulty: req.body.difficulty ?? existing.difficulty,
-      tips: req.body.tips ? (Array.isArray(req.body.tips) ? req.body.tips : JSON.parse(req.body.tips)) : existing.tips,
+      tips: req.body.tips !== undefined ? (Array.isArray(req.body.tips) ? req.body.tips : (typeof req.body.tips === 'string' && req.body.tips.startsWith('[') ? JSON.parse(req.body.tips) : [req.body.tips])) : existing.tips,
       met: parsedMet
     };
 
