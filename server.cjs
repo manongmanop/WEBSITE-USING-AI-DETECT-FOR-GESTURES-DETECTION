@@ -7,7 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 require('dotenv').config();
-console.log("🚀 SERVER STARTING - VERSION: WITH_SESSION_ID_AND_FEEDBACK_FIXED"); // Unique Log
+const { calculateCalories } = require('./utils/calculateCalories');
+console.log("🚀 SERVER STARTING - VERSION: WITH_CALCULATE_CALORIES_UTIL"); // Unique Log
 const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({
@@ -858,69 +859,8 @@ const dailyPlanSchema = new mongoose.Schema({
 });
 const DailyPlan = mongoose.model("DailyPlan", dailyPlanSchema);
 
-const { generateDailyPlan } = require('./utils/planGenerator.cjs');
-const { calculateCalories } = require('./utils/calories.cjs');
-
-// POST /api/daily-plan/generate — สร้างแผนรายวัน AI สำหรับผู้ใช้
-app.post('/api/daily-plan/generate', async (req, res) => {
-  try {
-    const { userId, weight } = req.body;
-    if (!userId) return res.status(400).json({ message: 'กรุณาระบุ userId' });
-
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-    // ดึงท่าออกกำลังกายทั้งหมด
-    const exercises = await Exercise.find({}).lean();
-    if (!exercises.length) return res.status(404).json({ message: 'ไม่พบท่าออกกำลังกาย' });
-
-    // สร้างแผนด้วย AI Generator
-    const planExercises = generateDailyPlan({ userId }, exercises);
-
-    // คำนวณแคลอรี่รวมโดยประมาณ (ใช้น้ำหนักสำรอง 65 kg ถ้าไม่ระบุ)
-    const userWeight = parseFloat(weight) || 65;
-    let totalDuration = 0;
-    let estimatedCalories = 0;
-
-    planExercises.forEach(ex => {
-      const durationSec = ex.type === 'time' ? (ex.time || 15) : 30; // reps ประมาณ 30 วินาที
-      totalDuration += durationSec;
-      estimatedCalories += calculateCalories(userWeight, ex.met || 5.0, durationSec);
-    });
-
-    // บันทึกแผนลง DB (ทับแผนเก่าของวันเดียวกัน)
-    const savedPlan = await DailyPlan.findOneAndUpdate(
-      { userId, date: today },
-      {
-        userId,
-        date: today,
-        exercises: planExercises,
-        totalDuration: Math.round(totalDuration),
-        estimatedCalories: Math.round(estimatedCalories * 10) / 10
-      },
-      { upsert: true, new: true }
-    );
-
-    res.json(savedPlan);
-  } catch (err) {
-    console.error('Error generating daily plan:', err);
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// GET /api/daily-plan/:userId — ดึงแผนรายวันล่าสุดของผู้ใช้
-app.get('/api/daily-plan/:userId', async (req, res) => {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const plan = await DailyPlan.findOne({ userId: req.params.userId, date: today });
-    if (!plan) return res.status(404).json({ message: 'ยังไม่มีแผนสำหรับวันนี้' });
-    res.json(plan);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
 // WorkoutProgram Routes
-
 app.get('/api/workout_programs', async (req, res) => {
   try {
     const { category } = req.query;
@@ -1834,8 +1774,17 @@ app.post("/api/workout_sessions/:id/log-exercise", async (req, res) => {
     const reps = Math.max(0, Number(logData.performed?.reps || 0));
 
     // 2. คำนวณแคลอรี่
-    let rawCalories = (seconds / 60) * 5;
-    const calories = seconds > 10 ? Math.ceil(rawCalories) : parseFloat(rawCalories.toFixed(2));
+    //    ถ้า client ส่ง calories มาแล้ว (คำนวณด้วย MET + น้ำหนักจริงของผู้ใช้) → ใช้ค่านั้นเลย
+    //    ถ้าไม่มี → fallback ด้วย calculateCalories() บน server (ใช้ค่า default: MET=5, weight=70)
+    let calories;
+    if (logData.calories !== undefined && logData.calories !== null && Number(logData.calories) > 0) {
+      calories = parseFloat(Number(logData.calories).toFixed(2));
+      console.log(`🔥 Using client-provided calories: ${calories} kcal`);
+    } else {
+      // Fallback: MET default 5.0, weight default 70 kg
+      calories = calculateCalories(70, 5.0, seconds);
+      console.log(`🔥 Fallback server-calculated calories: ${calories} kcal`);
+    }
 
     // 3. สร้าง Object Log ที่ถูกต้องตาม Schema เป๊ะๆ
     const newLog = {
@@ -1853,7 +1802,7 @@ app.post("/api/workout_sessions/:id/log-exercise", async (req, res) => {
       endedAt: logData.endedAt
     };
 
-    console.log(`📝 Logging Order ${logData.order}: ${seconds}s`); // เพิ่ม Log ดูว่า Backend เห็นกี่วินาที
+    console.log(`📝 Logging Order ${logData.order}: ${seconds}s, ${calories} kcal`);
 
     // 4. ลบอันเก่า (ถ้ามี) แล้วเพิ่มอันใหม่
     await WorkoutSession.findByIdAndUpdate(id, {
@@ -1864,7 +1813,7 @@ app.post("/api/workout_sessions/:id/log-exercise", async (req, res) => {
       $push: { logs: newLog }
     });
 
-    res.json({ success: true });
+    res.json({ success: true, calories });
   } catch (err) {
     console.error("Log Error:", err);
     res.status(500).json({ error: err.message });

@@ -345,6 +345,16 @@ body {
   color: var(--primary-dark);
 }
 
+.footer-message--warning {
+  color: #92400e;
+  font-size: 1.1rem;
+}
+
+.summary-footer:has(.footer-message--warning) {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #fcd34d;
+}
+
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
   .summary-container {
