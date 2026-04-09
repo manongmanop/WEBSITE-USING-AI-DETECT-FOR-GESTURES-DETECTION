@@ -800,7 +800,7 @@ export const useSquatCamera = ({
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
-        alert('Cannot access camera. Please allow camera permission.');
+        // alert removed to use custom popup in WorkoutPlayer
       }
     };
 

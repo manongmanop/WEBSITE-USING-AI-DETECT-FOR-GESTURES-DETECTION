@@ -439,7 +439,7 @@ export const usePlankCamera = ({
         };
       } catch (err) {
         console.error('Camera error:', err);
-        alert('Cannot access camera. Please allow camera permission.');
+        // alert removed to use custom popup in WorkoutPlayer
       }
     };
 
