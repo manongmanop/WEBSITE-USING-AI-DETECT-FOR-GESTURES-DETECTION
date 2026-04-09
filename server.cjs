@@ -1863,6 +1863,18 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
     console.log(`∑ Totals: ${totals.seconds}s, ${totals.calories}kcal`);
     totals.calories = Math.ceil(totals.calories);
 
+    // [Production Guard] ถ้าออกกำลังกายไม่ถึง 60 วินาที จะไม่บันทึกประวัติ และทำการลบ session ออกไปเลย
+    if (totals.seconds < 60) {
+      console.log("⚠️ Session too short (<60s). Skipping history creation and deleting session.");
+      await WorkoutSession.findByIdAndDelete(id);
+      return res.json({
+        sessionId: null,
+        aborted: true,
+        msg: "Session discarded because it was less than 60 seconds",
+        totals
+      });
+    }
+
     // 4. สร้าง History ถาวร
     const historyData = {
       uid: session.uid,
