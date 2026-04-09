@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 require('dotenv').config();
-const { calculateCalories } = require('./utils/calculateCalories');
+const { calculateCalories } = require('./utils/calculateCalories.cjs');
 console.log("🚀 SERVER STARTING - VERSION: WITH_CALCULATE_CALORIES_UTIL"); // Unique Log
 const PORT = process.env.PORT || 5000;
 // Middleware
