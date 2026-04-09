@@ -745,18 +745,21 @@ export default function WorkoutPlayer() {
       throw new Error("logExerciseResult: ข้อมูลท่าออกกำลังกายไม่ครบ (exerciseId/type/value)");
     }
 
-    // ✅ เพิ่มการคำนวณแคลอรี่ตรงนี้
-    // ใช้ค่า MET จริงของท่าออกกำลังกาย (แทนที่ค่าคงที่ 5.0)
-    // สูตร Calories = MET × Weight(kg) × Time(hours)
-    // โดยถ้าผู้ใช้ยังไม่มีประวัติน้ำหนัก จะขอตีความที่ 70kg เป็นค่าเริ่มต้น
+    // ✅ คำนวณแคลอรี่โดยใช้ ACSM Formula (ตรงกับ utils/calculateCalories.js บน server)
+    // สูตร: (MET × 3.5 × weight) / 200 × durationMin
+    // - MET        : ค่าจริงของท่าออกกำลังกาย (default 5.0)
+    // - weightInKg : น้ำหนักผู้ใช้จาก state หรือ default 70 kg
+    // - durationSec: ดอวินาทีที่ออกกำลังจริง
+    // [Production Guard] ถ้าออกกำลังกายน้อยกว่า 2 วินาที → calories = 0 (ไม่นับ)
     const MET = ex?.met?.base || 5.0;
     const weightInKg = parseFloat(weight) || 70;
-    const timeInHours = Number(performedSeconds) / 3600;
-
-    const rawCalories = MET * weightInKg * timeInHours;
-
-    // ✅ แปลงเป็นทศนิยม 2 ตำแหน่ง (และแปลงกลับเป็น Number เพื่อไม่ให้เป็น String)
-    const calories = Number(rawCalories.toFixed(2));
+    const durationSec = Number(performedSeconds);
+    let calories = 0;
+    if (durationSec >= 2) {
+      const calPerMin = (MET * 3.5 * weightInKg) / 200;
+      const durationMin = durationSec / 60;             // วินาที → นาที
+      calories = Number((calPerMin * durationMin).toFixed(2));
+    }
 
     const payload = {
       order,

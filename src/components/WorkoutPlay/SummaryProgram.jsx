@@ -101,6 +101,13 @@ export default function SummaryProgram() {
     if (!data) return null;
     const exerciseProgress = ((data.doneExercises / data.totalExercises) * 100).toFixed(0);
 
+    // [Display Guard] ถ้าเวลาที่ใช้น้อยกว่า 2 วินาที → ถือว่าไม่ได้ออกกำลังกายจริง
+    const totalSeconds = Number(data.totals?.seconds) || 0;
+    const isRealWorkout = totalSeconds >= 2;
+    const displayCalories = isRealWorkout
+        ? (data.totals?.calories ? Number(data.totals.calories).toFixed(2) : "0.00")
+        : "0.00";
+
     return (
         <div className="summary-container">
             <div className="summary-header">
@@ -139,7 +146,7 @@ export default function SummaryProgram() {
                     <div className="stat-icon calorie-icon">🔥</div>
                     <div className="stat-content">
                         <div className="stat-label">แคลอรี่ที่เผา</div>
-                        <div className="stat-value">{data.totals?.calories ? Number(data.totals.calories).toFixed(2) : "0.00"}</div>
+                        <div className="stat-value">{displayCalories}</div>
                         <div className="stat-unit">kcal</div>
                     </div>
                 </div>
@@ -168,7 +175,13 @@ export default function SummaryProgram() {
             </div>
 
             <div className="summary-footer">
-                <p className="footer-message">✨ ยอดเยี่ยม! คุณทำได้ดีมากจริง ๆ</p>
+                {isRealWorkout ? (
+                    <p className="footer-message">✨ ยอดเยี่ยม! คุณทำได้ดีมากจริง ๆ</p>
+                ) : (
+                    <p className="footer-message footer-message--warning">
+                        ⚠️ คุณยังไม่ได้ออกกำลังกายจริง ระบบไม่คำนวณแคลอรี่
+                    </p>
+                )}
             </div>
         </div>
     );
