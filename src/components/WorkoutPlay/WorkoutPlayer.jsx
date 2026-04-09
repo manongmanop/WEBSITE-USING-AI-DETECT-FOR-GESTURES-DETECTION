@@ -389,7 +389,8 @@ export default function WorkoutPlayer() {
     setSendingFeedback(true);
     try {
       // 1. ✅ จบ session (เพื่อให้ได้ finishedAt)
-      const finishedSessionId = await finishSession();
+      const finishedSessionResult = await finishSession();
+      const finishedSessionId = finishedSessionResult?.sessionId || null;
       console.log("🏁 finishedSessionId returned:", finishedSessionId);
 
       // 2. ✅ ส่ง feedback และน้ำหนักไปที่ History API (MongoDB)
@@ -755,7 +756,7 @@ export default function WorkoutPlayer() {
     const weightInKg = parseFloat(weight) || 70;
     const durationSec = Number(performedSeconds);
     let calories = 0;
-    if (durationSec >= 120) {
+    if (durationSec >= 60) {
       const calPerMin = (MET * 3.5 * weightInKg) / 200;
       const durationMin = durationSec / 60;             // วินาที → นาที
       calories = Number((calPerMin * durationMin).toFixed(2));
@@ -782,14 +783,21 @@ export default function WorkoutPlayer() {
   }
 
   const finishedOnceRef = useRef(false);
+  const finishSessionResultRef = useRef(null);
 
   async function finishSession() {
     if (!sessionIdRef.current) return null;
-    if (finishedOnceRef.current) return sessionIdRef.current;
+    if (finishedOnceRef.current) return finishSessionResultRef.current;
 
     finishedOnceRef.current = true;
-    await axios.patch(`/api/workout_sessions/${sessionIdRef.current}/finish`, {});
-    return sessionIdRef.current;
+    try {
+      const res = await axios.patch(`/api/workout_sessions/${sessionIdRef.current}/finish`, {});
+      finishSessionResultRef.current = res.data;
+      return res.data;
+    } catch (e) {
+      console.error("Failed to finish session:", e);
+      return null;
+    }
   }
 
   // --- Workout Logic ---
@@ -911,7 +919,14 @@ export default function WorkoutPlayer() {
       startRest(currentExercise + 1, currentRest);
     } else {
       setIsCounting(false);
-      try { await finishSession(); } catch (e) { }
+      try { 
+        const result = await finishSession(); 
+        if (result && result.aborted) {
+          alert("คุณใช้เวลาออกกำลังกายน้อยกว่า 60 วินาที ระบบจะไม่บันทึกประวัติและเซสชันนี้นะครับ");
+          navigate("/home");
+          return;
+        }
+      } catch (e) { }
       setShowFeedbackModal(true);
     }
   };
