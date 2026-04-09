@@ -231,6 +231,9 @@ export default function WorkoutPlayer() {
   const [cameraStatus, setCameraStatus] = useState("idle");
   const [cameraError, setCameraError] = useState("");
 
+  // --- State: Custom Popup ---
+  const [popupInfo, setPopupInfo] = useState(null);
+
   // --- Refs ---
   const progressIntervalRef = useRef(null);
   const autoNextTimerRef = useRef(null);
@@ -583,7 +586,16 @@ export default function WorkoutPlayer() {
         if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
         startDrawLoop(); setCameraStatus("active");
       } catch (err) {
-        if (mounted) { setCameraStatus("error"); setCameraError(err?.message || "Camera failed"); }
+        if (mounted) {
+          setCameraStatus("error");
+          setCameraError(err?.message || "Camera failed");
+          setPopupInfo({
+            title: "เกิดข้อผิดพลาดในการเปิดกล้อง",
+            text: "ไม่สามารถเข้าถึงกล้องได้ โปรดกดอนุญาตในการเข้าถึงกล้องบนเครื่องของคุณ",
+            showCancel: false,
+            onConfirm: () => setPopupInfo(null)
+          });
+        }
       }
     };
 
@@ -919,11 +931,18 @@ export default function WorkoutPlayer() {
       startRest(currentExercise + 1, currentRest);
     } else {
       setIsCounting(false);
-      try { 
-        const result = await finishSession(); 
+      try {
+        const result = await finishSession();
         if (result && result.aborted) {
-          alert("คุณใช้เวลาออกกำลังกายน้อยกว่า 60 วินาที ระบบจะไม่บันทึกประวัติและเซสชันนี้นะครับ");
-          navigate("/home");
+          setPopupInfo({
+            title: "เซสชันสั้นเกินไป",
+            text: "คุณใช้เวลาออกกำลังกายน้อยกว่า 60 วินาที ระบบจะไม่บันทึกประวัติและเซสชันนี้นะครับ",
+            showCancel: false,
+            onConfirm: () => {
+              setPopupInfo(null);
+              navigate("/home");
+            }
+          });
           return;
         }
       } catch (e) { }
@@ -1088,10 +1107,18 @@ export default function WorkoutPlayer() {
       const cur = exercises[currentExercise];
       const isDuration = cur?.duration > 0 || cur?.type === 'time';
       if (isDuration && remainingMsRef.current > 0) {
-        const wantsToSkip = window.confirm("เวลาของท่านี้ยังไม่หมด คุณแน่ใจหรือไม่ที่จะข้ามไปยังท่าถัดไป?");
-        if (!wantsToSkip) {
-          return;
-        }
+        setPopupInfo({
+          title: "ยืนยันการข้าม",
+          text: "เวลาของท่านี้ยังไม่หมด คุณแน่ใจหรือไม่ที่จะข้ามไปยังท่าถัดไป?",
+          showCancel: true,
+          confirmText: "แน่ใจ, ข้ามเลย",
+          onConfirm: () => {
+            setPopupInfo(null);
+            onWorkoutEnded();
+          },
+          onCancel: () => setPopupInfo(null)
+        });
+        return;
       }
       onWorkoutEnded();
       return;
@@ -1463,6 +1490,33 @@ export default function WorkoutPlayer() {
               </button>
             </div>
             {sendingFeedback && <div className="wp-feedback-loading">กำลังบันทึก...</div>}
+          </div>
+        </div>
+      )}
+
+      {popupInfo && (
+        <div className="wp-overlay wp-overlay--dark" role="dialog" aria-modal="true" style={{ zIndex: 9999 }}>
+          <div className="wp-overlay-card" style={{ maxWidth: '400px', padding: '2rem' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#fff' }}>{popupInfo.title}</h3>
+            <p style={{ marginBottom: '25px', color: '#ccc', lineHeight: '1.5' }}>{popupInfo.text}</p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              {popupInfo.showCancel && (
+                <button
+                  className="wp-btn"
+                  style={{ background: '#444', color: '#fff', padding: '8px 16px', borderRadius: '8px' }}
+                  onClick={popupInfo.onCancel}
+                >
+                  {popupInfo.cancelText || "ยกเลิก"}
+                </button>
+              )}
+              <button
+                className="wp-btn"
+                style={{ background: '#6366f1', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold' }}
+                onClick={popupInfo.onConfirm}
+              >
+                {popupInfo.confirmText || "ตกลง"}
+              </button>
+            </div>
           </div>
         </div>
       )}
