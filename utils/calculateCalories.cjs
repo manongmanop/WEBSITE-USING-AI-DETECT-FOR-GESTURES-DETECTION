@@ -20,6 +20,9 @@ function calculateCalories(weight, met, durationSec) {
   const safeMet = Number(met) || 5.0;
   const safeDuration = Number(durationSec) || 0;
 
+  // [Production Guard] ถ้าออกกำลังกายไม่ถึง 120 วินาที (2 นาที) ถือว่าไม่นับ → คืน 0
+  if (safeDuration < 120) return 0;
+
   const calPerMin = (safeMet * 3.5 * safeWeight) / 200;
   const result = calPerMin * (safeDuration / 60);
   return parseFloat(result.toFixed(2));

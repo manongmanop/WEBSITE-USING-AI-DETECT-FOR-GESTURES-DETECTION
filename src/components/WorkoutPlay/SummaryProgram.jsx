@@ -101,9 +101,9 @@ export default function SummaryProgram() {
     if (!data) return null;
     const exerciseProgress = ((data.doneExercises / data.totalExercises) * 100).toFixed(0);
 
-    // [Display Guard] ถ้าเวลาที่ใช้น้อยกว่า 2 วินาที → ถือว่าไม่ได้ออกกำลังกายจริง
+    // [Display Guard] ถ้าเวลาที่ใช้น้อยกว่า 120 วินาที (2 นาที) → ถือว่าไม่ได้ออกกำลังกายจริง
     const totalSeconds = Number(data.totals?.seconds) || 0;
-    const isRealWorkout = totalSeconds >= 2;
+    const isRealWorkout = totalSeconds >= 120;
     const displayCalories = isRealWorkout
         ? (data.totals?.calories ? Number(data.totals.calories).toFixed(2) : "0.00")
         : "0.00";

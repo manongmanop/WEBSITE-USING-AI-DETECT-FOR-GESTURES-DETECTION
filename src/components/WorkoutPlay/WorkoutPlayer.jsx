@@ -750,12 +750,12 @@ export default function WorkoutPlayer() {
     // - MET        : ค่าจริงของท่าออกกำลังกาย (default 5.0)
     // - weightInKg : น้ำหนักผู้ใช้จาก state หรือ default 70 kg
     // - durationSec: ดอวินาทีที่ออกกำลังจริง
-    // [Production Guard] ถ้าออกกำลังกายน้อยกว่า 2 วินาที → calories = 0 (ไม่นับ)
+    // [Production Guard] ถ้าออกกำลังกายน้อยกว่า 120 วินาที (2 นาที) → calories = 0 (ไม่นับ)
     const MET = ex?.met?.base || 5.0;
     const weightInKg = parseFloat(weight) || 70;
     const durationSec = Number(performedSeconds);
     let calories = 0;
-    if (durationSec >= 2) {
+    if (durationSec >= 120) {
       const calPerMin = (MET * 3.5 * weightInKg) / 200;
       const durationMin = durationSec / 60;             // วินาที → นาที
       calories = Number((calPerMin * durationMin).toFixed(2));
