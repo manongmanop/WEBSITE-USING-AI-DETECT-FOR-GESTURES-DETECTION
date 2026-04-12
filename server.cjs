@@ -850,12 +850,24 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
       return res.status(404).json({ error: "No Workout Plan Found" });
     }
 
+    // ✅ หาว่าวันไหนบ้างที่มีท่าออกกำลังกาย (Active Days)
+    const availableWorkoutDays = workoutPlan.plans
+      .filter(p => p.exercises && p.exercises.length > 0)
+      .map(p => p.day);
+
     const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const todaysTemplate = workoutPlan.plans.find(p => p.day === currentDayName);
 
     if (!todaysTemplate || !todaysTemplate.exercises.length) {
       // วันพักผ่อน (Rest Day) ไม่มีท่า
-      return res.json({ date: today, status: "completed", exercises: [], totalDuration: 0, estimatedCalories: 0 });
+      return res.json({ 
+        date: today, 
+        status: "completed", 
+        exercises: [], 
+        totalDuration: 0, 
+        estimatedCalories: 0,
+        availableWorkoutDays // ส่งลิสต์วันที่มีแผนไปด้วย
+      });
     }
 
     // แปลงเข้า DailyPlan Schema
@@ -890,9 +902,66 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
       status: "pending"
     });
 
-    res.json(newDailyPlan);
+    // ส่ง availableWorkoutDays กลับไปด้วย
+    res.json({ ...newDailyPlan.toObject(), availableWorkoutDays });
   } catch (err) {
     console.error("Daily Plan Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ API สำหรับสลับแผน (Swap Workout)
+app.post('/api/daily-plan/:uid/swap', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const { targetDay } = req.body; // เช่น "monday"
+    const today = new Date().toISOString().split("T")[0];
+
+    const workoutPlan = await mongoose.model('WorkoutPlan')
+      .findOne({ uid })
+      .populate('plans.exercises.exercise');
+
+    if (!workoutPlan) return res.status(404).json({ error: "Workout plan not found" });
+
+    const selectedTemplate = workoutPlan.plans.find(p => p.day === targetDay.toLowerCase());
+    if (!selectedTemplate || !selectedTemplate.exercises.length) {
+      return res.status(400).json({ error: "Selected day has no exercises" });
+    }
+
+    // คำนวณ Stats ใหม่
+    let totalDuration = 0;
+    let estimatedCalories = 0;
+    const exercisesForPlan = selectedTemplate.exercises.map(exItem => {
+      const ex = exItem.exercise;
+      if (!ex) return null;
+      let time = exItem.performed.seconds || ex.duration || 30;
+      let mets = (ex.met && ex.met.base) ? ex.met.base : 5;
+      totalDuration += time;
+      estimatedCalories += (mets * 70 * time) / 3600;
+      return {
+        exerciseId: ex._id,
+        name: ex.name,
+        reps: exItem.performed.reps || ex.reps || 0,
+        time: time,
+        met: mets
+      };
+    }).filter(e => e !== null);
+
+    // Upsert เข้า DailyPlan
+    const updatedDailyPlan = await mongoose.model('DailyPlan').findOneAndUpdate(
+      { userId: uid, date: today },
+      { 
+        exercises: exercisesForPlan,
+        totalDuration,
+        estimatedCalories,
+        status: "pending" // รีเซ็ตสถานะเป็น pending เพื่อให้เล่นได้
+      },
+      { upsert: true, new: true }
+    ).populate('exercises.exerciseId');
+
+    res.json(updatedDailyPlan);
+  } catch (err) {
+    console.error("Swap Plan Error:", err);
     res.status(500).json({ error: err.message });
   }
 });

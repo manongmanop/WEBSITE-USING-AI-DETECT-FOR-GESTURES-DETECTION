@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AiOutlineSearch, AiOutlineClockCircle } from "react-icons/ai";
 import { IoFitnessOutline } from "react-icons/io5";
-import { BsLightning, BsFire, BsArrowRight } from "react-icons/bs";
+import { BsLightning, BsFire, BsArrowRight, BsCheckCircleFill } from "react-icons/bs";
 import { useUserAuth } from "../../../context/UserAuthContext";
-import { doc, getDoc } from 'firebase/firestore'; // เพิ่ม import สำหรับ Firestore
+import axios from "axios";
+import { doc, getDoc } from 'firebase/firestore'; 
 import { db } from '../../../../firebase'; // ต้องเพิ่ม import ตัวนี้ด้วย
 import { getMediaUrl } from "../../Detail Section/Detail/Detail.jsx";
 import "./top.css";
@@ -99,25 +100,45 @@ export const Top = () => {
     fetchPrograms();
   }, []);
 
+  const fetchDailyPlan = async () => {
+    if (!user?.uid) return;
+    try {
+      setPlanLoading(true);
+      const res = await fetch(`/api/daily-plan/${user.uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDailyPlan(data);
+      }
+    } catch (err) {
+      console.error("Error fetching daily plan:", err);
+    } finally {
+      setPlanLoading(false);
+    }
+  };
+
   // ดึง Daily Plan ของผู้ใช้
   useEffect(() => {
-    const fetchDailyPlan = async () => {
-      if (!user?.uid) return;
-      try {
-        setPlanLoading(true);
-        const res = await fetch(`/api/daily-plan/${user.uid}`);
-        if (res.ok) {
-          const data = await res.json();
-          setDailyPlan(data);
-        }
-      } catch (err) {
-        console.error("Error fetching daily plan:", err);
-      } finally {
-        setPlanLoading(false);
-      }
-    };
     fetchDailyPlan();
   }, [user]);
+
+  const handleDaySwap = async (day) => {
+    if (!user?.uid || planLoading) return;
+    try {
+      setPlanLoading(true);
+      await axios.post(`/api/daily-plan/${user.uid}/swap`, { targetDay: day });
+      await fetchDailyPlan(); // โหลดข้อมูลใหม่หลังสลับแผน
+    } catch (err) {
+      console.error("Error swapping plan:", err);
+    } finally {
+      setPlanLoading(false);
+    }
+  };
+
+  const dayNamesTH = {
+    monday: "จ.", tuesday: "อ.", wednesday: "พ.", thursday: "พฤ.", friday: "ศ.", saturday: "ส.", sunday: "อา."
+  };
+  
+  const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
   const categories = [
     { label: "🌟 ทั้งหมด", value: "All" },
@@ -190,26 +211,56 @@ export const Top = () => {
             </button>
           ))}
         </div>
-        </div>
       </div>
 
       {/* --- DAILY PLAN UI --- */}
       <div className="daily-plan-wrapper" style={{ margin: '1rem', marginTop: '-2rem', zIndex: 10, position: 'relative' }}>
+        {/* Day Selector (ด้านบนสุดของการ์ด) */}
+        {dailyPlan && dailyPlan.availableWorkoutDays && (
+          <div className="day-selector-header" style={{ display: 'flex', gap: '8px', marginBottom: '8px', overflowX: 'auto', padding: '4px', scrollbarWidth: 'none' }}>
+            {Object.keys(dayNamesTH).map((day) => {
+              const isActive = dailyPlan.availableWorkoutDays.includes(day);
+              const isToday = currentDayName === day;
+              return (
+                <button
+                  key={day}
+                  onClick={() => isActive && handleDaySwap(day)}
+                  disabled={!isActive || planLoading}
+                  style={{
+                    minWidth: '38px', height: '38px', borderRadius: '50%', border: 'none', cursor: isActive ? 'pointer' : 'default',
+                    fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s', position: 'relative',
+                    background: isToday ? '#2B5876' : (isActive ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.05)'),
+                    color: isToday ? 'white' : (isActive ? '#2B5876' : '#999'),
+                    boxShadow: isToday ? '0 4px 10px rgba(43,88,118,0.3)' : 'none'
+                  }}
+                  title={isActive ? `เล่นแผนวัน${day}` : 'วันพักผ่อน'}
+                >
+                  {dayNamesTH[day]}
+                  {isActive && !isToday && <div style={{ position: 'absolute', bottom: '4px', width: '4px', height: '4px', borderRadius: '50%', background: '#28a745' }}></div>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {planLoading ? (
           <div className="daily-plan-card loading" style={{ padding: '2rem', textAlign: 'center', background: 'rgba(255,255,255,0.7)', borderRadius: '1rem' }}>
             ⏳ กำลังประเมินภารกิจประจำวันให้คุณ...
           </div>
-        ) : dailyPlan && dailyPlan.exercises && dailyPlan.exercises.length > 0 ? (
+        ) : (dailyPlan && dailyPlan.exercises && dailyPlan.exercises.length > 0 ? (
           <div className={`daily-plan-card glass-panel ${dailyPlan.status === 'completed' ? 'completed' : ''}`} style={{ padding: '1.5rem', borderRadius: '1rem', background: dailyPlan.status === 'completed' ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : 'rgba(255, 255, 255, 0.9)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="plan-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#333' }}>🎯 ภารกิจวันนี้</h3>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#333' }}>🎯 ภารกิจวันนี้</h3>
+                {dailyPlan.status !== 'completed' && <span style={{ fontSize: '0.75rem', color: '#666' }}>คุณสามารถคลิกปุ่มวันด้านบนเพื่อเปลี่ยนตารางได้</span>}
+              </div>
               {dailyPlan.status === 'completed' && <span className="status-badge" style={{ background: '#28a745', color: 'white', padding: '0.3rem 0.8rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>🎉 สำเร็จแล้ว</span>}
             </div>
             
             <div className="plan-stats" style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: '#555' }}>
-              <span>⏱ {Math.ceil(dailyPlan.totalDuration / 60)} นาที</span>
-              <span>🔥 {Math.ceil(dailyPlan.estimatedCalories)} kcal</span>
-              <span>💪 {dailyPlan.exercises.length} ท่า</span>
+              <span>⏱ {Math.ceil((dailyPlan.totalDuration || 0) / 60)} นาที</span>
+              <span>🔥 {Math.ceil(dailyPlan.estimatedCalories || 0)} kcal</span>
+              <span>💪 {dailyPlan.exercises?.length || 0} ท่า</span>
             </div>
             
             <button 
@@ -224,7 +275,7 @@ export const Top = () => {
             <h3 style={{ color: '#333' }}>🌿 วันนี้เป็นวันพักผ่อน (Rest Day)</h3>
             <p style={{ color: '#666', margin: 0 }}>ร่างกายต้องการการซ่อมแซมเพื่อสร้างกล้ามเนื้อ พักให้เต็มที่นะครับ!</p>
           </div>
-        )}
+        ))}
       </div>
 
       {/* --- DAILY PLAN MODAL PREVIEW --- */}
