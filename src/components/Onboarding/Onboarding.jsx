@@ -5,24 +5,6 @@ import { useUserAuth } from "../../context/UserAuthContext";
 import './Onboarding.scss';
 import Swal from 'sweetalert2';
 
-function mapLevel(level) {
-  if (level === 'Beginner') return 1;
-  if (level === 'Intermediate') return 2;
-  return 3;
-}
-
-function getInitialLevel(exp) {
-  if (exp === 'never') return 1;
-  if (exp === 'sometimes') return 2;
-  return 3;
-}
-
-function mapGoal(goal) {
-  if (goal === 'Lose Weight') return 'fat_loss';
-  if (goal === 'Build Muscle') return 'muscle_gain';
-  return 'health';
-}
-
 const Onboarding = () => {
     const { user } = useUserAuth();
     const navigate = useNavigate();
@@ -30,9 +12,9 @@ const Onboarding = () => {
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
-        experience: 'never', // never, sometimes, regular
         fitnessLevel: 'Beginner', // Beginner, Intermediate, Advanced
-        primaryGoal: ''
+        primaryGoal: '',
+        preferredDays: []
     });
 
     const nextStep = () => setStep(prev => prev + 1);
@@ -40,16 +22,6 @@ const Onboarding = () => {
 
     const handleFinish = async () => {
         if (!user?.uid) return;
-        
-        if (!formData.experience || !formData.fitnessLevel || !formData.primaryGoal) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'ข้อมูลไม่ครบถ้วน',
-                text: 'กรุณากรอกข้อมูลให้ครบทุกขั้นตอนก่อนยืนยันหน้าถัดไป'
-            });
-            return;
-        }
-
         setLoading(true);
 
         try {
@@ -61,10 +33,6 @@ const Onboarding = () => {
             const payload = {
                 uid: user.uid,
                 ...formData,
-                experience: formData.experience,
-                initialLevel: getInitialLevel(formData.experience),
-                fitnessLevel: mapLevel(formData.fitnessLevel),
-                primaryGoal: mapGoal(formData.primaryGoal),
                 weeklyGoal,
                 workoutsDone: 0, // Reset or Init
                 caloriesBurned: 0 // Reset or Init
@@ -72,9 +40,6 @@ const Onboarding = () => {
 
             // Create or Update User
             await axios.post('/api/users', payload);
-            
-            // 🔥 ปั้นแผนระยะยาวอัตโนมัติจากข้อมูลที่เพิ่งส่งไป
-            await axios.post(`/api/users/${user.uid}/generate-plan`);
 
             Swal.fire({
                 icon: 'success',
@@ -100,16 +65,8 @@ const Onboarding = () => {
 
                     await axios.put(`/api/users/${user.uid}`, {
                         ...formData,
-                        experience: formData.experience,
-                        initialLevel: getInitialLevel(formData.experience),
-                        fitnessLevel: mapLevel(formData.fitnessLevel),
-                        primaryGoal: mapGoal(formData.primaryGoal),
                         weeklyGoal
                     });
-                    
-                    // 🔥 ปั้นแผนระยะยาวอัตโนมัติเช่นกัน
-                    await axios.post(`/api/users/${user.uid}/generate-plan`);
-
                     navigate('/home');
                 } catch (e) {
                     Swal.fire('Error', 'Failed to save profile', 'error');
@@ -126,6 +83,16 @@ const Onboarding = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const toggleDay = (day) => {
+        setFormData(prev => {
+            const days = prev.preferredDays.includes(day)
+                ? prev.preferredDays.filter(d => d !== day)
+                : [...prev.preferredDays, day];
+            return { ...prev, preferredDays: days };
+        });
+    };
+
+    // Translation Helpers
     const translations = {
         levels: {
             Beginner: { label: 'ผู้เริ่มต้น', sub: '3 วัน/สัปดาห์', details: ['เน้นสร้างนิสัย'] },
@@ -138,8 +105,22 @@ const Onboarding = () => {
             'Stay Healthy': 'รักษาสุขภาพ',
             'Increase Strength': 'เพิ่มความแข็งแกร่ง',
             'Improve Endurance': 'เพิ่มความอึด'
+        },
+        days: {
+            Monday: 'จันทร์',
+            Tuesday: 'อังคาร',
+            Wednesday: 'พุธ',
+            Thursday: 'พฤหัสบดี',
+            Friday: 'ศุกร์',
+            Saturday: 'เสาร์',
+            Sunday: 'อาทิตย์',
+            // Short names
+            Mon: 'จ.', Tue: 'อ.', Wed: 'พ.', Thu: 'พฤ.', Fri: 'ศ.', Sat: 'ส.', Sun: 'อา.'
         }
     };
+
+    const getDayLabel = (day) => translations.days[day] || day;
+    const getShortDayLabel = (day) => translations.days[day.slice(0, 3)] || translations.days[day] || day;
 
     return (
         <div className="onboarding-container">
@@ -162,38 +143,8 @@ const Onboarding = () => {
                     </div>
                 )}
 
-                {/* Step 2: Experience */}
+                {/* Step 2: Fitness Level */}
                 {step === 2 && (
-                    <div className="step-content">
-                        <h2>ประสบการณ์ออกกำลังกายของคุณ</h2>
-                        <div className="selection-grid">
-                            {['never', 'sometimes', 'regular'].map(exp => (
-                                <div
-                                    key={exp}
-                                    className={`goal-option ${formData.experience === exp ? 'selected' : ''}`}
-                                    onClick={() => updateData('experience', exp)}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="experience"
-                                        checked={formData.experience === exp}
-                                        readOnly
-                                    />
-                                    <label>
-                                        {exp === 'never' ? 'ยังไม่ได้ออกกำลังกายเลย' : exp === 'sometimes' ? 'ออกบ้างบางครั้ง' : 'ออกเป็นประจำ'}
-                                    </label>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="action-buttons">
-                            <button className="btn-secondary" onClick={prevStep}>ย้อนกลับ</button>
-                            <button className="btn-primary" onClick={nextStep}>ถัดไป</button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Step 3: Fitness Level */}
-                {step === 3 && (
                     <div className="step-content">
                         <h2>ระดับความฟิตของคุณ</h2>
                         <div className="selection-grid">
@@ -246,8 +197,8 @@ const Onboarding = () => {
                     </div>
                 )}
 
-                {/* Step 4: Primary Goal */}
-                {step === 4 && (
+                {/* Step 3: Primary Goal */}
+                {step === 3 && (
                     <div className="step-content">
                         <h2>เป้าหมายหลักของคุณคืออะไร?</h2>
                         <div className="selection-grid">
@@ -274,15 +225,36 @@ const Onboarding = () => {
                     </div>
                 )}
 
+                {/* Step 4: Preferred Days */}
+                {step === 4 && (
+                    <div className="step-content">
+                        <h2>คุณออกกำลังกายวันไหนบ้าง?</h2>
+                        <p>เลือกวันที่คุณสะดวกออกกำลังกาย</p>
+                        <div className="days-grid">
+                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                                <div key={day} className="day-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        id={day}
+                                        checked={formData.preferredDays.includes(day)}
+                                        onChange={() => toggleDay(day)}
+                                    />
+                                    <label htmlFor={day}>{getDayLabel(day)}</label>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="action-buttons">
+                            <button className="btn-secondary" onClick={prevStep}>ย้อนกลับ</button>
+                            <button className="btn-primary" onClick={nextStep}>ถัดไป</button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Step 5: Summary */}
                 {step === 5 && (
                     <div className="step-content">
                         <h2>แผนส่วนตัวของคุณ</h2>
                         <div className="summary-box">
-                            <div className="summary-item">
-                                <strong>ประสบการณ์</strong>
-                                <span>{formData.experience === 'never' ? 'ยังไม่ได้ออกกำลังกายเลย' : formData.experience === 'sometimes' ? 'ออกบ้างบางครั้ง' : 'ออกเป็นประจำ'}</span>
-                            </div>
                             <div className="summary-item">
                                 <strong>ระดับ</strong>
                                 <span>{translations.levels[formData.fitnessLevel]?.label || formData.fitnessLevel}</span>
@@ -294,6 +266,10 @@ const Onboarding = () => {
                             <div className="summary-item">
                                 <strong>เป้าหมายหลัก</strong>
                                 <span>{translations.goals[formData.primaryGoal] || formData.primaryGoal}</span>
+                            </div>
+                            <div className="summary-item">
+                                <strong>ตารางฝึก</strong>
+                                <span>{formData.preferredDays.length > 0 ? formData.preferredDays.map(d => getDayLabel(d)).join(', ') : 'ตามความสะดวก'}</span>
                             </div>
                         </div>
                         <div className="action-buttons">
