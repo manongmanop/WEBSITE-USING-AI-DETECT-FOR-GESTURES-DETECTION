@@ -454,11 +454,30 @@ export default function WorkoutPlayer() {
     (async () => {
       try {
         setIsLoading(true); setLoadError(null);
-        const res = await axios.get(`/api/workout_programs/${programId}`);
-        if (ignore) return;
+        let resData = null;
 
-        setProgram(res.data);
-        const list = Array.isArray(res.data?.workoutList) ? res.data.workoutList : [];
+        if (programId === "dailyplan") {
+           // โหลด Daily Plan
+           if (!user?.uid) return;
+           const res = await axios.get(`/api/daily-plan/${user.uid}`);
+           if (ignore) return;
+           resData = {
+              name: "ภารกิจวันนี้ของคุณ",
+              workoutList: res.data.exercises.map(ex => ({
+                 exercise: ex.exerciseId,
+                 reps: ex.reps, // Reps and Time mapping for performance tracking
+                 duration: ex.time
+              }))
+           };
+        } else {
+           // โหลด Program ปกติ
+           const res = await axios.get(`/api/workout_programs/${programId}`);
+           if (ignore) return;
+           resData = res.data;
+        }
+
+        setProgram(resData);
+        const list = Array.isArray(resData?.workoutList) ? resData.workoutList : [];
         setExercises(list.map((it) => {
           const exObj = it?.exercise && typeof it.exercise === "object" ? it.exercise : it;
           return {
@@ -1496,14 +1515,14 @@ export default function WorkoutPlayer() {
 
       {popupInfo && (
         <div className="wp-overlay wp-overlay--dark" role="dialog" aria-modal="true" style={{ zIndex: 9999 }}>
-          <div className="wp-overlay-card" style={{ maxWidth: '400px', padding: '2rem' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#fff' }}>{popupInfo.title}</h3>
-            <p style={{ marginBottom: '25px', color: '#ccc', lineHeight: '1.5' }}>{popupInfo.text}</p>
+          <div className="wp-overlay-card" style={{ maxWidth: '600px', padding: '2rem' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#000000' }}>{popupInfo.title}</h3>
+            <p style={{ marginTop: '25px', color: '#000000' }}>{popupInfo.text}</p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               {popupInfo.showCancel && (
                 <button
                   className="wp-btn"
-                  style={{ background: '#444', color: '#fff', padding: '8px 16px', borderRadius: '8px' }}
+                  style={{ background: '#D0312D', color: '#fff', padding: '8px 16px', borderRadius: '8px' }}
                   onClick={popupInfo.onCancel}
                 >
                   {popupInfo.cancelText || "ยกเลิก"}

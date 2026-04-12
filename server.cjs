@@ -68,6 +68,268 @@ const bodyMetricSchema = new Schema({
 
 // สร้าง Model จาก Schema
 const BodyMetric = mongoose.model('BodyMetric', bodyMetricSchema);
+
+const dailyPlanSchema = new mongoose.Schema({
+  userId: {
+    type: String,
+    required: true
+  },
+  date: {
+    type: String, // YYYY-MM-DD
+    default: () => new Date().toISOString().split('T')[0]
+  },
+  exercises: [
+    {
+      exerciseId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Exercise"
+      },
+      name: String,
+      reps: Number,
+      time: Number, // seconds
+      met: Number
+    }
+  ],
+  // 📊 summary
+  totalDuration: Number, // seconds
+  estimatedCalories: Number,
+  // 📌 status
+  status: {
+    type: String,
+    enum: ["pending", "completed"],
+    default: "pending"
+  }
+}, { timestamps: true });
+
+dailyPlanSchema.index({ userId: 1, date: 1 }, { unique: true });
+
+const DailyPlan = mongoose.model('DailyPlan', dailyPlanSchema);
+
+// --- WorkoutLog Schema & Route ---
+const workoutLogSchema = new mongoose.Schema({
+  userId: {
+    type: String,
+    required: true,
+    index: true
+  },
+  exerciseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Exercise",
+    required: true
+  },
+  // 📊 Performance
+  reps: Number,
+  duration: Number, // seconds
+  calories: Number,
+  // 🧠 Feedback (หัวใจ AI)
+  feedback: {
+    type: String,
+    enum: ["easy", "medium", "hard"],
+    required: true
+  },
+  // 🤖 รองรับ MediaPipe
+  performance: {
+    formScore: Number,   // 0 - 1
+    stability: Number    // 0 - 1
+  },
+  // 📅 วัน (ใช้ string เพื่อ query ง่าย)
+  date: {
+    type: String, // YYYY-MM-DD
+    required: true
+  }
+}, { timestamps: true });
+
+const WorkoutLog = mongoose.model('WorkoutLog', workoutLogSchema);
+
+app.post('/api/workout-log', async (req, res) => {
+  try {
+    const {
+      userId,
+      exerciseId,
+      reps,
+      duration,
+      calories,
+      feedback,
+      performance
+    } = req.body;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // ✅ save log
+    const log = await WorkoutLog.create({
+      userId,
+      exerciseId,
+      reps,
+      duration,
+      calories,
+      feedback,
+      performance,
+      date: today
+    });
+
+    res.json(log);
+  } catch (err) {
+    console.error("WorkoutLog Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper function: calculate new fitness level based on feedbacks
+function updateFitnessLevel(currentLevel, feedbacks) {
+  if (!feedbacks || feedbacks.length === 0) return currentLevel || 1;
+  
+  const easyCount = feedbacks.filter(f => f === 'easy').length;
+  const hardCount = feedbacks.filter(f => f === 'hard').length;
+  const current = parseInt(currentLevel) || 1;
+  
+  let newLevel = current;
+  // If more than half the exercises were easy, increase the level (max 3)
+  if (easyCount > feedbacks.length / 2) {
+    newLevel = Math.min(3, current + 1);
+  } 
+  // If more than half were hard, decrease the level (min 1)
+  else if (hardCount > feedbacks.length / 2) {
+    newLevel = Math.max(1, current - 1);
+  }
+  return newLevel;
+}
+
+function determineDifficultyLevel(diff) {
+  if (diff === 'intermediate') return 2;
+  if (diff === 'advanced') return 3;
+  return 1; // beginner
+}
+
+function getDifficultyName(level) {
+  if (level <= 1) return 'beginner';
+  if (level === 2) return 'intermediate';
+  return 'advanced';
+}
+
+app.post('/api/finish-workout', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const today = new Date().toISOString().split("T")[0];
+
+    // 1. ดึง logs ของผู้ใช้วันนี้ และ ของเก่า (ล่าสุด 10 ครั้ง เพื่อวิเคราะห์โจทย์ข้อ 2)
+    const logsToday = await WorkoutLog.find({ userId, date: today });
+    const recentLogs = await WorkoutLog.find({ userId }).sort({ createdAt: -1 }).limit(10);
+
+    // 2. update fitnessLevel (อิงจากวันนี้เป็นหลัก หรือจะใช้ทั้งหมดก็ได้)
+    // ตรงนี้เรายังใช้ logsToday.map(l => l.feedback) ตาม logic เดิมที่คุณให้มาในตอนแรก
+    const feedbacks = logsToday.map(l => l.feedback);
+    const user = await mongoose.model('User').findOne({ uid: userId });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const newLevel = updateFitnessLevel(user.fitnessLevel, feedbacks);
+    user.fitnessLevel = newLevel;
+    await user.save();
+
+    // 3. update plan status for today
+    await mongoose.model('DailyPlan').findOneAndUpdate(
+      { userId, date: today },
+      { status: "completed" }
+    );
+
+    // 4. วิเคราะห์ Performance และ Feedback แบบรายท่า (จัดรวม logs ตาม exerciseId)
+    const logsByExercise = {};
+    recentLogs.forEach(l => {
+      const exId = l.exerciseId.toString();
+      if (!logsByExercise[exId]) {
+        logsByExercise[exId] = { easyCount: 0, hardCount: 0, formSum: 0, stabSum: 0, perfCount: 0 };
+      }
+      if (l.feedback === "easy") logsByExercise[exId].easyCount += 1;
+      if (l.feedback === "hard") logsByExercise[exId].hardCount += 1;
+      
+      if (l.performance && l.performance.formScore != null) {
+        logsByExercise[exId].formSum += l.performance.formScore;
+        logsByExercise[exId].stabSum += l.performance.stability;
+        logsByExercise[exId].perfCount += 1;
+      }
+    });
+
+    const allExercises = await mongoose.model('Exercise').find();
+    const workoutPlan = await mongoose.model('WorkoutPlan').findOne({ uid: userId });
+    let planModified = false;
+
+    if (workoutPlan) {
+      workoutPlan.plans.forEach(planDay => {
+        planDay.exercises.forEach(ex => {
+          const exId = ex.exercise.toString();
+          if (logsByExercise[exId]) {
+            const stats = logsByExercise[exId];
+            const perfScore = stats.perfCount > 0 ? ((stats.formSum + stats.stabSum) / 2) / stats.perfCount : null;
+            
+            const currentEx = allExercises.find(e => e._id.toString() === exId);
+            if (!currentEx) return;
+            const currentLevelDiff = determineDifficultyLevel(currentEx.difficulty);
+
+            // CASE 1: เก่งเกิน (Upgrade)
+            if (stats.easyCount >= 3 && (perfScore === null || perfScore > 0.7)) {
+              const targetDiff = getDifficultyName(currentLevelDiff + 1);
+              // หา movement เดิม (ใช้ muscles หรือ targetMuscle ร่วมกัน)
+              const upgradeEx = allExercises.find(e => 
+                e._id.toString() !== exId && 
+                e.difficulty === targetDiff &&
+                e.muscles.some(m => currentEx.muscles.includes(m))
+              );
+
+              if (upgradeEx) {
+                ex.exercise = upgradeEx._id;
+              } else {
+                // Fallback: เพิ่ม reps/time 10%
+                if (ex.performed.reps > 0) ex.performed.reps = Math.ceil(ex.performed.reps * 1.1);
+                if (ex.performed.seconds > 0) ex.performed.seconds = Math.ceil(ex.performed.seconds * 1.1);
+              }
+              planModified = true;
+            }
+            // CASE 2: ยากเกิน (Downgrade)
+            else if (stats.hardCount >= 2 && (perfScore !== null && perfScore < 0.5)) {
+              const targetDiff = getDifficultyName(currentLevelDiff - 1);
+              const downgradeEx = allExercises.find(e => 
+                e._id.toString() !== exId && 
+                e.difficulty === targetDiff &&
+                e.muscles.some(m => currentEx.muscles.includes(m))
+              );
+
+              if (downgradeEx) {
+                ex.exercise = downgradeEx._id;
+              } else {
+                // Fallback: ลด reps/time 10%
+                if (ex.performed.reps > 0) ex.performed.reps = Math.max(1, Math.floor(ex.performed.reps * 0.9));
+                if (ex.performed.seconds > 0) ex.performed.seconds = Math.max(1, Math.floor(ex.performed.seconds * 0.9));
+              }
+              planModified = true;
+            }
+            // CASE 3: พอดี
+            else {
+              // เพิ่ม reps/time +10% ให้พัฒนาขึ้นไปอีกนิด
+              if (ex.performed.reps > 0) ex.performed.reps = Math.ceil(ex.performed.reps * 1.1);
+              if (ex.performed.seconds > 0) ex.performed.seconds = Math.ceil(ex.performed.seconds * 1.1);
+              planModified = true;
+            }
+          }
+        });
+      });
+
+      if (planModified) {
+        workoutPlan.markModified('plans');
+        await workoutPlan.save();
+      }
+    }
+
+    res.json({
+      message: "Workout completed and plan adjusted successfully",
+      newLevel,
+      planModified
+    });
+
+  } catch (err) {
+    console.error("FinishWorkout Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/metrics', async (req, res) => {
   // ในแอปจริง คุณควรจะดึง userId จาก Token ที่ผ่านการยืนยันตัวตนแล้ว
   // เช่น const userId = req.user.id;
@@ -505,6 +767,135 @@ app.put('/api/users/:uid', async (req, res) => {
   }
 });
 
+// ================== AI Plan Engine ==================
+app.post('/api/users/:uid/generate-plan', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ uid });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // วิเคราะห์เป้าหมายและ level 
+    const fitnessLevel = parseInt(user.fitnessLevel) || 1; 
+    let difficultyTarget = 'beginner';
+    if (fitnessLevel === 2) difficultyTarget = 'intermediate';
+    if (fitnessLevel >= 3) difficultyTarget = 'advanced';
+
+    // ค้นหาท่าตามกล้ามเนื้อเป้าหมายหรือดึงทั้งหมดมากรอง
+    const allExercises = await mongoose.model('Exercise').find({ difficulty: difficultyTarget });
+    
+    // แบ่งกลุ่มท่าหลวมๆ เพื่อใช้สุ่มลงวัน (ตัวอย่างคร่าวๆ)
+    // สำหรับเป้าหมายจริงอาจจะต้องมี mapping ซับซ้อนกว่านี้
+    const plans = [];
+    const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    
+    // สร้างแผน 7 วัน
+    daysOfWeek.forEach((day, index) => {
+      // สุ่มท่ามา 3-5 ท่าต่อวัน (ง่ายๆ)
+      const dailyExercises = [];
+      const numExercises = fitnessLevel === 1 ? 3 : (fitnessLevel === 2 ? 4 : 5);
+      
+      // Shuffle exercises array
+      const shuffled = allExercises.sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, numExercises);
+      
+      selected.forEach(ex => {
+        dailyExercises.push({
+          exercise: ex._id,
+          performed: {
+            reps: ex.type === 'reps' ? (ex.reps || 10) : 0,
+            seconds: ex.type === 'time' ? (ex.time || 30) : 0
+          }
+        });
+      });
+
+      plans.push({
+        day: day,
+        exercises: dailyExercises
+      });
+    });
+
+    // ลบแผนเดิมทิ้งและสร้างใหม่ หรือ overwrite
+    await mongoose.model('WorkoutPlan').findOneAndDelete({ uid });
+    const newPlan = await mongoose.model('WorkoutPlan').create({
+      uid,
+      plans
+    });
+
+    res.json({ message: "Plan Generated", plan: newPlan });
+
+  } catch (err) {
+    console.error("Plan Generation Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/daily-plan/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    
+    const DailyPlan = mongoose.model('DailyPlan');
+    const existingPlan = await DailyPlan.findOne({ userId: uid, date: today }).populate('exercises.exerciseId');
+
+    if (existingPlan) {
+      return res.json(existingPlan);
+    }
+
+    // ถ้าไม่มี ให้ดึงจาก WorkoutPlan เอาของ "วันนี้" มาสร้าง
+    const workoutPlan = await mongoose.model('WorkoutPlan')
+      .findOne({ uid })
+      .populate('plans.exercises.exercise');
+      
+    if (!workoutPlan) {
+      return res.status(404).json({ error: "No Workout Plan Found" });
+    }
+
+    const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const todaysTemplate = workoutPlan.plans.find(p => p.day === currentDayName);
+
+    if (!todaysTemplate || !todaysTemplate.exercises.length) {
+      // วันพักผ่อน (Rest Day) ไม่มีท่า
+      return res.json({ date: today, status: "completed", exercises: [], totalDuration: 0, estimatedCalories: 0 });
+    }
+
+    // แปลงเข้า DailyPlan Schema
+    let totalDuration = 0;
+    let estimatedCalories = 0;
+    const exercisesForPlan = todaysTemplate.exercises.map(exItem => {
+      const ex = exItem.exercise;
+      if (!ex) return null;
+      
+      let time = exItem.performed.seconds || (ex.duration) || 30;
+      let mets = (ex.met && ex.met.base) ? ex.met.base : 5;
+      
+      totalDuration += time;
+      // แคลคร่าวๆ: (MET * 70kg * time) / 3600
+      estimatedCalories += (mets * 70 * time) / 3600;
+
+      return {
+        exerciseId: ex._id,
+        name: ex.name,
+        reps: exItem.performed.reps || ex.reps || 0,
+        time: time,
+        met: mets
+      };
+    }).filter(e => e !== null);
+
+    const newDailyPlan = await DailyPlan.create({
+      userId: uid,
+      date: today,
+      exercises: exercisesForPlan,
+      totalDuration,
+      estimatedCalories,
+      status: "pending"
+    });
+
+    res.json(newDailyPlan);
+  } catch (err) {
+    console.error("Daily Plan Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 // GET: ดึงข้อมูลผู้ใช้ตาม UID
 // GET /api/users/:uid
 app.get('/api/users/:uid', async (req, res) => {
@@ -594,7 +985,7 @@ const exerciseSchema = new mongoose.Schema({
   imageUrl: { type: String },
   videoUrl: { type: String, default: null },
   image: { type: String },
-  
+
   // New nested fields
   media: {
     imageUrl: { type: String },
@@ -690,7 +1081,7 @@ app.post('/api/exercises', upload.fields([
       source: "Compendium of Physical Activities", mappedFrom: "Weight training (general)"
     };
     if (req.body.met) {
-      try { parsedMet = JSON.parse(req.body.met); } catch(e){}
+      try { parsedMet = JSON.parse(req.body.met); } catch (e) { }
     }
 
     // สร้าง Exercise ใหม่
@@ -739,7 +1130,7 @@ app.put('/api/exercises/:id', upload.fields([
     const existing = await Exercise.findById(req.params.id);
     let parsedMet = existing.met;
     if (req.body.met) {
-      try { parsedMet = JSON.parse(req.body.met); } catch(e){}
+      try { parsedMet = JSON.parse(req.body.met); } catch (e) { }
     }
 
     const updateData = {
@@ -849,15 +1240,6 @@ const workoutProgramSchema = new Schema({
 });
 
 const WorkoutProgram = mongoose.model('WorkoutProgram', workoutProgramSchema, 'program');
-
-const dailyPlanSchema = new mongoose.Schema({
-  userId: String,
-  date: String,
-  exercises: Array,
-  totalDuration: Number,
-  estimatedCalories: Number
-});
-const DailyPlan = mongoose.model("DailyPlan", dailyPlanSchema);
 
 
 // WorkoutProgram Routes
