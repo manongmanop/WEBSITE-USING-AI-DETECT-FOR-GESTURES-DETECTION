@@ -101,9 +101,9 @@ export default function SummaryProgram() {
     if (!data) return null;
     const exerciseProgress = ((data.doneExercises / data.totalExercises) * 100).toFixed(0);
 
-    // [Display Guard] ถ้าเวลาที่ใช้น้อยกว่า 120 วินาที (2 นาที) → ถือว่าไม่ได้ออกกำลังกายจริง
+    // [Display Guard] ถ้าเวลาที่ใช้น้อยกว่า 60 วินาที → ถือว่าไม่ได้ออกกำลังกายจริง
     const totalSeconds = Number(data.totals?.seconds) || 0;
-    const isRealWorkout = totalSeconds >= 120;
+    const isRealWorkout = totalSeconds >= 60;
     const displayCalories = isRealWorkout
         ? (data.totals?.calories ? Number(data.totals.calories).toFixed(2) : "0.00")
         : "0.00";
@@ -113,22 +113,24 @@ export default function SummaryProgram() {
             <div className="summary-header">
                 <div className="header-content">
                     <h1 className="header-title">🏋️ สรุปผลการออกกำลังกาย</h1>
-                </div>
-                <div className="header-actions">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => nav("/home")}
-                    >
-                        หน้าหลัก
-                    </button>
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => nav(`/history/${uid}`)}
-                    >
-                        ดูประวัติ
-                    </button>
+                    <p className="header-subtitle">
+                        {data.programName} • {new Date(data.finishedAt).toLocaleDateString('th-TH', { 
+                            year: 'numeric', month: 'long', day: 'numeric', 
+                            hour: '2-digit', minute: '2-digit' 
+                        })}
+                    </p>
                 </div>
             </div>
+
+            {data.isDailyPlan && isRealWorkout && (
+                <div className="daily-mission-success">
+                    <div className="success-badge">🏅</div>
+                    <h2 className="success-title">🎯 ภารกิจวันนี้เสร็จสิ้น!</h2>
+                    <p className="success-subtitle">
+                        ยอดเยี่ยมมาก! คุณทำตามแผนรายวันได้สำเร็จ ระบบบันทึกประวัติเข้าระบบเรียบร้อยแล้วครับ
+                    </p>
+                </div>
+            )}
 
             <div className="summary-grid">
                 <div className="stat-card">
@@ -179,9 +181,28 @@ export default function SummaryProgram() {
                     <p className="footer-message">✨ ยอดเยี่ยม! คุณทำได้ดีมากจริง ๆ</p>
                 ) : (
                     <p className="footer-message footer-message--warning">
-                        ⚠️ คุณยังไม่ได้ออกกำลังกายจริง ระบบไม่คำนวณแคลอรี่
+                        ⚠️ เวลาในการฝึกน้อยกว่า 60 วินาที ระบบจะไม่คำนวณแคลอรี่และประวัติชุดนี้
                     </p>
                 )}
+            </div>
+
+            <div className="summary-actions-main">
+                <button 
+                  className="btn btn-home-hero" 
+                  onClick={() => nav("/home")}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                  <span>กลับสู่หน้าหลัก</span>
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => nav(`/history/${uid}`)}
+                >
+                  ดูประวัติทั้งหมด
+                </button>
             </div>
         </div>
     );

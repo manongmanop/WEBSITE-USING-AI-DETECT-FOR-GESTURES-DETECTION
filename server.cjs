@@ -2427,29 +2427,39 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
 app.get("/api/__summary_internal/program/:uid", async (req, res) => {
   try {
     const { uid } = req.params;
-    const latest = await WorkoutSession.findOne({
+    
+    // 💡 เปลี่ยนจาก WorkoutSession เป็น History เพื่อความแม่นยำและรักษาสถานะถาวร
+    const latest = await mongoose.model("History").findOne({
       uid,
-      finishedAt: { $ne: null }
+      // เราอาจจะเพิ่มเงื่อนไขว่าต้องเป็นภายในวันนี้ หรือแค่ตัวล่าสุดก็ได้
     }).sort({ finishedAt: -1 }).lean();
 
-    if (!latest) return res.status(404).json({ error: "ไม่พบประวัติการเล่น" });
+    if (!latest) {
+      console.log(`❌ No History found for UID: ${uid}`);
+      return res.status(404).json({ error: "ไม่พบประวัติการเล่น" });
+    }
 
-    const totals = (latest.logs || []).reduce((acc, l) => {
-      acc.seconds += Number(l.performed?.seconds || 0);
-      acc.calories += Number(l.calories || 0);
-      return acc;
-    }, { seconds: 0, calories: 0 });
+    // ตรวจสอบว่าเป็น Daily Plan หรือไม่
+    const isDailyPlan = latest.programId === "dailyplan";
 
     res.json({
       uid,
-      sessionId: latest._id,
-      programName: latest.snapshot?.programName,
-      totalExercises: latest.snapshot?.exercises?.length || 0,
-      doneExercises: latest.logs?.length || 0,
-      totals,
-      finishedAt: latest.finishedAt
+      sessionId: latest.sessionId,
+      historyId: latest._id,
+      programName: latest.programName || (isDailyPlan ? "ภารกิจรายวัน" : "โปรแกรมออกกำลังกาย"),
+      totalExercises: latest.totalExercises || 0,
+      doneExercises: latest.totalExercises || 0, // ใน Summary ของ History คือตัวที่ทำเสร็จแล้ว
+      totals: {
+        seconds: latest.totalSeconds || 0,
+        calories: latest.caloriesBurned || 0
+      },
+      finishedAt: latest.finishedAt,
+      isDailyPlan // ✅ ส่ง flag ไปให้ Frontend โชว์เหรียญตราความสำเร็จ
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    console.error("❌ Summary API Error:", e);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 if (require.main === module) {
