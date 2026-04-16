@@ -1901,6 +1901,11 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
       return res.status(400).json({ error: "Invalid level" });
     }
 
+    if (id === "dailyplan") {
+      console.log("ℹ️ Daily Plan Feedback (Skipping DB Update)");
+      return res.json({ ok: true, msg: "Feedback received for daily plan (Transient)" });
+    }
+
     const incField = `DataFeedback.${level}`;
     const updated = await WorkoutProgram.findByIdAndUpdate(
       id,
@@ -2027,14 +2032,53 @@ app.patch("/api/histories/:sessionId/feedback", async (req, res) => {
       { new: true }
     );
 
-    if (!updated) {
-      console.log("❌ History not found for feedback update");
-      return res.status(404).json({ error: "History not found" });
+    // 2. ✅ Adaptive Fitness Level Logic
+    if (feedback && (feedback === 'easy' || feedback === 'hard')) {
+      try {
+        const lastHistories = await History.find({ uid: updated.uid })
+          .sort({ finishedAt: -1 })
+          .limit(10);
+        
+        const user = await User.findOne({ uid: updated.uid });
+        if (user) {
+          let currentLevel = 1; // Default
+          if (user.fitnessLevel === 'Intermediate') currentLevel = 2;
+          if (user.fitnessLevel === 'Advanced') currentLevel = 3;
+
+          const recentFeedbacks = lastHistories.map(h => h.feedback).filter(Boolean);
+          
+          let newLevel = currentLevel;
+          
+          // Logic: Easy 3 ครั้งล่าสุด -> Upgrade
+          const last3 = recentFeedbacks.slice(0, 3);
+          if (last3.length === 3 && last3.every(f => f === 'easy') && currentLevel < 3) {
+            newLevel++;
+            console.log(`🚀 Upgrading user ${user.uid} to level ${newLevel}`);
+          }
+          
+          // Logic: Hard 2 ครั้งล่าสุด -> Downgrade
+          const last2 = recentFeedbacks.slice(0, 2);
+          if (last2.length === 2 && last2.every(f => f === 'hard') && currentLevel > 1) {
+            newLevel--;
+            console.log(`📉 Downgrading user ${user.uid} to level ${newLevel}`);
+          }
+
+          if (newLevel !== currentLevel) {
+            const levelNames = ['Beginner', 'Intermediate', 'Advanced'];
+            await User.findOneAndUpdate(
+              { uid: user.uid },
+              { fitnessLevel: levelNames[newLevel - 1] }
+            );
+          }
+        }
+      } catch (adaptErr) {
+        console.error("❌ Adaptive Level Error:", adaptErr);
+      }
     }
 
-    console.log("✅ Feedback updated:", updated);
     res.json(updated);
   } catch (err) {
+    console.error("❌ History Feedback Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2352,6 +2396,20 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
         }
       }
     );
+    
+    // 6. ✅ ถ้าเป็น Daily Plan ให้ไปอัปเดตสถานะของแผนวันวันนี้เป็น "completed"
+    if (session.origin?.programId === "dailyplan") {
+      const today = new Date().toISOString().split("T")[0];
+      try {
+        await mongoose.model('DailyPlan').findOneAndUpdate(
+          { userId: session.uid, date: today },
+          { status: "completed" }
+        );
+        console.log(`✅ DailyPlan status marked as completed for ${session.uid}`);
+      } catch (dpErr) {
+        console.error("❌ Failed to update DailyPlan status:", dpErr);
+      }
+    }
 
     res.json({
       sessionId: session._id,

@@ -393,52 +393,58 @@ export default function WorkoutPlayer() {
     try {
       // 1. ✅ จบ session (เพื่อให้ได้ finishedAt)
       const finishedSessionResult = await finishSession();
+      
+      // ✅ ถ้า Session ถูกยกเลิกเพราะเวลาสั้นเกินไป (<60s)
+      if (finishedSessionResult?.aborted) {
+        Swal.fire({
+          icon: 'info',
+          title: 'เซสชันสั้นเกินไป',
+          text: 'การออกกำลังกายน้อยกว่า 60 วินาที จะไม่ถูกบันทึกลงในสถิติถาวรครับ',
+          confirmButtonText: 'รับทราบ/กลับหน้าหลัก'
+        }).then(() => {
+          navigate('/home');
+        });
+        return;
+      }
+
       const finishedSessionId = finishedSessionResult?.sessionId || null;
       console.log("🏁 finishedSessionId returned:", finishedSessionId);
 
       // 2. ✅ ส่ง feedback และน้ำหนักไปที่ History API (MongoDB)
       if (finishedSessionId) {
-        await axios.patch(`/api/histories/${finishedSessionId}/feedback`, {
-          feedback: level, // ส่ง level เป็น feedback (เช่น "hard")
-          weight: weight ? parseFloat(weight) : undefined
-        });
-        console.log(`✅ History updated with Feedback=${level}, Weight=${weight}`);
-      }
-
-      // --- 3. Save Weight to Firebase if it was requested and provided ---
-      if (shouldAskWeight && weight && parseFloat(weight) > 0) {
-        const parsedWeight = parseFloat(weight);
         try {
-          // Update User Profile
-          const userRef = doc(db, 'users', uid);
-          await setDoc(userRef, {
-            weight: parsedWeight,
-            updatedAt: new Date()
-          }, { merge: true });
-
-          // Add new bodyMetric snapshot (keeping it simple for mid-workout)
-          const metricsRef = collection(db, 'bodyMetrics');
-          const newMetric = {
-            userId: uid,
-            date: new Date(),
-            weight: parsedWeight,
-            fatPercentage: 20, // Default placeholders, will be overridden via Dashboard if needed
-            muscleMass: 30
-          };
-          await setDoc(doc(metricsRef), newMetric);
-          console.log(`✅ Firebase Weight updated to ${parsedWeight}`);
-        } catch (fbErr) {
-          console.error("❌ Failed to update Firebase weight:", fbErr);
+          await axios.patch(`/api/histories/${finishedSessionId}/feedback`, {
+            feedback: level, 
+            weight: weight ? parseFloat(weight) : undefined
+          });
+        } catch (histErr) {
+          console.error("Failed to update history feedback:", histErr);
         }
       }
 
-      // 4. ✅ ส่ง feedback โปรแกรม (Counter)
-      await submitProgramFeedback(programId, level);
+      /* ... (Firebase sync logic remains same) ... */
+      if (shouldAskWeight && weight && parseFloat(weight) > 0) {
+        const parsedWeight = parseFloat(weight);
+        try {
+          const userRef = doc(db, 'users', uid);
+          await setDoc(userRef, { weight: parsedWeight, updatedAt: new Date() }, { merge: true });
+          const metricsRef = collection(db, 'bodyMetrics');
+          await setDoc(doc(metricsRef), { userId: uid, date: new Date(), weight: parsedWeight, fatPercentage: 20, muscleMass: 30 });
+        } catch (fbErr) { console.error("Firebase update failed:", fbErr); }
+      }
+
+      // 4. ✅ ส่ง feedback โปรแกรม (ข้าม Error ได้ถ้าล้มเหลว)
+      try {
+        await submitProgramFeedback(programId, level);
+      } catch (progErr) {
+        console.warn("Skip program feedback error:", progErr.message);
+      }
 
       setShowFeedbackModal(false);
       navigate(`/summary/program/${uid}`);
     } catch (e) {
-      console.warn("ส่ง feedback ไม่สำเร็จ:", e);
+      console.error("Critical Feedback Error:", e);
+      // Fallback navigate
       navigate(`/summary/program/${uid}`);
     } finally {
       setSendingFeedback(false);

@@ -40,7 +40,7 @@ export default function SummaryProgram() {
                 if (!mounted) return;
                 console.error("Summary Load Error:", e);
                 if (e.response && e.response.status === 404) {
-                    setErr("ไม่พบประวัติการเล่นล่าสุด (อาจยังบันทึกไม่เสร็จ)");
+                    setErr("ไม่พบประวัติการเล่น (หากออกกำลังกายน้อยกว่า 60 วินาที ระบบจะไม่บันทึกผลครับ)");
                 } else {
                     setErr(e?.response?.data?.error || e?.message || "โหลดข้อมูลไม่สำเร็จ");
                 }
