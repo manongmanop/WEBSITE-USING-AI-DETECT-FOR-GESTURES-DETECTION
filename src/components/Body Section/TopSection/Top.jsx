@@ -247,7 +247,7 @@ export const Top = () => {
           <div className="daily-plan-card loading" style={{ padding: '2rem', textAlign: 'center', background: 'rgba(255,255,255,0.7)', borderRadius: '1rem' }}>
             ⏳ กำลังประเมินภารกิจประจำวันให้คุณ...
           </div>
-        ) : (dailyPlan && dailyPlan.exercises && dailyPlan.exercises.length > 0 ? (
+        ) : dailyPlan && dailyPlan.exercises && dailyPlan.exercises.length > 0 ? (
           <div className={`daily-plan-card glass-panel ${dailyPlan.status === 'completed' ? 'completed' : ''}`} style={{ padding: '1.5rem', borderRadius: '1rem', background: dailyPlan.status === 'completed' ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : 'rgba(255, 255, 255, 0.9)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="plan-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -270,12 +270,23 @@ export const Top = () => {
               {dailyPlan.status === 'completed' ? 'ทบทวนภารกิจอีกครั้ง' : 'พรีวิวและเริ่มเลย!'}
             </button>
           </div>
-        ) : (
-          <div className="daily-plan-card rest-day glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center' }}>
-            <h3 style={{ color: '#333' }}>🌿 วันนี้เป็นวันพักผ่อน (Rest Day)</h3>
-            <p style={{ color: '#666', margin: 0 }}>ร่างกายต้องการการซ่อมแซมเพื่อสร้างกล้ามเนื้อ พักให้เต็มที่นะครับ!</p>
+        ) : dailyPlan ? (
+          <div className="daily-plan-card rest-day glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center', boxShadow: '0 8px 32px 0 rgba(0,0,0,0.05)' }}>
+            <h3 style={{ color: '#333', marginBottom: '0.5rem' }}>🌿 วันนี้เป็นวันพักผ่อน (Rest Day)</h3>
+            <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.2rem' }}>ถ้าอยากออกกำลังกายวันนี้ เลือกแผนจากด้านบนได้เลยครับ!</p>
+            <div style={{ padding: '1rem', background: 'rgba(43, 88, 118, 0.05)', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#444' }}>
+              💡 การพักผ่อนช่วยให้กล้ามเนื้อได้ซ่อมแซมและเติบโต
+            </div>
           </div>
-        ))}
+        ) : (
+          <div className="daily-plan-card no-plan glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center', border: '2px dashed #ccc' }}>
+            <h3 style={{ color: '#666' }}>📋 ยังไม่มีแผนการออกกำลังกาย</h3>
+            <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '1rem' }}>ทำแบบทดสอบเพื่อสร้างแผนการฝึกที่เหมาะกับคุณ</p>
+            <Link to="/onboarding" style={{ display: 'inline-block', padding: '0.6rem 1.2rem', background: '#2B5876', color: 'white', borderRadius: '0.5rem', textDecoration: 'none', fontWeight: 'bold' }}>
+              สร้างแผนการฝึกเลย 🔥
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* --- DAILY PLAN MODAL PREVIEW --- */}

@@ -41,6 +41,13 @@ const Onboarding = () => {
             // Create or Update User
             await axios.post('/api/users', payload);
 
+            // 🔥 ปั้นแผนระยะยาวอัตโนมัติจากข้อมูลที่เพิ่งส่งไป
+            try {
+                await axios.post(`/api/users/${user.uid}/generate-plan`);
+            } catch (planErr) {
+                console.error("Plan Generation Error:", planErr);
+            }
+
             Swal.fire({
                 icon: 'success',
                 title: 'Plan Created!',
@@ -67,6 +74,14 @@ const Onboarding = () => {
                         ...formData,
                         weeklyGoal
                     });
+
+                    // 🔥 ปั้นแผนระยะยาวอัตโนมัติเช่นกัน
+                    try {
+                        await axios.post(`/api/users/${user.uid}/generate-plan`);
+                    } catch (planErr) {
+                        console.error("Plan Generation Error (PUT path):", planErr);
+                    }
+
                     navigate('/home');
                 } catch (e) {
                     Swal.fire('Error', 'Failed to save profile', 'error');
