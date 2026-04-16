@@ -354,6 +354,87 @@ body {
   border-color: #fcd34d;
 }
 
+/* ==================== DAILY SUCCESS CARD ==================== */
+.daily-mission-success {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  border-radius: 1.5rem;
+  padding: 2.5rem;
+  text-align: center;
+  margin-bottom: 2.5rem;
+  color: white;
+  box-shadow: 0 20px 40px rgba(16, 185, 129, 0.25);
+  position: relative;
+  overflow: hidden;
+  animation: scaleIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.daily-mission-success::before {
+  content: '🏆';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  font-size: 8rem;
+  opacity: 0.15;
+  transform: rotate(15deg);
+}
+
+.success-badge {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+.success-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.success-subtitle {
+  font-size: 1.2rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.summary-actions-main {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  padding-bottom: 4rem;
+}
+
+.btn-home-hero {
+  padding: 1.2rem 3rem;
+  font-size: 1.3rem;
+  border-radius: 1rem;
+  background: var(--bg-dark);
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3);
+}
+
+.btn-home-hero:hover {
+  background: #1e293b;
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.4);
+}
+
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
   .summary-container {
