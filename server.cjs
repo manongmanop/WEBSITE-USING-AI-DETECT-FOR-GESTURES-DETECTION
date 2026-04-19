@@ -774,39 +774,46 @@ app.post('/api/users/:uid/generate-plan', async (req, res) => {
     const user = await User.findOne({ uid });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // วิเคราะห์เป้าหมายและ level 
-    const fitnessLevel = parseInt(user.fitnessLevel) || 1; 
+    // วิเคราะห์เป้าหมายและระดับ เพื่อเลือกความยากและจำนวนท่า
     let difficultyTarget = 'beginner';
-    if (fitnessLevel === 2) difficultyTarget = 'intermediate';
-    if (fitnessLevel >= 3) difficultyTarget = 'advanced';
+    let numExercises = 3;
 
-    // ค้นหาท่าตามกล้ามเนื้อเป้าหมายหรือดึงทั้งหมดมากรอง
+    if (user.fitnessLevel === 'Intermediate') {
+      difficultyTarget = 'intermediate';
+      numExercises = 4;
+    } else if (user.fitnessLevel === 'Advanced') {
+      difficultyTarget = 'advanced';
+      numExercises = 5;
+    }
+
+    // ค้นหาท่าที่ตรงกับความยากที่ต้องการ
     const allExercises = await mongoose.model('Exercise').find({ difficulty: difficultyTarget });
     
-    // แบ่งกลุ่มท่าหลวมๆ เพื่อใช้สุ่มลงวัน (ตัวอย่างคร่าวๆ)
-    // สำหรับเป้าหมายจริงอาจจะต้องมี mapping ซับซ้อนกว่านี้
     const plans = [];
     const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     
-    // สร้างแผน 7 วัน
-    daysOfWeek.forEach((day, index) => {
-      // สุ่มท่ามา 3-5 ท่าต่อวัน (ง่ายๆ)
+    // เตรียมข้อมูลวันว่าง (พักผ่อน) หรือวันออกกำลังกายตามที่ผู้ใช้เลือก
+    const userPreferredDays = (user.preferredDays || []).map(d => d.toLowerCase());
+
+    daysOfWeek.forEach((day) => {
       const dailyExercises = [];
-      const numExercises = fitnessLevel === 1 ? 3 : (fitnessLevel === 2 ? 4 : 5);
       
-      // Shuffle exercises array
-      const shuffled = allExercises.sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, numExercises);
-      
-      selected.forEach(ex => {
-        dailyExercises.push({
-          exercise: ex._id,
-          performed: {
-            reps: ex.type === 'reps' ? (ex.reps || 10) : 0,
-            seconds: ex.type === 'time' ? (ex.time || 30) : 0
-          }
+      // ตรวจสอบว่าวันนี้เป็นวันที่ผู้ใช้สะดวกออกกำลังกายหรือไม่
+      if (userPreferredDays.includes(day)) {
+        // Shuffle and select exercises
+        const shuffled = [...allExercises].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, numExercises);
+        
+        selected.forEach(ex => {
+          dailyExercises.push({
+            exercise: ex._id,
+            performed: {
+              reps: ex.type === 'reps' ? (ex.reps || 10) : 0,
+              seconds: ex.type === 'time' ? (ex.time || 30) : 0
+            }
+          });
         });
-      });
+      }
 
       plans.push({
         day: day,
@@ -814,7 +821,7 @@ app.post('/api/users/:uid/generate-plan', async (req, res) => {
       });
     });
 
-    // ลบแผนเดิมทิ้งและสร้างใหม่ หรือ overwrite
+    // ลบแผนเดิมทิ้งและสร้างใหม่
     await mongoose.model('WorkoutPlan').findOneAndDelete({ uid });
     const newPlan = await mongoose.model('WorkoutPlan').create({
       uid,
