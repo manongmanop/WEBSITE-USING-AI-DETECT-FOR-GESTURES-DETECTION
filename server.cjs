@@ -2207,7 +2207,7 @@ const workoutSessionSchema = new mongoose.Schema({
   uid: { type: String, required: true, index: true },
   origin: {
     kind: { type: String, default: "program" },
-    programId: { type: mongoose.Schema.Types.ObjectId, ref: "WorkoutProgram" }
+    programId: { type: mongoose.Schema.Types.Mixed } // ✅ ยืดหยุ่นให้รองรับทั้ง ObjectId และ String "dailyplan"
   },
   snapshot: {
     programName: String,
