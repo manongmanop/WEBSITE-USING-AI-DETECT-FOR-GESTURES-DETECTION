@@ -913,6 +913,67 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
   }
 });
 
+// ================== API: Daily Plan Overview (14 Days) ==================
+app.get('/api/daily-plan/overview/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const daysArr = [];
+    const today = new Date();
+    
+    // 1. ดึง WorkoutPlan มาเช็คตาราง (Active Days)
+    const workoutPlan = await mongoose.model('WorkoutPlan').findOne({ uid });
+    const availableDays = workoutPlan?.plans
+      .filter(p => p.exercises && p.exercises.length > 0)
+      .map(p => p.day) || [];
+
+    // 2. ดึง DailyPlan ที่มีอยู่แล้วในช่วง -7 ถึง +7 วัน
+    const startDate = new Date();
+    startDate.setDate(today.getDate() - 7);
+    const endDate = new Date();
+    endDate.setDate(today.getDate() + 7);
+
+    const existingPlans = await mongoose.model('DailyPlan').find({
+      userId: uid,
+      date: { 
+        $gte: startDate.toISOString().split('T')[0],
+        $lte: endDate.toISOString().split('T')[0]
+      }
+    }).lean();
+
+    const planMap = new Map();
+    existingPlans.forEach(p => planMap.set(p.date, p.status));
+
+    // 3. สร้างข้อมูล 15 วัน
+    for (let i = -7; i <= 7; i++) {
+      const d = new Date();
+      d.setDate(today.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      
+      let status = planMap.get(dateStr);
+      
+      if (!status) {
+        // ถ้ายังไม่มีใน DB ให้เช็คว่าเป็นวันพักผ่อนหรือไม่
+        const isWorkoutDay = availableDays.includes(dayName);
+        status = isWorkoutDay ? 'pending' : 'rest';
+      }
+
+      daysArr.push({
+        date: dateStr,
+        dayNum: d.getDate(),
+        dayNameShort: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        fullDayName: dayName,
+        status, // completed, pending, rest
+        isToday: i === 0
+      });
+    }
+
+    res.json({ days: daysArr });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ✅ API สำหรับสลับแผน (Swap Workout)
 app.post('/api/daily-plan/:uid/swap', async (req, res) => {
   try {
