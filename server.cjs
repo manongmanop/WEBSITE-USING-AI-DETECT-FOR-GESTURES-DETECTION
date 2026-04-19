@@ -832,7 +832,9 @@ app.post('/api/users/:uid/generate-plan', async (req, res) => {
 app.get('/api/daily-plan/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const { date: queryDate } = req.query; // ✅ รองรับการระบุวันที่ (YYYY-MM-DD)
+    const todayStr = new Date().toISOString().split("T")[0];
+    const targetDate = queryDate || todayStr;
     
     // 1. ดึง WorkoutPlan เสมอเพื่อเอาชื่อวันที่มีท่า (Active Days) มาแสดงแถบ Header
     const workoutPlan = await mongoose.model('WorkoutPlan')
@@ -848,21 +850,21 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
       .map(p => p.day);
 
     const DailyPlan = mongoose.model('DailyPlan');
-    const existingPlan = await DailyPlan.findOne({ userId: uid, date: today }).populate('exercises.exerciseId');
+    const existingPlan = await DailyPlan.findOne({ userId: uid, date: targetDate }).populate('exercises.exerciseId');
 
     if (existingPlan) {
       // ✅ ส่ง availableWorkoutDays กลับไปด้วยแม้จะมีแผนอยู่แล้ว
       return res.json({ ...existingPlan.toObject(), availableWorkoutDays });
     }
 
-    // ถ้าไม่มี ให้สร้างจาก Template ของ "วันนี้"
-    const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    const todaysTemplate = workoutPlan.plans.find(p => p.day === currentDayName);
+    // ถ้าไม่มี ให้สร้างจาก Template ของ "วันตามเป้าหมาย"
+    const targetDayName = new Date(targetDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const todaysTemplate = workoutPlan.plans.find(p => p.day === targetDayName);
 
     if (!todaysTemplate || !todaysTemplate.exercises.length) {
       // วันพักผ่อน (Rest Day) ไม่มีท่า
       return res.json({ 
-        date: today, 
+        date: targetDate, 
         status: "completed", 
         exercises: [], 
         totalDuration: 0, 

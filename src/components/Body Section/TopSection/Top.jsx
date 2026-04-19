@@ -23,6 +23,11 @@ export const Top = () => {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [planLoading, setPlanLoading] = useState(true);
 
+  // 🆕 14-Day Calendar State
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [overviewDays, setOverviewDays] = useState([]);
+  const [lastCheckDate, setLastCheckDate] = useState(null); // ตัวแปรคุมการ fetch overview
+
   // ดึงชื่อจาก Firestore และสถิติผู้ใช้จาก MongoDB
   useEffect(() => {
     const fetchUserData = async () => {
@@ -100,14 +105,15 @@ export const Top = () => {
     fetchPrograms();
   }, []);
 
-  const fetchDailyPlan = async () => {
+  const fetchDailyPlan = async (dateStr) => {
     if (!user?.uid) {
       setPlanLoading(false);
       return;
     }
     try {
       setPlanLoading(true);
-      const res = await fetch(`/api/daily-plan/${user.uid}`);
+      const targetDate = dateStr || selectedDate;
+      const res = await fetch(`/api/daily-plan/${user.uid}?date=${targetDate}`);
       if (res.ok) {
         const data = await res.json();
         setDailyPlan(data);
@@ -119,17 +125,32 @@ export const Top = () => {
     }
   };
 
-  // ดึง Daily Plan ของผู้ใช้
+  const fetchOverview = async () => {
+    if (!user?.uid) return;
+    try {
+      const res = await fetch(`/api/daily-plan/overview/${user.uid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOverviewDays(data.days || []);
+      }
+    } catch (err) {
+      console.error("Error fetching overview:", err);
+    }
+  };
+
+  // ดึง Daily Plan เมื่อ User หรือ SelectedDate เปลี่ยน
   useEffect(() => {
-    fetchDailyPlan();
-  }, [user]);
+    fetchDailyPlan(selectedDate);
+    fetchOverview(); // ดึง Overview เสมอเพื่อให้สถานะอัปเดต
+  }, [user, selectedDate]);
 
   const handleDaySwap = async (day) => {
     if (!user?.uid || planLoading) return;
     try {
       setPlanLoading(true);
       await axios.post(`/api/daily-plan/${user.uid}/swap`, { targetDay: day });
-      await fetchDailyPlan(); // โหลดข้อมูลใหม่หลังสลับแผน
+      await fetchDailyPlan(selectedDate); // โหลดข้อมูลใหม่ของวันที่เลือก
+      await fetchOverview();
     } catch (err) {
       console.error("Error swapping plan:", err);
     } finally {
@@ -140,8 +161,9 @@ export const Top = () => {
   const dayNamesTH = {
     monday: "จ.", tuesday: "อ.", wednesday: "พ.", thursday: "พฤ.", friday: "ศ.", saturday: "ส.", sunday: "อา."
   };
-
+  
   const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+  const todayStr = new Date().toISOString().split("T")[0];
 
   const categories = [
     { label: "🌟 ทั้งหมด", value: "All" },
@@ -218,33 +240,47 @@ export const Top = () => {
 
       {/* --- DAILY PLAN UI --- */}
       <div className="daily-plan-wrapper" style={{ margin: '1rem', marginTop: '-2rem', zIndex: 10, position: 'relative' }}>
-        {/* Day Selector (ด้านบนสุดของการ์ด) */}
-        {dailyPlan && dailyPlan.availableWorkoutDays && (
-          <div className="day-selector-header" style={{ display: 'flex', gap: '8px', marginBottom: '8px', overflowX: 'auto', padding: '4px', scrollbarWidth: 'none' }}>
-            {Object.keys(dayNamesTH).map((day) => {
-              const isActive = dailyPlan.availableWorkoutDays.includes(day);
-              const isToday = currentDayName === day;
-              return (
-                <button
-                  key={day}
-                  onClick={() => isActive && !isToday && handleDaySwap(day)}
-                  disabled={!isActive || isToday || planLoading}
-                  style={{
-                    minWidth: '38px', height: '38px', borderRadius: '50%', border: 'none', cursor: isActive ? 'pointer' : 'default',
-                    fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s', position: 'relative',
-                    background: isToday ? '#2B5876' : (isActive ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.05)'),
-                    color: isToday ? 'white' : (isActive ? '#2B5876' : '#999'),
-                    boxShadow: isToday ? '0 4px 10px rgba(43,88,118,0.3)' : 'none'
-                  }}
-                  title={isActive ? `เล่นแผนวัน${day}` : 'วันพักผ่อน'}
-                >
-                  {dayNamesTH[day]}
-                  {isActive && !isToday && <div style={{ position: 'absolute', bottom: '4px', width: '4px', height: '4px', borderRadius: '50%', background: '#28a745' }}></div>}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        
+        {/* 14-Day Horizontal Calendar Picker */}
+        <div className="calendar-scroll-section" style={{ 
+          display: 'flex', gap: '10px', marginBottom: '12px', overflowX: 'auto', padding: '10px 4px', 
+          scrollbarWidth: 'none', msOverflowStyle: 'none' 
+        }}>
+          {overviewDays.map((day) => {
+            const isSelected = selectedDate === day.date;
+            const isToday = day.isToday;
+            const isPast = new Date(day.date) < new Date(todayStr);
+
+            return (
+              <div 
+                key={day.date}
+                onClick={() => setSelectedDate(day.date)}
+                className={`calendar-day-bubble ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
+                style={{
+                  minWidth: '55px', height: '70px', borderRadius: '14px', cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  transition: '0.3s', flexShrink: 0,
+                  background: isSelected ? 'linear-gradient(135deg, #2B5876 0%, #4E4376 100%)' : 'rgba(255,255,255,0.85)',
+                  color: isSelected ? 'white' : '#555',
+                  boxShadow: isSelected ? '0 6px 15px rgba(43,88,118,0.3)' : '0 2px 5px rgba(0,0,0,0.05)',
+                  border: isToday && !isSelected ? '2px solid #2B5876' : 'none'
+                }}
+              >
+                <span style={{ fontSize: '0.65rem', marginBottom: '2px', opacity: isSelected ? 0.9 : 0.7, fontWeight: 'bold' }}>
+                  {day.dayNameShort.toUpperCase()}
+                </span>
+                <span style={{ fontSize: '1.1rem', fontWeight: '800' }}>{day.dayNum}</span>
+                
+                {/* Status Icons */}
+                <div style={{ marginTop: '2px', fontSize: '0.8rem' }}>
+                  {day.status === 'completed' && <BsCheckCircleFill style={{ color: isSelected ? '#4ade80' : '#28a745' }} />}
+                  {day.status === 'rest' && <span>🛁</span>}
+                  {day.status === 'pending' && isPast && <span style={{ opacity: 0.5 }}>➖</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {planLoading ? (
           <div className="daily-plan-card loading" style={{ padding: '2rem', textAlign: 'center', background: 'rgba(255,255,255,0.7)', borderRadius: '1rem' }}>
@@ -252,26 +288,39 @@ export const Top = () => {
           </div>
         ) : dailyPlan && dailyPlan.exercises && dailyPlan.exercises.length > 0 ? (
           <div className={`daily-plan-card glass-panel ${dailyPlan.status === 'completed' ? 'completed' : ''}`} style={{ padding: '1.5rem', borderRadius: '1rem', background: dailyPlan.status === 'completed' ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : 'rgba(255, 255, 255, 0.9)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="plan-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#333' }}>🎯 ภารกิจวันนี้</h3>
-                {dailyPlan.status !== 'completed' && <span style={{ fontSize: '0.75rem', color: '#666' }}>คุณสามารถคลิกปุ่มวันด้านบนเพื่อเปลี่ยนตารางได้</span>}
+            <div className="card-top-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div className="day-info">
+                 <h3 style={{ fontSize: '1.2rem', color: '#2B5876', fontWeight: '800' }}>
+                   {selectedDate === todayStr ? 'ภารกิจของวันนี้' : `แผนสำหรับวันที่ ${new Date(selectedDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })}`}
+                 </h3>
+                 <p style={{ fontSize: '0.85rem', color: '#777' }}>
+                   {dailyPlan.exercises?.length > 0 ? `มีทั้งหมด ${dailyPlan.exercises.length} ท่า` : 'วันนี้เป็นวันแห่งการพักผ่อน'}
+                 </p>
               </div>
               {dailyPlan.status === 'completed' && <span className="status-badge" style={{ background: '#28a745', color: 'white', padding: '0.3rem 0.8rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>🎉 สำเร็จแล้ว</span>}
             </div>
 
-            <div className="plan-stats" style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: '#555' }}>
+            <div className="plan-stats" style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: '#555', marginBottom: '1.2rem' }}>
               <span>⏱ {Math.ceil((dailyPlan.totalDuration || 0) / 60)} นาที</span>
               <span>🔥 {Math.ceil(dailyPlan.estimatedCalories || 0)} kcal</span>
               <span>💪 {dailyPlan.exercises?.length || 0} ท่า</span>
             </div>
 
-            <button
-              onClick={() => setShowPlanModal(true)}
-              style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
-            >
-              {dailyPlan.status === 'completed' ? 'ทบทวนภารกิจอีกครั้ง' : 'พรีวิวและเริ่มเลย!'}
-            </button>
+            {selectedDate > todayStr ? (
+              <button
+                onClick={() => setShowPlanModal(true)}
+                style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
+              >
+                ดูพรีวิวท่าล่วงหน้า
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPlanModal(true)}
+                style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
+              >
+                {dailyPlan.status === 'completed' ? 'ทบทวนภารกิจอีกครั้ง' : 'พรีวิวและเริ่มเลย!'}
+              </button>
+            )}
           </div>
         ) : dailyPlan ? (
           <div className="daily-plan-card rest-day glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center', boxShadow: '0 8px 32px 0 rgba(0,0,0,0.05)' }}>
@@ -311,9 +360,15 @@ export const Top = () => {
             </ul>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
               <button onClick={() => setShowPlanModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#ccc', color: '#333', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}>ปิด</button>
-              <Link to={`/WorkoutPlayer/dailyplan`} style={{ flex: 2, padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'none', textAlign: 'center' }}>
-                เริ่มออกกำลังกาย 🔥
-              </Link>
+              {selectedDate <= todayStr ? (
+                <Link to={`/WorkoutPlayer/dailyplan`} style={{ flex: 2, padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'none', textAlign: 'center' }}>
+                  เริ่มออกกำลังกาย 🔥
+                </Link>
+              ) : (
+                <div style={{ flex: 2, padding: '0.8rem', background: '#eee', color: '#888', borderRadius: '0.5rem', textAlign: 'center', fontSize: '0.85rem' }}>
+                  ยังไม่ถึงเวลาเล่น ⏳
+                </div>
+              )}
             </div>
           </div>
         </div>
