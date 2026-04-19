@@ -828,6 +828,14 @@ app.post('/api/users/:uid/generate-plan', async (req, res) => {
       plans
     });
 
+    // ✅ ล้าง DailyPlan เก่าในอนาคตที่ยังไม่ได้ทำ (Pending) เพื่อให้แผนใหม่มีผลทันที
+    const today = new Date().toISOString().split("T")[0];
+    await mongoose.model('DailyPlan').deleteMany({
+      userId: uid,
+      date: { $gte: today },
+      status: 'pending'
+    });
+
     res.json({ message: "Plan Generated", plan: newPlan });
 
   } catch (err) {
@@ -864,8 +872,9 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
       return res.json({ ...existingPlan.toObject(), availableWorkoutDays });
     }
 
-    // ถ้าไม่มี ให้สร้างจาก Template ของ "วันตามเป้าหมาย"
-    const targetDayName = new Date(targetDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    // ถ้าไม่มี ให้สร้างจาก Template ของ "วันตามเป้าหมาย" (ใช้ local components เพื่อกัน timezone shift)
+    const [y, m, d] = targetDate.split('-').map(Number);
+    const targetDayName = new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const todaysTemplate = workoutPlan.plans.find(p => p.day === targetDayName);
 
     if (!todaysTemplate || !todaysTemplate.exercises.length) {
@@ -955,7 +964,10 @@ app.get('/api/daily-plan/overview/:uid', async (req, res) => {
       const d = new Date();
       d.setDate(today.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
-      const dayName = d.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      
+      // คำนวณ dayName แบบ timezone-safe
+      const [y_part, m_part, d_part] = dateStr.split('-').map(Number);
+      const dayName = new Date(y_part, m_part - 1, d_part).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       
       let status = planMap.get(dateStr);
       
