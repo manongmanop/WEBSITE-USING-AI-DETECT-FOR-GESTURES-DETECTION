@@ -5,7 +5,7 @@ import { IoFitnessOutline } from "react-icons/io5";
 import { BsLightning, BsFire, BsArrowRight, BsCheckCircleFill } from "react-icons/bs";
 import { useUserAuth } from "../../../context/UserAuthContext";
 import axios from "axios";
-import { doc, getDoc } from 'firebase/firestore'; 
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../../firebase'; // ต้องเพิ่ม import ตัวนี้ด้วย
 import { getMediaUrl } from "../../Detail Section/Detail/Detail.jsx";
 import "./top.css";
@@ -101,7 +101,10 @@ export const Top = () => {
   }, []);
 
   const fetchDailyPlan = async () => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      setPlanLoading(false);
+      return;
+    }
     try {
       setPlanLoading(true);
       const res = await fetch(`/api/daily-plan/${user.uid}`);
@@ -137,7 +140,7 @@ export const Top = () => {
   const dayNamesTH = {
     monday: "จ.", tuesday: "อ.", wednesday: "พ.", thursday: "พฤ.", friday: "ศ.", saturday: "ส.", sunday: "อา."
   };
-  
+
   const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
   const categories = [
@@ -224,8 +227,8 @@ export const Top = () => {
               return (
                 <button
                   key={day}
-                  onClick={() => isActive && handleDaySwap(day)}
-                  disabled={!isActive || planLoading}
+                  onClick={() => isActive && !isToday && handleDaySwap(day)}
+                  disabled={!isActive || isToday || planLoading}
                   style={{
                     minWidth: '38px', height: '38px', borderRadius: '50%', border: 'none', cursor: isActive ? 'pointer' : 'default',
                     fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s', position: 'relative',
@@ -256,15 +259,15 @@ export const Top = () => {
               </div>
               {dailyPlan.status === 'completed' && <span className="status-badge" style={{ background: '#28a745', color: 'white', padding: '0.3rem 0.8rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>🎉 สำเร็จแล้ว</span>}
             </div>
-            
+
             <div className="plan-stats" style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: '#555' }}>
               <span>⏱ {Math.ceil((dailyPlan.totalDuration || 0) / 60)} นาที</span>
               <span>🔥 {Math.ceil(dailyPlan.estimatedCalories || 0)} kcal</span>
               <span>💪 {dailyPlan.exercises?.length || 0} ท่า</span>
             </div>
-            
-            <button 
-              onClick={() => setShowPlanModal(true)} 
+
+            <button
+              onClick={() => setShowPlanModal(true)}
               style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
             >
               {dailyPlan.status === 'completed' ? 'ทบทวนภารกิจอีกครั้ง' : 'พรีวิวและเริ่มเลย!'}
@@ -299,7 +302,7 @@ export const Top = () => {
                 <li key={idx} style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <strong style={{ color: '#444' }}>{idx + 1}. {ex.name}</strong>
                   <span style={{ fontSize: '0.9rem', color: '#007bff', fontWeight: '500' }}>
-                    {ex.reps > 0 ? `${ex.reps} ครั้ง` : ''} 
+                    {ex.reps > 0 ? `${ex.reps} ครั้ง` : ''}
                     {ex.reps > 0 && ex.time > 0 ? ' | ' : ''}
                     {ex.time > 0 ? `${ex.time} วิ` : ''}
                   </span>

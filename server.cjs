@@ -1571,7 +1571,11 @@ const historySchema = new mongoose.Schema({
   totalExercises: { type: Number, default: 0 },
   finishedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
+
 const History = mongoose.models.History || mongoose.model("History", historySchema, "histories");
+
+// 🆕 DailyHistory Collection (แยกส่วนรายวันตาม User Request)
+const DailyHistory = mongoose.models.DailyHistory || mongoose.model("DailyHistory", historySchema, "daily_histories");
 
 
 // ================== CRUD API ==================
@@ -2285,7 +2289,7 @@ app.post("/api/workout_sessions/:id/log-exercise", async (req, res) => {
     // 3. สร้าง Object Log ที่ถูกต้องตาม Schema เป๊ะๆ
     const newLog = {
       order: logData.order,
-      exerciseId: logData.exerciseId,
+      exerciseId: mongoose.Types.ObjectId.isValid(logData.exerciseId) ? logData.exerciseId : null, // 🛡️ กัน Error 500 ถ้าเป็นรหัสที่ไม่ใช่ ObjectId
       name: logData.name,
       target: logData.target,
       performed: {
@@ -2298,12 +2302,17 @@ app.post("/api/workout_sessions/:id/log-exercise", async (req, res) => {
       endedAt: logData.endedAt
     };
 
-    console.log(`📝 Logging Order ${logData.order}: ${seconds}s, ${calories} kcal`);
+    console.log(`📝 Logging Order ${logData.order}: ${seconds}s, ${calories} kcal (ID: ${id})`);
 
     // 4. ลบอันเก่า (ถ้ามี) แล้วเพิ่มอันใหม่
-    await WorkoutSession.findByIdAndUpdate(id, {
+    const updatedSession = await WorkoutSession.findByIdAndUpdate(id, {
       $pull: { logs: { order: logData.order } }
-    });
+    }, { new: true });
+
+    if (!updatedSession) {
+      console.log(`❌ Session not found during log: ${id}`);
+      return res.status(404).json({ error: "Session not found" });
+    }
 
     await WorkoutSession.findByIdAndUpdate(id, {
       $push: { logs: newLog }
@@ -2383,8 +2392,11 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
       finishedAt: session.finishedAt
     };
 
-    const newHistory = await History.create(historyData);
-    console.log("✅ History Created (Full):", newHistory);
+    const isDailyPlan = session.origin?.programId === "dailyplan";
+    const TargetModel = isDailyPlan ? DailyHistory : History;
+
+    const newHistory = await TargetModel.create(historyData);
+    console.log(`✅ History Created in ${isDailyPlan ? 'DailyHistory' : 'History'}:`, newHistory._id);
 
     // 5. อัปเดต User Stats
     await User.findOneAndUpdate(
@@ -2428,19 +2440,29 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
   try {
     const { uid } = req.params;
     
-    // 💡 เปลี่ยนจาก WorkoutSession เป็น History เพื่อความแม่นยำและรักษาสถานะถาวร
-    const latest = await mongoose.model("History").findOne({
-      uid,
-      // เราอาจจะเพิ่มเงื่อนไขว่าต้องเป็นภายในวันนี้ หรือแค่ตัวล่าสุดก็ได้
-    }).sort({ finishedAt: -1 }).lean();
+    // 💡 ค้นหาจากทั้ง History (โปรแกรมปกติ) และ DailyHistory (แผนรายวัน) เพื่อหาความเคลื่อนไหวล่าสุด
+    const [standardLatest, dailyLatest] = await Promise.all([
+      mongoose.model("History").findOne({ uid }).sort({ finishedAt: -1 }).lean(),
+      mongoose.model("DailyHistory").findOne({ uid }).sort({ finishedAt: -1 }).lean()
+    ]);
+
+    // เลือกตัวที่ใหม่ที่สุดจากทั้งสอง Collection
+    let latest = null;
+    if (standardLatest && dailyLatest) {
+      latest = standardLatest.finishedAt > dailyLatest.finishedAt ? standardLatest : dailyLatest;
+    } else {
+      latest = standardLatest || dailyLatest;
+    }
 
     if (!latest) {
-      console.log(`❌ No History found for UID: ${uid}`);
+      console.log(`❌ No History found in any collection for UID: ${uid}`);
       return res.status(404).json({ error: "ไม่พบประวัติการเล่น" });
     }
 
-    // ตรวจสอบว่าเป็น Daily Plan หรือไม่
-    const isDailyPlan = latest.programId === "dailyplan";
+    // ตรวจสอบว่าเป็น Daily Plan หรือไม่ โดยเช็คจาก collection หรือ programId
+    // (หมายเหตุ: latest อาจจะไม่มี programId ถ้าเป็นประวัติเก่ามากๆ แต่ DailyHistory จะมี "dailyplan")
+    const isDailyPlan = latest.programId === "dailyplan" || latest.sessionId?.includes("daily"); 
+    // ^ sessionId อาจจะไม่ชัวร์ แต่ programId "dailyplan" ชัวร์กว่า
 
     res.json({
       uid,
