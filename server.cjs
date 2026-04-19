@@ -898,7 +898,7 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
 
     const newDailyPlan = await DailyPlan.create({
       userId: uid,
-      date: today,
+      date: targetDate,
       exercises: exercisesForPlan,
       totalDuration,
       estimatedCalories,
