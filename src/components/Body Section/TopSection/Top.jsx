@@ -161,7 +161,7 @@ export const Top = () => {
   const dayNamesTH = {
     monday: "จ.", tuesday: "อ.", wednesday: "พ.", thursday: "พฤ.", friday: "ศ.", saturday: "ส.", sunday: "อา."
   };
-  
+
   const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -240,11 +240,11 @@ export const Top = () => {
 
       {/* --- DAILY PLAN UI --- */}
       <div className="daily-plan-wrapper" style={{ margin: '1rem', marginTop: '-2rem', zIndex: 10, position: 'relative' }}>
-        
+
         {/* 14-Day Horizontal Calendar Picker */}
-        <div className="calendar-scroll-section" style={{ 
-          display: 'flex', gap: '10px', marginBottom: '12px', overflowX: 'auto', padding: '10px 4px', 
-          scrollbarWidth: 'none', msOverflowStyle: 'none' 
+        <div className="calendar-scroll-section" style={{
+          display: 'flex', gap: '10px', marginBottom: '12px', overflowX: 'auto', padding: '10px 4px',
+          scrollbarWidth: 'none', msOverflowStyle: 'none'
         }}>
           {overviewDays.map((day) => {
             const isSelected = selectedDate === day.date;
@@ -252,7 +252,7 @@ export const Top = () => {
             const isPast = new Date(day.date) < new Date(todayStr);
 
             return (
-              <div 
+              <div
                 key={day.date}
                 onClick={() => setSelectedDate(day.date)}
                 className={`calendar-day-bubble ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
@@ -270,7 +270,7 @@ export const Top = () => {
                   {day.dayNameShort.toUpperCase()}
                 </span>
                 <span style={{ fontSize: '1.1rem', fontWeight: '800' }}>{day.dayNum}</span>
-                
+
                 {/* Status Icons */}
                 <div style={{ marginTop: '2px', fontSize: '0.8rem' }}>
                   {day.status === 'completed' && <BsCheckCircleFill style={{ color: isSelected ? '#4ade80' : '#28a745' }} />}
@@ -290,12 +290,12 @@ export const Top = () => {
           <div className={`daily-plan-card glass-panel ${dailyPlan.status === 'completed' ? 'completed' : ''}`} style={{ padding: '1.5rem', borderRadius: '1rem', background: dailyPlan.status === 'completed' ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : 'rgba(255, 255, 255, 0.9)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="card-top-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div className="day-info">
-                 <h3 style={{ fontSize: '1.2rem', color: '#2B5876', fontWeight: '800' }}>
-                   {selectedDate === todayStr ? 'ภารกิจของวันนี้' : `แผนสำหรับวันที่ ${new Date(selectedDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })}`}
-                 </h3>
-                 <p style={{ fontSize: '0.85rem', color: '#777' }}>
-                   {dailyPlan.exercises?.length > 0 ? `มีทั้งหมด ${dailyPlan.exercises.length} ท่า` : 'วันนี้เป็นวันแห่งการพักผ่อน'}
-                 </p>
+                <h3 style={{ fontSize: '1.2rem', color: '#2B5876', fontWeight: '800' }}>
+                  {selectedDate === todayStr ? 'ภารกิจของวันนี้' : `แผนสำหรับวันที่ ${new Date(selectedDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })}`}
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: '#777' }}>
+                  {dailyPlan.exercises?.length > 0 ? `มีทั้งหมด ${dailyPlan.exercises.length} ท่า` : 'วันนี้เป็นวันแห่งการพักผ่อน'}
+                </p>
               </div>
               {dailyPlan.status === 'completed' && <span className="status-badge" style={{ background: '#28a745', color: 'white', padding: '0.3rem 0.8rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>🎉 สำเร็จแล้ว</span>}
             </div>
@@ -325,7 +325,7 @@ export const Top = () => {
         ) : dailyPlan ? (
           <div className="daily-plan-card rest-day glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center', boxShadow: '0 8px 32px 0 rgba(0,0,0,0.05)' }}>
             <h3 style={{ color: '#333', marginBottom: '0.5rem' }}>🌿 วันนี้เป็นวันพักผ่อน (Rest Day)</h3>
-            <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.2rem' }}>ถ้าอยากออกกำลังกายวันนี้ เลือกแผนจากด้านบนได้เลยครับ!</p>
+            <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.2rem' }}>ถ้าอยากออกกำลังกายวันนี้ เลือกแผนจากด้านล่างได้เลยครับ!</p>
             <div style={{ padding: '1rem', background: 'rgba(43, 88, 118, 0.05)', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#444' }}>
               💡 การพักผ่อนช่วยให้กล้ามเนื้อได้ซ่อมแซมและเติบโต
             </div>
