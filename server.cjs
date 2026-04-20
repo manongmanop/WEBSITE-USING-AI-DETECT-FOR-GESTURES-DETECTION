@@ -2088,7 +2088,12 @@ app.get("/api/stats/dashboard/:uid", async (req, res) => {
     const weeklyGoal = user?.weeklyGoal || 3;
 
     // 2. Fetch history for Weekly Progress & Heatmap (sorted by date)
-    const histories = await History.find({ uid }).sort({ finishedAt: 1 }).lean();
+    // ✅ Merge both History and DailyHistory for full stats
+    const [historiesStandard, historiesDaily] = await Promise.all([
+      History.find({ uid }).lean(),
+      DailyHistory.find({ uid }).lean()
+    ]);
+    const histories = [...historiesStandard, ...historiesDaily].sort((a, b) => new Date(a.finishedAt) - new Date(b.finishedAt));
 
     // ✅ Count workouts directly from history as requested
     const totalWorkouts = histories.length;
@@ -2261,7 +2266,13 @@ app.post("/api/workout_sessions/finish_debug", async (req, res) => {
     // เรียก Adaptive Logic (ลอกมาจาก API หน้าหลัก)
     const user = await User.findOne({ uid });
     if (user) {
-      const lastHistories = await History.find({ uid }).sort({ finishedAt: -1 }).limit(10);
+      const [hStandard, hDaily] = await Promise.all([
+        History.find({ uid }).sort({ finishedAt: -1 }).limit(10).lean(),
+        DailyHistory.find({ uid }).sort({ finishedAt: -1 }).limit(10).lean()
+      ]);
+      const lastHistories = [...hStandard, ...hDaily]
+        .sort((a, b) => new Date(b.finishedAt) - new Date(a.finishedAt))
+        .slice(0, 10);
       let currentLevel = 1;
       if (user.fitnessLevel === 'Intermediate') currentLevel = 2;
       if (user.fitnessLevel === 'Advanced') currentLevel = 3;
@@ -2333,10 +2344,14 @@ app.get("/api/histories", async (_req, res) => {
   }
 });
 
-// READ BY USER: ดูประวัติของผู้ใช้
+// READ BY USER: ดูประวัติของผู้ใช้ (รวมจากทั้ง 2 แหล่ง)
 app.get("/api/histories/user/:uid", async (req, res) => {
   try {
-    const items = await History.find({ uid: req.params.uid }).sort({ finishedAt: -1 }).lean();
+    const [items1, items2] = await Promise.all([
+      History.find({ uid: req.params.uid }).lean(),
+      DailyHistory.find({ uid: req.params.uid }).lean()
+    ]);
+    const items = [...items1, ...items2].sort((a, b) => new Date(b.finishedAt) - new Date(a.finishedAt));
     res.json(items);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
