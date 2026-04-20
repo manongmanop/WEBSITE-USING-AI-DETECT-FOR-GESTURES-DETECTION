@@ -768,68 +768,140 @@ app.put('/api/users/:uid', async (req, res) => {
 });
 
 // ================== AI Plan Engine ==================
-// helper function สำหรับสร้างแผน (ใช้ซ้ำได้หลายที่)
+// ================== AI Plan Engine v2 ==================
+
+// helper สำหรับปรับความยาก (v2)
+function adjustIntensity(exercise, levelLabel) {
+  let multiplier = 1;
+  const level = levelLabel.toLowerCase();
+  
+  if (level === "intermediate") multiplier = 1.25;
+  if (level === "advanced") multiplier = 1.5;
+
+  return {
+    exercise: exercise._id,
+    performed: {
+      reps: exercise.type === 'reps' ? Math.round((exercise.reps || 10) * multiplier) : 0,
+      seconds: exercise.type === 'time' ? Math.round((exercise.time || exercise.duration || 30) * multiplier) : 0
+    }
+  };
+}
+
+// helper สำหรับสุ่มอาร์เรย์ (v2)
+function shuffleArray(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
+// helper สำหรับสร้างแผน (v2)
 async function generateWorkoutPlanInternal(uid) {
   const User = mongoose.model('User');
+  const Exercise = mongoose.model('Exercise');
+  const WorkoutPlan = mongoose.model('WorkoutPlan');
+  const DailyPlan = mongoose.model('DailyPlan');
+
+  console.log(`[PlanEngine-v2] Starting generation for UID: ${uid}`);
+
   const user = await User.findOne({ uid });
   if (!user) throw new Error("User not found");
 
-  let difficultyTarget = 'beginner';
-  let numExercises = 3;
-
-  if (user.fitnessLevel === 'Intermediate') {
-    difficultyTarget = 'intermediate';
-    numExercises = 4;
-  } else if (user.fitnessLevel === 'Advanced') {
-    difficultyTarget = 'advanced';
-    numExercises = 5;
+  const level = user.fitnessLevel || "Beginner";
+  const difficulty = level.toLowerCase();
+  
+  // 1. นอร์มัลไลเซชันชื่อวัน (ให้ตรงกับ Frontend)
+  let preferredDays = (user.preferredDays || []).map(d => d.trim().toLowerCase());
+  if (preferredDays.length === 0) {
+    console.warn("[PlanEngine-v2] No preferredDays set, falling back to M/W/F");
+    preferredDays = ["monday", "wednesday", "friday"];
   }
 
-  const allExercises = await mongoose.model('Exercise').find({ difficulty: difficultyTarget });
-  const plans = [];
+  // 2. ดึงท่าออกกำลังกาย (Case-insensitive)
+  let exercises = await Exercise.find({
+    difficulty: new RegExp(`^${difficulty}$`, "i")
+  });
+
+  console.log(`[PlanEngine-v2] Target level '${difficulty}' found ${exercises.length} exercises.`);
+
+  // 3. Smart Fallback: ถ้าไม่มีท่าในระดับนั้น ให้ดึงทั้งหมดมาแทน
+  if (exercises.length === 0) {
+    console.warn(`[PlanEngine-v2] No exercises found for ${difficulty}. Falling back to ALL.`);
+    exercises = await Exercise.find({});
+  }
+
+  if (exercises.length === 0) {
+    throw new Error("No exercises available in database.");
+  }
+
+  // 4. จัดกลุ่มตามกล้ามเนื้อ (ใช้ muscle แรกในลิสต์)
+  const groupedByMuscle = {};
+  exercises.forEach(ex => {
+    const mainMuscle = (ex.muscles && ex.muscles.length > 0) ? ex.muscles[0] : "General";
+    if (!groupedByMuscle[mainMuscle]) groupedByMuscle[mainMuscle] = [];
+    groupedByMuscle[mainMuscle].push(ex);
+  });
+  const muscleGroups = Object.keys(groupedByMuscle);
+
+  // 5. สร้างแผน 7 วัน
   const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-  const userPreferredDays = (user.preferredDays || []).map(d => d.toLowerCase());
+  const plans = [];
+  
+  let workoutDayCounter = 0;
 
   daysOfWeek.forEach((day) => {
     const dailyExercises = [];
-    if (userPreferredDays.includes(day)) {
-      const shuffled = [...allExercises].sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, numExercises);
+    
+    if (preferredDays.includes(day)) {
+      // หมุนเวียนกลุ่มกล้ามเนื้อ
+      const targetMuscle = muscleGroups[workoutDayCounter % muscleGroups.length];
+      const pool = groupedByMuscle[targetMuscle];
+      
+      // สุ่มและเลือก 3 ท่าต่อวัน (หรือมากกว่าตามระดับ)
+      const numToPick = difficulty === 'beginner' ? 3 : (difficulty === 'intermediate' ? 4 : 5);
+      const shuffledPool = shuffleArray(pool);
+      const selected = shuffledPool.slice(0, numToPick);
+      
+      // ถ้าท่าไม่พอในกลุ่มนี้ ให้ดึงจากกองกลางมาเสริม
+      if (selected.length < numToPick) {
+        const others = exercises.filter(ex => !selected.map(s => s._id.toString()).includes(ex._id.toString()));
+        const backup = shuffleArray(others).slice(0, numToPick - selected.length);
+        selected.push(...backup);
+      }
+
       selected.forEach(ex => {
-        dailyExercises.push({
-          exercise: ex._id,
-          performed: {
-            reps: ex.type === 'reps' ? (ex.reps || 10) : 0,
-            seconds: ex.type === 'time' ? (ex.time || 30) : 0
-          }
-        });
+        dailyExercises.push(adjustIntensity(ex, level));
       });
+
+      workoutDayCounter++;
     }
 
-    plans.push({ day: day, exercises: dailyExercises });
+    plans.push({
+      day: day,
+      exercises: dailyExercises
+    });
   });
 
-  await mongoose.model('WorkoutPlan').findOneAndDelete({ uid });
-  const newPlan = await mongoose.model('WorkoutPlan').create({ uid, plans });
+  // 6. บันทึกลงฐานข้อมูล
+  await WorkoutPlan.findOneAndDelete({ uid });
+  const newWP = await WorkoutPlan.create({ uid, plans });
 
-  // ล้าง DailyPlan ในอนาคต
-  const today = new Date().toISOString().split("T")[0];
-  await mongoose.model('DailyPlan').deleteMany({
+  // 7. ล้าง DailyPlan ในอนาคต (Pending) เพื่อให้เห็นการเปลี่ยนแปลงทันที
+  const todayStr = new Date().toISOString().split("T")[0];
+  await DailyPlan.deleteMany({
     userId: uid,
-    date: { $gte: today },
+    date: { $gte: todayStr },
     status: 'pending'
   });
 
-  return newPlan;
+  console.log(`[PlanEngine-v2] Success! Plan generated with ${workoutDayCounter} workout days.`);
+  return newWP;
 }
 
 app.post('/api/users/:uid/generate-plan', async (req, res) => {
   try {
     const { uid } = req.params;
     const newPlan = await generateWorkoutPlanInternal(uid);
-    res.json({ message: "Plan Generated", plan: newPlan });
+    res.json({ message: "Plan Generated v2", plan: newPlan });
   } catch (err) {
-    console.error("Plan Generation Error:", err);
+    console.error("Plan Generation v2 Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
