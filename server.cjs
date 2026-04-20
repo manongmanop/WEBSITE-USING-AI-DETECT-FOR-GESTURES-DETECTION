@@ -768,76 +768,66 @@ app.put('/api/users/:uid', async (req, res) => {
 });
 
 // ================== AI Plan Engine ==================
+// helper function สำหรับสร้างแผน (ใช้ซ้ำได้หลายที่)
+async function generateWorkoutPlanInternal(uid) {
+  const User = mongoose.model('User');
+  const user = await User.findOne({ uid });
+  if (!user) throw new Error("User not found");
+
+  let difficultyTarget = 'beginner';
+  let numExercises = 3;
+
+  if (user.fitnessLevel === 'Intermediate') {
+    difficultyTarget = 'intermediate';
+    numExercises = 4;
+  } else if (user.fitnessLevel === 'Advanced') {
+    difficultyTarget = 'advanced';
+    numExercises = 5;
+  }
+
+  const allExercises = await mongoose.model('Exercise').find({ difficulty: difficultyTarget });
+  const plans = [];
+  const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+  const userPreferredDays = (user.preferredDays || []).map(d => d.toLowerCase());
+
+  daysOfWeek.forEach((day) => {
+    const dailyExercises = [];
+    if (userPreferredDays.includes(day)) {
+      const shuffled = [...allExercises].sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, numExercises);
+      selected.forEach(ex => {
+        dailyExercises.push({
+          exercise: ex._id,
+          performed: {
+            reps: ex.type === 'reps' ? (ex.reps || 10) : 0,
+            seconds: ex.type === 'time' ? (ex.time || 30) : 0
+          }
+        });
+      });
+    }
+
+    plans.push({ day: day, exercises: dailyExercises });
+  });
+
+  await mongoose.model('WorkoutPlan').findOneAndDelete({ uid });
+  const newPlan = await mongoose.model('WorkoutPlan').create({ uid, plans });
+
+  // ล้าง DailyPlan ในอนาคต
+  const today = new Date().toISOString().split("T")[0];
+  await mongoose.model('DailyPlan').deleteMany({
+    userId: uid,
+    date: { $gte: today },
+    status: 'pending'
+  });
+
+  return newPlan;
+}
+
 app.post('/api/users/:uid/generate-plan', async (req, res) => {
   try {
     const { uid } = req.params;
-    const user = await User.findOne({ uid });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    // วิเคราะห์เป้าหมายและระดับ เพื่อเลือกความยากและจำนวนท่า
-    let difficultyTarget = 'beginner';
-    let numExercises = 3;
-
-    if (user.fitnessLevel === 'Intermediate') {
-      difficultyTarget = 'intermediate';
-      numExercises = 4;
-    } else if (user.fitnessLevel === 'Advanced') {
-      difficultyTarget = 'advanced';
-      numExercises = 5;
-    }
-
-    // ค้นหาท่าที่ตรงกับความยากที่ต้องการ
-    const allExercises = await mongoose.model('Exercise').find({ difficulty: difficultyTarget });
-    
-    const plans = [];
-    const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-    
-    // เตรียมข้อมูลวันว่าง (พักผ่อน) หรือวันออกกำลังกายตามที่ผู้ใช้เลือก
-    const userPreferredDays = (user.preferredDays || []).map(d => d.toLowerCase());
-
-    daysOfWeek.forEach((day) => {
-      const dailyExercises = [];
-      
-      // ตรวจสอบว่าวันนี้เป็นวันที่ผู้ใช้สะดวกออกกำลังกายหรือไม่
-      if (userPreferredDays.includes(day)) {
-        // Shuffle and select exercises
-        const shuffled = [...allExercises].sort(() => 0.5 - Math.random());
-        const selected = shuffled.slice(0, numExercises);
-        
-        selected.forEach(ex => {
-          dailyExercises.push({
-            exercise: ex._id,
-            performed: {
-              reps: ex.type === 'reps' ? (ex.reps || 10) : 0,
-              seconds: ex.type === 'time' ? (ex.time || 30) : 0
-            }
-          });
-        });
-      }
-
-      plans.push({
-        day: day,
-        exercises: dailyExercises
-      });
-    });
-
-    // ลบแผนเดิมทิ้งและสร้างใหม่
-    await mongoose.model('WorkoutPlan').findOneAndDelete({ uid });
-    const newPlan = await mongoose.model('WorkoutPlan').create({
-      uid,
-      plans
-    });
-
-    // ✅ ล้าง DailyPlan เก่าในอนาคตที่ยังไม่ได้ทำ (Pending) เพื่อให้แผนใหม่มีผลทันที
-    const today = new Date().toISOString().split("T")[0];
-    await mongoose.model('DailyPlan').deleteMany({
-      userId: uid,
-      date: { $gte: today },
-      status: 'pending'
-    });
-
+    const newPlan = await generateWorkoutPlanInternal(uid);
     res.json({ message: "Plan Generated", plan: newPlan });
-
   } catch (err) {
     console.error("Plan Generation Error:", err);
     res.status(500).json({ error: err.message });
@@ -2155,6 +2145,10 @@ app.patch("/api/histories/:sessionId/feedback", async (req, res) => {
               { uid: user.uid },
               { fitnessLevel: levelNames[newLevel - 1] }
             );
+            
+            // ✅ เปลี่ยนแผนทันทีเพื่อให้ Daily Plan อัปเดตความยาก
+            console.log(`✨ Re-generating plan for user ${user.uid} due to level shift`);
+            await generateWorkoutPlanInternal(user.uid);
           }
         }
       } catch (adaptErr) {
@@ -2168,6 +2162,54 @@ app.patch("/api/histories/:sessionId/feedback", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// --- API สำหรับทดสอบ Adaptive Logic (Simulation) ---
+app.post("/api/workout_sessions/finish_debug", async (req, res) => {
+  try {
+    const { uid, feedback, programId = "dailyplan", duration = 300 } = req.body;
+    if (!uid || !feedback) return res.status(400).json({ error: "uid and feedback required" });
+
+    // สร้างประวัติปลอม
+    const historyEntry = await History.create({
+      uid,
+      sessionId: `debug_${Date.now()}`,
+      programId,
+      programName: "Simulation Run",
+      calories: 10 + Math.random() * 20,
+      secondsUsed: duration,
+      finishedAt: new Date(),
+      feedback: feedback,
+      status: 'completed'
+    });
+
+    // เรียก Adaptive Logic (ลอกมาจาก API หน้าหลัก)
+    const user = await User.findOne({ uid });
+    if (user) {
+      const lastHistories = await History.find({ uid }).sort({ finishedAt: -1 }).limit(10);
+      let currentLevel = 1;
+      if (user.fitnessLevel === 'Intermediate') currentLevel = 2;
+      if (user.fitnessLevel === 'Advanced') currentLevel = 3;
+
+      const recentFeedbacks = lastHistories.map(h => h.feedback).filter(Boolean);
+      let newLevel = currentLevel;
+      const last3 = recentFeedbacks.slice(0, 3);
+      if (last3.length === 3 && last3.every(f => f === 'easy') && currentLevel < 3) newLevel++;
+      const last2 = recentFeedbacks.slice(0, 2);
+      if (last2.length === 2 && last2.every(f => f === 'hard') && currentLevel > 1) newLevel--;
+
+      if (newLevel !== currentLevel) {
+        const levelNames = ['Beginner', 'Intermediate', 'Advanced'];
+        await User.findOneAndUpdate({ uid }, { fitnessLevel: levelNames[newLevel - 1] });
+        await generateWorkoutPlanInternal(uid);
+        console.log(`Debug Level Shift: ${user.fitnessLevel} -> ${levelNames[newLevel - 1]}`);
+      }
+    }
+
+    res.json({ message: "Simulation success", newLevelInProfile: user?.fitnessLevel });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // CREATE: บันทึกประวัติ (default 0 ได้เลย)
 app.post("/api/histories", async (req, res) => {
   try {
