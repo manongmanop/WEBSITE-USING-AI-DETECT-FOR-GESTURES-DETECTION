@@ -778,11 +778,16 @@ function adjustIntensity(exercise, levelLabel) {
   if (level === "intermediate") multiplier = 1.25;
   if (level === "advanced") multiplier = 1.5;
 
+  // ✅ กำหนดค่าพื้นฐานที่สมเหตุสมผล (ไม่เอา 1 ครั้ง หรือ 10 วิ)
+  // ถ้าใน DB น้อยกว่าเกณฑ์ ให้ใช้เกณฑ์ขั้นต่ำ (8 ครั้ง / 30 วินาที)
+  const baseReps = Math.max(exercise.reps || 8, 8);
+  const baseSeconds = Math.max(exercise.time || exercise.duration || 30, 30);
+
   return {
     exercise: exercise._id,
     performed: {
-      reps: exercise.type === 'reps' ? Math.round((exercise.reps || 10) * multiplier) : 0,
-      seconds: exercise.type === 'time' ? Math.round((exercise.time || exercise.duration || 30) * multiplier) : 0
+      reps: exercise.type === 'reps' ? Math.round(baseReps * multiplier) : 0,
+      seconds: exercise.type === 'time' ? Math.round(baseSeconds * multiplier) : 0
     }
   };
 }
@@ -2276,7 +2281,13 @@ app.post("/api/workout_sessions/finish_debug", async (req, res) => {
       }
     }
 
-    res.json({ message: "Simulation success", newLevelInProfile: user?.fitnessLevel });
+    // ดึงค่าล่าสุดมาตอบกลับ
+    const updatedUser = await User.findOne({ uid });
+    res.json({ 
+      message: "Simulation success", 
+      newLevelInDb: updatedUser?.fitnessLevel,
+      currentLevelLabel: updatedUser?.fitnessLevel === 'Beginner' ? 'ผู้เริ่มต้น' : (updatedUser?.fitnessLevel === 'Intermediate' ? 'ปานกลาง' : 'ขั้นสูง')
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
