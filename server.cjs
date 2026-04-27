@@ -177,16 +177,16 @@ app.post('/api/workout-log', async (req, res) => {
 // Helper function: calculate new fitness level based on feedbacks
 function updateFitnessLevel(currentLevel, feedbacks) {
   if (!feedbacks || feedbacks.length === 0) return currentLevel || 1;
-  
+
   const easyCount = feedbacks.filter(f => f === 'easy').length;
   const hardCount = feedbacks.filter(f => f === 'hard').length;
   const current = parseInt(currentLevel) || 1;
-  
+
   let newLevel = current;
   // If more than half the exercises were easy, increase the level (max 3)
   if (easyCount > feedbacks.length / 2) {
     newLevel = Math.min(3, current + 1);
-  } 
+  }
   // If more than half were hard, decrease the level (min 1)
   else if (hardCount > feedbacks.length / 2) {
     newLevel = Math.max(1, current - 1);
@@ -240,7 +240,7 @@ app.post('/api/finish-workout', async (req, res) => {
       }
       if (l.feedback === "easy") logsByExercise[exId].easyCount += 1;
       if (l.feedback === "hard") logsByExercise[exId].hardCount += 1;
-      
+
       if (l.performance && l.performance.formScore != null) {
         logsByExercise[exId].formSum += l.performance.formScore;
         logsByExercise[exId].stabSum += l.performance.stability;
@@ -259,7 +259,7 @@ app.post('/api/finish-workout', async (req, res) => {
           if (logsByExercise[exId]) {
             const stats = logsByExercise[exId];
             const perfScore = stats.perfCount > 0 ? ((stats.formSum + stats.stabSum) / 2) / stats.perfCount : null;
-            
+
             const currentEx = allExercises.find(e => e._id.toString() === exId);
             if (!currentEx) return;
             const currentLevelDiff = determineDifficultyLevel(currentEx.difficulty);
@@ -268,8 +268,8 @@ app.post('/api/finish-workout', async (req, res) => {
             if (stats.easyCount >= 3 && (perfScore === null || perfScore > 0.7)) {
               const targetDiff = getDifficultyName(currentLevelDiff + 1);
               // หา movement เดิม (ใช้ muscles หรือ targetMuscle ร่วมกัน)
-              const upgradeEx = allExercises.find(e => 
-                e._id.toString() !== exId && 
+              const upgradeEx = allExercises.find(e =>
+                e._id.toString() !== exId &&
                 e.difficulty === targetDiff &&
                 e.muscles.some(m => currentEx.muscles.includes(m))
               );
@@ -286,8 +286,8 @@ app.post('/api/finish-workout', async (req, res) => {
             // CASE 2: ยากเกิน (Downgrade)
             else if (stats.hardCount >= 2 && (perfScore !== null && perfScore < 0.5)) {
               const targetDiff = getDifficultyName(currentLevelDiff - 1);
-              const downgradeEx = allExercises.find(e => 
-                e._id.toString() !== exId && 
+              const downgradeEx = allExercises.find(e =>
+                e._id.toString() !== exId &&
                 e.difficulty === targetDiff &&
                 e.muscles.some(m => currentEx.muscles.includes(m))
               );
@@ -774,7 +774,7 @@ app.put('/api/users/:uid', async (req, res) => {
 function adjustIntensity(exercise, levelLabel) {
   let multiplier = 1;
   const level = levelLabel.toLowerCase();
-  
+
   if (level === "intermediate") multiplier = 1.25;
   if (level === "advanced") multiplier = 1.5;
 
@@ -811,7 +811,7 @@ async function generateWorkoutPlanInternal(uid) {
 
   const level = user.fitnessLevel || "Beginner";
   const difficulty = level.toLowerCase();
-  
+
   // 1. นอร์มัลไลเซชันชื่อวัน (ให้ตรงกับ Frontend)
   let preferredDays = (user.preferredDays || []).map(d => d.trim().toLowerCase());
   if (preferredDays.length === 0) {
@@ -848,22 +848,22 @@ async function generateWorkoutPlanInternal(uid) {
   // 5. สร้างแผน 7 วัน
   const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
   const plans = [];
-  
+
   let workoutDayCounter = 0;
 
   daysOfWeek.forEach((day) => {
     const dailyExercises = [];
-    
+
     if (preferredDays.includes(day)) {
       // หมุนเวียนกลุ่มกล้ามเนื้อ
       const targetMuscle = muscleGroups[workoutDayCounter % muscleGroups.length];
       const pool = groupedByMuscle[targetMuscle];
-      
+
       // สุ่มและเลือก 3 ท่าต่อวัน (หรือมากกว่าตามระดับ)
       const numToPick = difficulty === 'beginner' ? 3 : (difficulty === 'intermediate' ? 4 : 5);
       const shuffledPool = shuffleArray(pool);
       const selected = shuffledPool.slice(0, numToPick);
-      
+
       // ถ้าท่าไม่พอในกลุ่มนี้ ให้ดึงจากกองกลางมาเสริม
       if (selected.length < numToPick) {
         const others = exercises.filter(ex => !selected.map(s => s._id.toString()).includes(ex._id.toString()));
@@ -917,12 +917,12 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
     const { date: queryDate } = req.query; // ✅ รองรับการระบุวันที่ (YYYY-MM-DD)
     const todayStr = new Date().toISOString().split("T")[0];
     const targetDate = queryDate || todayStr;
-    
+
     // 1. ดึง WorkoutPlan เสมอเพื่อเอาชื่อวันที่มีท่า (Active Days) มาแสดงแถบ Header
     const workoutPlan = await mongoose.model('WorkoutPlan')
       .findOne({ uid })
       .populate('plans.exercises.exercise');
-      
+
     if (!workoutPlan) {
       return res.status(404).json({ error: "No Workout Plan Found" });
     }
@@ -946,13 +946,13 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
 
     if (!todaysTemplate || !todaysTemplate.exercises.length) {
       // วันพักผ่อน (Rest Day) ไม่มีท่า
-      return res.json({ 
-        date: targetDate, 
-        status: "completed", 
-        exercises: [], 
-        totalDuration: 0, 
+      return res.json({
+        date: targetDate,
+        status: "completed",
+        exercises: [],
+        totalDuration: 0,
         estimatedCalories: 0,
-        availableWorkoutDays 
+        availableWorkoutDays
       });
     }
 
@@ -962,10 +962,10 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
     const exercisesForPlan = todaysTemplate.exercises.map(exItem => {
       const ex = exItem.exercise;
       if (!ex) return null;
-      
+
       let time = exItem.performed.seconds || (ex.duration) || 30;
       let mets = (ex.met && ex.met.base) ? ex.met.base : 5;
-      
+
       totalDuration += time;
       // แคลคร่าวๆ: (MET * 70kg * time) / 3600
       estimatedCalories += (mets * 70 * time) / 3600;
@@ -1002,7 +1002,7 @@ app.get('/api/daily-plan/overview/:uid', async (req, res) => {
     const { uid } = req.params;
     const daysArr = [];
     const today = new Date();
-    
+
     // 1. ดึง WorkoutPlan มาเช็คตาราง (Active Days)
     const workoutPlan = await mongoose.model('WorkoutPlan').findOne({ uid });
     const availableDays = workoutPlan?.plans
@@ -1017,7 +1017,7 @@ app.get('/api/daily-plan/overview/:uid', async (req, res) => {
 
     const existingPlans = await mongoose.model('DailyPlan').find({
       userId: uid,
-      date: { 
+      date: {
         $gte: startDate.toISOString().split('T')[0],
         $lte: endDate.toISOString().split('T')[0]
       }
@@ -1031,13 +1031,13 @@ app.get('/api/daily-plan/overview/:uid', async (req, res) => {
       const d = new Date();
       d.setDate(today.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
-      
+
       // คำนวณ dayName แบบ timezone-safe
       const [y_part, m_part, d_part] = dateStr.split('-').map(Number);
       const dayName = new Date(y_part, m_part - 1, d_part).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      
+
       let status = planMap.get(dateStr);
-      
+
       if (!status) {
         // ถ้ายังไม่มีใน DB ให้เช็คว่าเป็นวันพักผ่อนหรือไม่
         const isWorkoutDay = availableDays.includes(dayName);
@@ -1100,7 +1100,7 @@ app.post('/api/daily-plan/:uid/swap', async (req, res) => {
     // Upsert เข้า DailyPlan
     const updatedDailyPlan = await mongoose.model('DailyPlan').findOneAndUpdate(
       { userId: uid, date: today },
-      { 
+      {
         exercises: exercisesForPlan,
         totalDuration,
         estimatedCalories,
@@ -1443,11 +1443,22 @@ const workoutProgramSchema = new Schema({
     ],
     default: 'ความแข็งแรง'
   },
+  difficultyLevel: {
+    type: Number,
+    default: 1
+  },
   DataFeedback: {
     easy: { type: Number, default: 0 },
     medium: { type: Number, default: 0 },
     hard: { type: Number, default: 0 },
   },
+  adaptiveHistory: [
+    {
+      date: { type: Date, default: Date.now },
+      difficultyLevel: Number,
+      reason: String
+    }
+  ],
   workoutList: [
     {
       exercise: { type: mongoose.Schema.Types.ObjectId, ref: "Exercise", required: true },
@@ -2044,6 +2055,25 @@ const workoutPlanSchema = new mongoose.Schema({
 const WorkoutPlan = mongoose.model('WorkoutPlan', workoutPlanSchema);
 // ================== Submit Feedback ==================
 
+// ================== Adaptive Difficulty Logic ==================
+function adjustDifficulty(program) {
+  // รองรับทั้ง schema เดิมและที่ให้มาใหม่
+  const stats = program.DataFeedback || program.feedbackStats || { easy:0, medium:0, hard:0 };
+  const { easy, medium, hard } = stats;
+  const total = (easy || 0) + (medium || 0) + (hard || 0);
+
+  if (total < 10) return program.difficultyLevel || 1; // data ยังน้อย
+
+  const easyRate = easy / total;
+  const hardRate = hard / total;
+  const currentDiff = program.difficultyLevel || 1;
+
+  if (easyRate > 0.6) return currentDiff + 1;
+  if (hardRate > 0.4) return Math.max(1, currentDiff - 1);
+
+  return currentDiff;
+}
+
 app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
   try {
     const { id } = req.params;
@@ -2060,7 +2090,7 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
     }
 
     const incField = `DataFeedback.${level}`;
-    const updated = await WorkoutProgram.findByIdAndUpdate(
+    let updated = await WorkoutProgram.findByIdAndUpdate(
       id,
       { $inc: { [incField]: 1 } },
       { new: true, upsert: false } // upsert: false เพราะต้องมี program อยู่แล้ว
@@ -2068,8 +2098,24 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
 
     if (!updated) return res.status(404).json({ error: "Workout program not found" });
 
+    // ✅ Adaptive Logic Trigger
+    const newDifficulty = adjustDifficulty(updated);
+    if (newDifficulty !== (updated.difficultyLevel || 1)) {
+       console.log(`🚀 Program ${id} difficulty automatically adjusted -> ${newDifficulty}`);
+       updated = await WorkoutProgram.findByIdAndUpdate(id, {
+         $set: { difficultyLevel: newDifficulty },
+         $push: {
+           adaptiveHistory: {
+             date: new Date(),
+             difficultyLevel: newDifficulty,
+             reason: `Feedback triggered adjustment (easyRate=${((updated.DataFeedback?.easy||0)/((updated.DataFeedback?.easy||0)+(updated.DataFeedback?.medium||0)+(updated.DataFeedback?.hard||0))).toFixed(2)})`
+           }
+         }
+       }, { new: true });
+    }
+
     console.log("✅ Feedback Updated:", updated.DataFeedback);
-    res.json({ ok: true, DataFeedback: updated.DataFeedback });
+    res.json({ ok: true, DataFeedback: updated.DataFeedback, difficultyLevel: updated.difficultyLevel });
   } catch (err) {
     console.error("❌ Feedback Error:", err);
     res.status(500).json({ error: err.message });
@@ -2196,7 +2242,7 @@ app.patch("/api/histories/:sessionId/feedback", async (req, res) => {
         const lastHistories = await History.find({ uid: updated.uid })
           .sort({ finishedAt: -1 })
           .limit(10);
-        
+
         const user = await User.findOne({ uid: updated.uid });
         if (user) {
           let currentLevel = 1; // Default
@@ -2204,16 +2250,16 @@ app.patch("/api/histories/:sessionId/feedback", async (req, res) => {
           if (user.fitnessLevel === 'Advanced') currentLevel = 3;
 
           const recentFeedbacks = lastHistories.map(h => h.feedback).filter(Boolean);
-          
+
           let newLevel = currentLevel;
-          
+
           // Logic: Easy 3 ครั้งล่าสุด -> Upgrade
           const last3 = recentFeedbacks.slice(0, 3);
           if (last3.length === 3 && last3.every(f => f === 'easy') && currentLevel < 3) {
             newLevel++;
             console.log(`🚀 Upgrading user ${user.uid} to level ${newLevel}`);
           }
-          
+
           // Logic: Hard 2 ครั้งล่าสุด -> Downgrade
           const last2 = recentFeedbacks.slice(0, 2);
           if (last2.length === 2 && last2.every(f => f === 'hard') && currentLevel > 1) {
@@ -2227,7 +2273,7 @@ app.patch("/api/histories/:sessionId/feedback", async (req, res) => {
               { uid: user.uid },
               { fitnessLevel: levelNames[newLevel - 1] }
             );
-            
+
             // ✅ เปลี่ยนแผนทันทีเพื่อให้ Daily Plan อัปเดตความยาก
             console.log(`✨ Re-generating plan for user ${user.uid} due to level shift`);
             await generateWorkoutPlanInternal(user.uid);
@@ -2294,8 +2340,8 @@ app.post("/api/workout_sessions/finish_debug", async (req, res) => {
 
     // ดึงค่าล่าสุดมาตอบกลับ
     const updatedUser = await User.findOne({ uid });
-    res.json({ 
-      message: "Simulation success", 
+    res.json({
+      message: "Simulation success",
       newLevelInDb: updatedUser?.fitnessLevel,
       currentLevelLabel: updatedUser?.fitnessLevel === 'Beginner' ? 'ผู้เริ่มต้น' : (updatedUser?.fitnessLevel === 'Intermediate' ? 'ปานกลาง' : 'ขั้นสูง')
     });
@@ -2630,7 +2676,7 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
         }
       }
     );
-    
+
     // 6. ✅ ถ้าเป็น Daily Plan ให้ไปอัปเดตสถานะของแผนวันวันนี้เป็น "completed"
     if (session.origin?.programId === "dailyplan") {
       const today = new Date().toISOString().split("T")[0];
@@ -2658,10 +2704,12 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
   }
 });
 // ================== API: Latest Summary (Program) ==================
+const { calculateCalories } = require('./utils/calories');
+
 app.get("/api/__summary_internal/program/:uid", async (req, res) => {
   try {
     const { uid } = req.params;
-    
+
     // 💡 ค้นหาจากทั้ง History (โปรแกรมปกติ) และ DailyHistory (แผนรายวัน) เพื่อหาความเคลื่อนไหวล่าสุด
     const [standardLatest, dailyLatest] = await Promise.all([
       mongoose.model("History").findOne({ uid }).sort({ finishedAt: -1 }).lean(),
@@ -2683,8 +2731,48 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
 
     // ตรวจสอบว่าเป็น Daily Plan หรือไม่ โดยเช็คจาก collection หรือ programId
     // (หมายเหตุ: latest อาจจะไม่มี programId ถ้าเป็นประวัติเก่ามากๆ แต่ DailyHistory จะมี "dailyplan")
-    const isDailyPlan = latest.programId === "dailyplan" || latest.sessionId?.includes("daily"); 
+    const isDailyPlan = latest.programId === "dailyplan" || latest.sessionId?.includes("daily");
     // ^ sessionId อาจจะไม่ชัวร์ แต่ programId "dailyplan" ชัวร์กว่า
+
+    // ==========================================
+    // 💡 คำนวณแคลอรี่แบบประมวลผลสด (On-the-fly)
+    // ==========================================
+    let activeCalories = latest.caloriesBurned || 0;
+    const totalSecs = latest.totalSeconds || 0;
+    if (totalSecs > 0) {
+      const userDoc = await User.findOne({ uid }).lean();
+      const weight = userDoc?.weight || 70; // น้ำหนักตั้งต้นถ้าไม่มีข้อมูลผู้ใช้
+      
+      let metValue = 5.0; // ตั้งต้นค่า MET เฉลี่ย
+
+      if (!isDailyPlan && latest.programId) {
+        // ถ้าเป็นโปรแกรมปกติ ลองดึงข้อมูลท่าทั้งหมดมาหาค่า MET เฉลี่ย
+        try {
+          const prog = await WorkoutProgram.findById(latest.programId).populate("workoutList.exercise");
+          // ถ้ามีท่าและท่ามีค่า met.base ก็เฉลี่ยออกมา
+          if (prog && prog.workoutList && prog.workoutList.length > 0) {
+            const metSum = prog.workoutList.reduce((sum, item) => {
+              if (item.exercise && item.exercise.met && item.exercise.met.base) {
+                 return sum + item.exercise.met.base;
+              }
+              return sum + 5.0; // default 5.0 per exercise if unknown
+            }, 0);
+            metValue = metSum / prog.workoutList.length;
+          }
+        } catch(e) {
+           console.log("Could not load program to calculate exact MET, using default MET:", e.message);
+        }
+      }
+
+      // นำความรู้คำนวณสดมาใช้คำนวณแคลอรี่ใหม่
+      activeCalories = calculateCalories(weight, metValue, totalSecs);
+
+      // (Optional) บันทึกกลับลงฐานข้อมูลเพื่อให้ตรงกัน ถ้ายอดต่างกันมากๆ ค่อยเซฟ
+      if (Math.abs((latest.caloriesBurned||0) - activeCalories) > 1) {
+        const ModelToUpdate = (latest._id === dailyLatest?._id) ? mongoose.model("DailyHistory") : mongoose.model("History");
+        await ModelToUpdate.findByIdAndUpdate(latest._id, { caloriesBurned: activeCalories });
+      }
+    }
 
     res.json({
       uid,
@@ -2694,15 +2782,15 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
       totalExercises: latest.totalExercises || 0,
       doneExercises: latest.totalExercises || 0, // ใน Summary ของ History คือตัวที่ทำเสร็จแล้ว
       totals: {
-        seconds: latest.totalSeconds || 0,
-        calories: latest.caloriesBurned || 0
+        seconds: totalSecs,
+        calories: activeCalories
       },
       finishedAt: latest.finishedAt,
       isDailyPlan // ✅ ส่ง flag ไปให้ Frontend โชว์เหรียญตราความสำเร็จ
     });
-  } catch (e) { 
+  } catch (e) {
     console.error("❌ Summary API Error:", e);
-    res.status(500).json({ error: e.message }); 
+    res.status(500).json({ error: e.message });
   }
 });
 
