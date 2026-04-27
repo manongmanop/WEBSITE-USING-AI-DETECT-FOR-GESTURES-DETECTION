@@ -2077,8 +2077,8 @@ function adjustDifficulty(program) {
 app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
   try {
     const { id } = req.params;
-    const { level } = req.body;
-    console.log(`📝 Received Feedback: ID=${id}, Level=${level}`);
+    const { level, uid } = req.body;
+    console.log(`📝 Received Feedback: ID=${id}, Level=${level}, UID=${uid}`);
 
     if (!['easy', 'medium', 'hard'].includes(level)) {
       return res.status(400).json({ error: "Invalid level" });
@@ -2087,6 +2087,21 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
     if (id === "dailyplan") {
       console.log("ℹ️ Daily Plan Feedback (Skipping DB Update)");
       return res.json({ ok: true, msg: "Feedback received for daily plan (Transient)" });
+    }
+
+    // 💡 ป้องกันสแปม: 1 คนโหวตโปรแกรมเดิมได้แค่ 1 ครั้ง
+    if (uid) {
+      const ProgramFeedback = mongoose.model("ProgramFeedback");
+      const existingFeedback = await ProgramFeedback.findOne({ uid, programId: id });
+      
+      if (existingFeedback) {
+        console.log(`⚠️ Spam prevented: User ${uid} already gave feedback to program ${id}`);
+        // ถือว่าสำเร็จแต่ไม่เอาไปบวกเพิ่ม (Idempotent) เพื่อไม่ให้ Frontend พัง
+        return res.json({ ok: true, msg: "Already submitted feedback", ignored: true });
+      }
+      
+      // บันทึกไว้ว่าคนนี้โหวตโปรแกรมนี้ไปแล้ว
+      await ProgramFeedback.create({ uid, programId: id, level });
     }
 
     const incField = `DataFeedback.${level}`;
@@ -2101,14 +2116,38 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
     // ✅ Adaptive Logic Trigger
     const newDifficulty = adjustDifficulty(updated);
     if (newDifficulty !== (updated.difficultyLevel || 1)) {
-       console.log(`🚀 Program ${id} difficulty automatically adjusted -> ${newDifficulty}`);
+       const oldDiff = updated.difficultyLevel || 1;
+       const isLevelUp = newDifficulty > oldDiff;
+       console.log(`🚀 Program ${id} difficulty automatically adjusted: ${oldDiff} -> ${newDifficulty}`);
+
+       // ปรับแก้ reps / duration อัตโนมัติ
+       const newWorkoutList = updated.workoutList.map(item => {
+           // แปลงให้อยู่ในรูป Object ธรรมดาเพื่อเซฟกลับ
+           const obj = item.toObject ? item.toObject() : item;
+           let r = obj.reps || 0;
+           let d = obj.duration || 0;
+           
+           if (isLevelUp) {
+               if (r > 0) r += 3;
+               if (d > 0) d += 10;
+           } else {
+               if (r > 0) r = Math.max(1, r - 2); // จำนวนครั้งห้ามต่ำกว่า 1
+               if (d > 0) d = Math.max(5, d - 5); // เวลาห้ามต่ำกว่า 5 วินาที
+           }
+           
+           return { ...obj, reps: r, duration: d };
+       });
+
        updated = await WorkoutProgram.findByIdAndUpdate(id, {
-         $set: { difficultyLevel: newDifficulty },
+         $set: { 
+           difficultyLevel: newDifficulty,
+           workoutList: newWorkoutList
+         },
          $push: {
            adaptiveHistory: {
              date: new Date(),
              difficultyLevel: newDifficulty,
-             reason: `Feedback triggered adjustment (easyRate=${((updated.DataFeedback?.easy||0)/((updated.DataFeedback?.easy||0)+(updated.DataFeedback?.medium||0)+(updated.DataFeedback?.hard||0))).toFixed(2)})`
+             reason: `Feedback triggered adjustment (Level ${oldDiff} -> ${newDifficulty})`
            }
          }
        }, { new: true });

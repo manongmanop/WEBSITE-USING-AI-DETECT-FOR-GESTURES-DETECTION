@@ -169,10 +169,10 @@ function CameraGuide({ mode = "gate", images = [], onAccept, onClose }) {
     </>
   );
 }
-export function submitProgramFeedback(programId, level) {
-  const payload = { level };
+export function submitProgramFeedback(programId, level, uid) {
+  const payload = { level, uid };
   // ลองเพิ่ม console.log เพื่อเช็คว่าถูกเรียกจริงไหม
-  console.log(`Sending Feedback: Program=${programId}, Level=${level}`);
+  console.log(`Sending Feedback: Program=${programId}, Level=${level}, User=${uid}`);
   return axios.patch(`/api/workout_programs/${programId}/feedback`, payload);
 }
 /* =========================================
@@ -435,7 +435,7 @@ export default function WorkoutPlayer() {
 
       // 4. ✅ ส่ง feedback โปรแกรม (ข้าม Error ได้ถ้าล้มเหลว)
       try {
-        await submitProgramFeedback(programId, level);
+        await submitProgramFeedback(programId, level, uid);
       } catch (progErr) {
         console.warn("Skip program feedback error:", progErr.message);
       }
