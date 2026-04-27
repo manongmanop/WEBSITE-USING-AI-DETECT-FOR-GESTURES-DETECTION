@@ -2704,7 +2704,7 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
   }
 });
 // ================== API: Latest Summary (Program) ==================
-const { calculateCalories } = require('./utils/calories');
+// const { calculateCalories } = require('./utils/calories');
 
 app.get("/api/__summary_internal/program/:uid", async (req, res) => {
   try {
