@@ -67,7 +67,7 @@ function Account() {
     muscleMass: 0
   });
   const [totalCaloriesBurned, setTotalCaloriesBurned] = useState(0);
-  const [selectedMetric, setSelectedMetric] = useState('weight'); // State to track selected metric for chart
+  const [selectedMetric, setSelectedMetric] = useState('calories'); // Only show calories as requested
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -186,26 +186,8 @@ function Account() {
     let label = '';
     let borderColor = '';
     let backgroundColor = '';
-    if (selectedMetric === 'weight') {
-      // ✅ ใช้ workoutHistory แทน filteredData (Firebase)
-      // กรองเฉพาะที่มีน้ำหนัก
-      const weightHistory = (filteredData.length > 0 ? filteredData : [])
-        .filter(item => item.weight && item.weight > 0)
-        .sort((a, b) => new Date(a.finishedAt || a.date) - new Date(b.finishedAt || b.date));
-
-      if (!weightHistory.length) return null;
-
-      labels = weightHistory.map(item => {
-        const date = new Date(item.finishedAt || item.date);
-        return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear().toString().substr(2, 2)}`;
-      });
-      data = weightHistory.map(item => item.weight);
-
-      label = 'น้ำหนัก';
-      borderColor = '#349de3';
-      backgroundColor = 'rgba(52, 157, 227, 0.1)';
-    } else if (selectedMetric === 'calories') {
-      if (!filteredCaloriesData.length) return null; // ใช้ filteredCaloriesData แทน workoutHistory ตรงๆ
+    if (selectedMetric === 'calories') {
+      if (!filteredCaloriesData.length) return null;
       const sorted = [...filteredCaloriesData].sort((a, b) => new Date(a.finishedAt) - new Date(b.finishedAt));
       labels = sorted.map(item => {
         const date = new Date(item.finishedAt);
@@ -224,11 +206,12 @@ function Account() {
           data,
           borderColor,
           backgroundColor,
-          fill: false,
+          fill: true,
           pointBackgroundColor: borderColor,
-          borderWidth: 2,
-          pointRadius: 3,
-          pointHoverRadius: 5
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.4
         }
       ]
     };
@@ -983,39 +966,7 @@ function Account() {
                       }}
                     >ทั้งหมด</button>
                   </div>
-                  {/* Metric selection buttons */}
-                  <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                    <button
-                      onClick={() => setSelectedMetric('weight')}
-                      style={{
-                        padding: '0.5rem 1.2rem',
-                        borderRadius: '8px',
-                        border: selectedMetric === 'weight' ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                        background: selectedMetric === 'weight' ? '#e6f3ff' : '#fff',
-                        color: selectedMetric === 'weight' ? '#2563eb' : '#2d3748',
-                        fontWeight: 600,
-                        fontSize: '1rem',
-                        cursor: 'pointer',
-                        boxShadow: selectedMetric === 'weight' ? '0 2px 8px rgba(52,157,227,0.08)' : 'none',
-                        transition: 'all 0.2s',
-                      }}
-                    >น้ำหนัก</button>
-                    <button
-                      onClick={() => setSelectedMetric('calories')}
-                      style={{
-                        padding: '0.5rem 1.2rem',
-                        borderRadius: '8px',
-                        border: selectedMetric === 'calories' ? '2px solid #ed8936' : '1px solid #e2e8f0',
-                        background: selectedMetric === 'calories' ? '#fffaf0' : '#fff',
-                        color: selectedMetric === 'calories' ? '#ed8936' : '#2d3748',
-                        fontWeight: 600,
-                        fontSize: '1rem',
-                        cursor: 'pointer',
-                        boxShadow: selectedMetric === 'calories' ? '0 2px 8px rgba(237,137,54,0.08)' : 'none',
-                        transition: 'all 0.2s',
-                      }}
-                    >แคลอรี่ที่เผาผลาญ</button>
-                  </div>
+                  {/* Metric selection buttons removed - restricted to Calories only */}
                   {isLoadingMetrics ? (
                     <div className="loading-chart">กำลังโหลดข้อมูล...</div>
                   ) : (
@@ -1095,7 +1046,7 @@ function Account() {
                               },
                               title: {
                                 display: true,
-                                text: selectedMetric === 'weight' ? 'น้ำหนัก (กก.)' : 'แคลอรี่ที่เผาผลาญ (kcal)',
+                                text: 'แคลอรี่ที่เผาผลาญ (kcal)',
                                 font: {
                                   family: "'Inter', sans-serif",
                                   size: 13,
