@@ -2097,15 +2097,16 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
       return res.json({ ok: true, msg: "Feedback received for daily plan (Transient)" });
     }
 
-    // 💡 ป้องกันสแปม: 1 คนโหวตโปรแกรมเดิมได้แค่ 1 ครั้ง
+    // 💡 ป้องกันสแปม: 1 คนโหวตแต่ละระดับความยาก (easy, medium, hard) ได้ระดับละ 1 ครั้งต่อโปรแกรม
     if (uid) {
       const ProgramFeedback = mongoose.model("ProgramFeedback");
-      const existingFeedback = await ProgramFeedback.findOne({ uid, programId: id });
+      // เช็กว่าเคยโหวต "เลเวลนี้" ให้โปรแกรมนี้ไปหรือยัง (เปลี่ยนใจไปโหวตเลเวลอื่นได้)
+      const existingFeedback = await ProgramFeedback.findOne({ uid, programId: id, level });
       
       if (existingFeedback) {
-        console.log(`⚠️ Spam prevented: User ${uid} already gave feedback to program ${id}`);
+        console.log(`⚠️ Spam prevented: User ${uid} already gave '${level}' feedback to program ${id}`);
         // ถือว่าสำเร็จแต่ไม่เอาไปบวกเพิ่ม (Idempotent) เพื่อไม่ให้ Frontend พัง
-        return res.json({ ok: true, msg: "Already submitted feedback", ignored: true });
+        return res.json({ ok: true, msg: "Already submitted this feedback level", ignored: true });
       }
       
       // บันทึกไว้ว่าคนนี้โหวตโปรแกรมนี้ไปแล้ว
