@@ -1471,6 +1471,14 @@ const workoutProgramSchema = new Schema({
 
 const WorkoutProgram = mongoose.model('WorkoutProgram', workoutProgramSchema, 'program');
 
+// ================== ProgramFeedback (Schema + Model) ================= //
+const programFeedbackSchema = new mongoose.Schema({
+  uid: String,
+  programId: { type: mongoose.Schema.Types.ObjectId, ref: "WorkoutProgram" },
+  level: { type: String, enum: ['easy', 'medium', 'hard'], required: true }
+}, { timestamps: true });
+const ProgramFeedback = mongoose.model("ProgramFeedback", programFeedbackSchema, "program_feedbacks");
+
 
 // WorkoutProgram Routes
 app.get('/api/workout_programs', async (req, res) => {

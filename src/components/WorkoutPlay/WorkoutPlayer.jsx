@@ -1447,38 +1447,6 @@ export default function WorkoutPlayer() {
           <div className="wp-feedback-card" onClick={(e) => e.stopPropagation()}>
             <h2 className="wp-feedback-title">บันทึกผลการฝึก</h2>
 
-            {shouldAskWeight && (
-              <div className="wp-feedback-input-group" style={{ marginBottom: '20px', textAlign: 'center' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#ccc' }}>
-                  สัปดาห์นี้คุณน้ำหนักเท่าไหร่แล้ว? มาบันทึกความคืบหน้ากันเถอะ (กก.)
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="ระบุน้ำหนัก (กก.)"
-                  value={weight}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (/^\d*$/.test(val)) setWeight(val);
-                  }}
-                  onKeyPress={(e) => {
-                    if (!/[0-9]/.test(e.key)) e.preventDefault();
-                  }}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '8px',
-                    border: '1px solid #444',
-                    background: '#222',
-                    color: '#fff',
-                    width: '80%',
-                    fontSize: '1.2rem',
-                    textAlign: 'center'
-                  }}
-                />
-              </div>
-            )}
-
             <h3 className="wp-feedback-subtitle" style={{ fontSize: '1rem', color: '#aaa', marginBottom: '15px' }}>
               ความยากของโปรแกรมนี้
             </h3>
