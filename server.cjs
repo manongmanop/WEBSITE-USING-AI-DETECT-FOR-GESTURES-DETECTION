@@ -1364,8 +1364,11 @@ app.put('/api/exercises/:id', upload.fields([
       met: parsedMet
     };
 
-    // Prepare media object fallback
-    updateData.media = existing.media || { imageUrl: existing.imageUrl, videoUrl: existing.videoUrl };
+    // Prepare media object fallback by creating a fresh object to prevent Mongoose reference caching
+    updateData.media = { 
+      imageUrl: existing.media?.imageUrl || existing.imageUrl, 
+      videoUrl: existing.media?.videoUrl || existing.videoUrl 
+    };
 
     // อัพเดทรูปภาพหากมีการอัปโหลดใหม่
     if (req.files && req.files.image && req.files.image[0]) {

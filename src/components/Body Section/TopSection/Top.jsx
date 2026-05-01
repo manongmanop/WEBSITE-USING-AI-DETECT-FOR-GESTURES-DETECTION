@@ -22,6 +22,7 @@ export const Top = () => {
   const [dailyPlan, setDailyPlan] = useState(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [planLoading, setPlanLoading] = useState(true);
+  const [previewExercise, setPreviewExercise] = useState(null); // State for exercise preview modal
 
   // 🆕 14-Day Calendar State
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -288,7 +289,7 @@ export const Top = () => {
           </div>
         ) : dailyPlan && dailyPlan.exercises && dailyPlan.exercises.length > 0 ? (
           <div className={`daily-plan-card glass-panel ${dailyPlan.status === 'completed' ? 'completed' : ''}`} style={{ padding: '1.5rem', borderRadius: '1rem', background: dailyPlan.status === 'completed' ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : 'rgba(255, 255, 255, 0.9)', boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="card-top-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div className="card-top-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <div className="day-info">
                 <h3 style={{ fontSize: '1.2rem', color: '#2B5876', fontWeight: '800' }}>
                   {selectedDate === todayStr ? 'ภารกิจของวันนี้' : `แผนสำหรับวันที่ ${new Date(selectedDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'long' })}`}
@@ -300,27 +301,40 @@ export const Top = () => {
               {dailyPlan.status === 'completed' && <span className="status-badge" style={{ background: '#28a745', color: 'white', padding: '0.3rem 0.8rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>🎉 สำเร็จแล้ว</span>}
             </div>
 
-            <div className="plan-stats" style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: '#555', marginBottom: '1.2rem' }}>
+            <div className="plan-stats" style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: '#555', marginBottom: '0.5rem' }}>
               <span>⏱ {Math.ceil((dailyPlan.totalDuration || 0) / 60)} นาที</span>
               <span>🔥 {Math.ceil(dailyPlan.estimatedCalories || 0)} kcal</span>
               <span>💪 {dailyPlan.exercises?.length || 0} ท่า</span>
             </div>
 
-            {selectedDate > todayStr ? (
-              <button
-                onClick={() => setShowPlanModal(true)}
-                style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
-              >
-                ดูพรีวิวท่าล่วงหน้า
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowPlanModal(true)}
-                style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
-              >
-                {dailyPlan.status === 'completed' ? 'ทบทวนภารกิจอีกครั้ง' : 'พรีวิวและเริ่มเลย!'}
-              </button>
-            )}
+            {/* แสดงรายชื่อท่าออกกำลังกายตรงนี้เลย ไม่ต้องกดพรีวิว */}
+            <div className="daily-exercise-list" style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
+              <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: 0 }}>
+                {dailyPlan.exercises.map((ex, idx) => (
+                  <li key={idx} onClick={() => setPreviewExercise(ex)} style={{ background: 'rgba(0,0,0,0.04)', padding: '0.8rem', borderRadius: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: '0.2s', border: '1px solid transparent' }} onMouseEnter={(e) => e.currentTarget.style.border = '1px solid #2B5876'} onMouseLeave={(e) => e.currentTarget.style.border = '1px solid transparent'}>
+                    <strong style={{ color: '#444', fontSize: '0.9rem' }}>{idx + 1}. {ex.name}</strong>
+                    <span style={{ fontSize: '0.85rem', color: '#007bff', fontWeight: 'bold' }}>
+                      {ex.reps > 0 ? `${ex.reps} ครั้ง` : ''}
+                      {ex.reps > 0 && ex.time > 0 ? ' | ' : ''}
+                      {ex.time > 0 ? `${ex.time} วิ` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* ปุ่มเริ่มเล่น */}
+            <div style={{ marginTop: '0.5rem' }}>
+              {selectedDate <= todayStr ? (
+                <Link to={`/WorkoutPlayer/dailyplan`} style={{ display: 'block', padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'none', textAlign: 'center' }}>
+                  {dailyPlan.status === 'completed' ? 'ทบทวนภารกิจอีกครั้ง' : 'เริ่มออกกำลังกายเลย! 🔥'}
+                </Link>
+              ) : (
+                <div style={{ padding: '0.8rem', background: '#eee', color: '#888', borderRadius: '0.5rem', textAlign: 'center', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                  ยังไม่ถึงเวลาเล่น ⏳
+                </div>
+              )}
+            </div>
           </div>
         ) : dailyPlan ? (
           <div className="daily-plan-card rest-day glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center', boxShadow: '0 8px 32px 0 rgba(0,0,0,0.05)' }}>
@@ -341,35 +355,46 @@ export const Top = () => {
         )}
       </div>
 
-      {/* --- DAILY PLAN MODAL PREVIEW --- */}
-      {showPlanModal && dailyPlan && (
-        <div className="plan-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="plan-modal-content" style={{ background: 'white', padding: '2rem', borderRadius: '1rem', width: '90%', maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <h2 style={{ textAlign: 'center', marginBottom: '1rem', color: '#333' }}>📋 พรีวิวภารกิจ</h2>
-            <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              {dailyPlan.exercises.map((ex, idx) => (
-                <li key={idx} style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong style={{ color: '#444' }}>{idx + 1}. {ex.name}</strong>
-                  <span style={{ fontSize: '0.9rem', color: '#007bff', fontWeight: '500' }}>
-                    {ex.reps > 0 ? `${ex.reps} ครั้ง` : ''}
-                    {ex.reps > 0 && ex.time > 0 ? ' | ' : ''}
-                    {ex.time > 0 ? `${ex.time} วิ` : ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button onClick={() => setShowPlanModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#ccc', color: '#333', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}>ปิด</button>
-              {selectedDate <= todayStr ? (
-                <Link to={`/WorkoutPlayer/dailyplan`} style={{ flex: 2, padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'none', textAlign: 'center' }}>
-                  เริ่มออกกำลังกาย 🔥
-                </Link>
+      {/* --- EXERCISE PREVIEW MODAL --- */}
+      {previewExercise && (
+        <div className="exercise-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setPreviewExercise(null)}>
+          <div className="exercise-modal-content" style={{ background: 'white', padding: '1.5rem', borderRadius: '1.5rem', width: '100%', maxWidth: '400px', maxHeight: '85vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewExercise(null)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#eee', border: 'none', borderRadius: '50%', width: '30px', height: '30px', fontWeight: 'bold', cursor: 'pointer', color: '#555' }}>✕</button>
+            <h3 style={{ margin: 0, color: '#2B5876', fontSize: '1.3rem', paddingRight: '2rem' }}>{previewExercise.name}</h3>
+            
+            <div className="exercise-video-container" style={{ width: '100%', borderRadius: '1rem', overflow: 'hidden', background: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+              {(previewExercise.exerciseId?.videoUrl || previewExercise.exerciseId?.media?.videoUrl) ? (
+                <video src={getMediaUrl(previewExercise.exerciseId.videoUrl || previewExercise.exerciseId.media.videoUrl)} autoPlay loop muted playsInline style={{ width: '100%', maxHeight: '250px', objectFit: 'cover' }} />
               ) : (
-                <div style={{ flex: 2, padding: '0.8rem', background: '#eee', color: '#888', borderRadius: '0.5rem', textAlign: 'center', fontSize: '0.85rem' }}>
-                  ยังไม่ถึงเวลาเล่น ⏳
-                </div>
+                <div style={{ color: '#888', fontSize: '0.9rem' }}>ไม่มีวิดีโอตัวอย่าง</div>
               )}
             </div>
+
+            <div className="exercise-instructions" style={{ color: '#444', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              <h4 style={{ marginBottom: '0.5rem', color: '#333' }}>คำแนะนำการฝึก:</h4>
+              <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                {previewExercise.exerciseId?.description || "ไม่มีคำแนะนำสำหรับท่านี้"}
+              </p>
+            </div>
+            
+            <div className="exercise-target" style={{ display: 'flex', gap: '1rem', background: '#f8f9fa', padding: '1rem', borderRadius: '0.8rem', marginTop: 'auto' }}>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.8rem', color: '#888' }}>จำนวนครั้ง</div>
+                <div style={{ fontWeight: 'bold', color: '#333' }}>{previewExercise.reps > 0 ? `${previewExercise.reps} ครั้ง` : '-'}</div>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center', borderLeft: '1px solid #ddd', borderRight: '1px solid #ddd' }}>
+                <div style={{ fontSize: '0.8rem', color: '#888' }}>เวลา</div>
+                <div style={{ fontWeight: 'bold', color: '#333' }}>{previewExercise.time > 0 ? `${previewExercise.time} วิ` : '-'}</div>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.8rem', color: '#888' }}>เผาผลาญ</div>
+                <div style={{ fontWeight: 'bold', color: '#ff6b6b' }}>~{Math.ceil((previewExercise.met * 70 * (previewExercise.time || 30)) / 3600)} kcal</div>
+              </div>
+            </div>
+
+            <button onClick={() => setPreviewExercise(null)} style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '0.5rem' }}>
+              เข้าใจแล้ว
+            </button>
           </div>
         </div>
       )}
