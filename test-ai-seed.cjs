@@ -48,9 +48,9 @@ const seedAdaptivePrograms = async () => {
 
     // สร้างชุดท่าออกกำลังกายสำหรับทดสอบ (มีทั้งแบบนับครั้งและจับเวลา)
     const mockWorkoutList = [
-      { exercise: ex1, reps: 10, duration: 0, rest: 10 }, // ท่าแบบนับครั้ง
-      { exercise: ex2, reps: 0, duration: 30, rest: 10 }, // ท่าแบบจับเวลา
-      { exercise: ex3, reps: 15, duration: 0, rest: 10 }  // ท่าแบบนับครั้ง
+      { exercise: ex1, reps: 10, duration: 0, rest: 10, met: 5.0 }, // ท่าแบบนับครั้ง
+      { exercise: ex2, reps: 0, duration: 30, rest: 10, met: 6.5 }, // ท่าแบบจับเวลา
+      { exercise: ex3, reps: 15, duration: 0, rest: 10, met: 4.0 }  // ท่าแบบนับครั้ง
     ];
 
     const dummyPrograms = [

@@ -1464,7 +1464,8 @@ const workoutProgramSchema = new Schema({
       exercise: { type: mongoose.Schema.Types.ObjectId, ref: "Exercise", required: true },
       reps: { type: Number, default: 0 },
       duration: { type: Number, default: 0 },
-      rest: { type: Number, default: 0 }
+      rest: { type: Number, default: 0 },
+      met: { type: Number, default: 0 }
     }
   ]
 });
@@ -2135,16 +2136,19 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
            const obj = item.toObject ? item.toObject() : item;
            let r = obj.reps || 0;
            let d = obj.duration || 0;
+           let m = obj.met || 0;
            
            if (isLevelUp) {
                if (r > 0) r += 3;
                if (d > 0) d += 10;
+               if (m > 0) m = Number((m + 0.5).toFixed(1)); // อัปเลเวลเพิ่ม MET 0.5
            } else {
                if (r > 0) r = Math.max(1, r - 2); // จำนวนครั้งห้ามต่ำกว่า 1
                if (d > 0) d = Math.max(5, d - 5); // เวลาห้ามต่ำกว่า 5 วินาที
+               if (m > 0) m = Math.max(1.0, Number((m - 0.5).toFixed(1))); // ลด MET 0.5 ต่ำสุดคือ 1.0
            }
            
-           return { ...obj, reps: r, duration: d };
+           return { ...obj, reps: r, duration: d, met: m };
        });
 
        updated = await WorkoutProgram.findByIdAndUpdate(id, {

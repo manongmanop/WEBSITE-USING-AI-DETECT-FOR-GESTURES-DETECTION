@@ -393,7 +393,7 @@ export default function WorkoutPlayer() {
     try {
       // 1. ✅ จบ session (เพื่อให้ได้ finishedAt)
       const finishedSessionResult = await finishSession();
-      
+
       // ✅ ถ้า Session ถูกยกเลิกเพราะเวลาสั้นเกินไป (<60s)
       if (finishedSessionResult?.aborted) {
         Swal.fire({
@@ -414,7 +414,7 @@ export default function WorkoutPlayer() {
       if (finishedSessionId) {
         try {
           await axios.patch(`/api/histories/${finishedSessionId}/feedback`, {
-            feedback: level, 
+            feedback: level,
             weight: weight ? parseFloat(weight) : undefined
           });
         } catch (histErr) {
@@ -463,23 +463,23 @@ export default function WorkoutPlayer() {
         let resData = null;
 
         if (programId === "dailyplan") {
-           // โหลด Daily Plan
-           if (!user?.uid) return;
-           const res = await axios.get(`/api/daily-plan/${user.uid}`);
-           if (ignore) return;
-           resData = {
-              name: "ภารกิจวันนี้ของคุณ",
-              workoutList: res.data.exercises.map(ex => ({
-                 exercise: ex.exerciseId,
-                 reps: ex.reps, // Reps and Time mapping for performance tracking
-                 duration: ex.time
-              }))
-           };
+          // โหลด Daily Plan
+          if (!user?.uid) return;
+          const res = await axios.get(`/api/daily-plan/${user.uid}`);
+          if (ignore) return;
+          resData = {
+            name: "ภารกิจวันนี้ของคุณ",
+            workoutList: res.data.exercises.map(ex => ({
+              exercise: ex.exerciseId,
+              reps: ex.reps, // Reps and Time mapping for performance tracking
+              duration: ex.time
+            }))
+          };
         } else {
-           // โหลด Program ปกติ
-           const res = await axios.get(`/api/workout_programs/${programId}`);
-           if (ignore) return;
-           resData = res.data;
+          // โหลด Program ปกติ
+          const res = await axios.get(`/api/workout_programs/${programId}`);
+          if (ignore) return;
+          resData = res.data;
         }
 
         setProgram(resData);
@@ -789,11 +789,11 @@ export default function WorkoutPlayer() {
     // - weightInKg : น้ำหนักผู้ใช้จาก state หรือ default 70 kg
     // - durationSec: ดอวินาทีที่ออกกำลังจริง
     // [Production Guard] ถ้าออกกำลังกายน้อยกว่า 120 วินาที (2 นาที) → calories = 0 (ไม่นับ)
-    const MET = ex?.met?.base || 5.0;
+    const MET = exerciseDoc?.met || ex?.met?.base || 5.0;
     const weightInKg = parseFloat(weight) || 70;
     const durationSec = Number(performedSeconds);
     let calories = 0;
-    if (durationSec >= 60) {
+    if (durationSec > 0) {
       const calPerMin = (MET * 3.5 * weightInKg) / 200;
       const durationMin = durationSec / 60;             // วินาที → นาที
       calories = Number((calPerMin * durationMin).toFixed(2));
@@ -925,8 +925,7 @@ export default function WorkoutPlayer() {
       const elapsedMs = now - startTime;
       let performedSeconds = Math.round(elapsedMs / 1000);
 
-      // ถ้าเวลาเกิน 60 ให้ปัดเป็น 60 (ตามโจทย์)
-      if (performedSeconds > 60) performedSeconds = 60;
+      // ลบข้อจำกัดเวลาสูงสุด 60 วินาทีออก เพื่อให้นับเวลาจริงทั้งหมดที่เล่น
 
       // ถ้าเวลาน้อยกว่า 1 ให้เป็น 1 (กันเหนียว)
       if (performedSeconds < 1) performedSeconds = 1;
