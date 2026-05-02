@@ -26,9 +26,10 @@ const Onboarding = () => {
 
         try {
             // Calculate weekly goal based on level
-            let weeklyGoal = 3;
-            if (formData.fitnessLevel === 'Intermediate') weeklyGoal = 5;
-            if (formData.fitnessLevel === 'Advanced') weeklyGoal = 7;
+            // Dynamic weekly goal based on preferred days if selected, otherwise fallback to level-based
+            let weeklyGoal = formData.preferredDays.length > 0 
+                ? formData.preferredDays.length 
+                : (formData.fitnessLevel === 'Intermediate' ? 5 : (formData.fitnessLevel === 'Advanced' ? 7 : 3));
 
             const payload = {
                 uid: user.uid,
@@ -66,9 +67,9 @@ const Onboarding = () => {
             // Current server POST returns 409 if exists. Let's try PUT if 409.
             if (err.response?.status === 409) {
                 try {
-                    let weeklyGoal = 3;
-                    if (formData.fitnessLevel === 'Intermediate') weeklyGoal = 5;
-                    if (formData.fitnessLevel === 'Advanced') weeklyGoal = 7;
+                    let weeklyGoal = formData.preferredDays.length > 0 
+                        ? formData.preferredDays.length 
+                        : (formData.fitnessLevel === 'Intermediate' ? 5 : (formData.fitnessLevel === 'Advanced' ? 7 : 3));
 
                     await axios.put(`/api/users/${user.uid}`, {
                         ...formData,
@@ -110,9 +111,9 @@ const Onboarding = () => {
     // Translation Helpers
     const translations = {
         levels: {
-            Beginner: { label: 'ผู้เริ่มต้น', sub: '3 วัน/สัปดาห์', details: ['เน้นสร้างนิสัย'] },
-            Intermediate: { label: 'ปานกลาง', sub: '5 วัน/สัปดาห์', details: ['เน้นสร้างกล้ามเนื้อ'] },
-            Advanced: { label: 'ขั้นสูง', sub: '7 วัน/สัปดาห์', details: ['เน้นประสิทธิภาพสูงสุด'] }
+            Beginner: { label: 'ผู้เริ่มต้น', details: ['เน้นสร้างนิสัย'] },
+            Intermediate: { label: 'ปานกลาง', details: ['เน้นสร้างกล้ามเนื้อ'] },
+            Advanced: { label: 'ขั้นสูง', details: ['เน้นประสิทธิภาพสูงสุด'] }
         },
         goals: {
             'Lose Weight': 'ลดน้ำหนัก',
@@ -164,7 +165,7 @@ const Onboarding = () => {
                         <h2>ระดับความฟิตของคุณ</h2>
                         <div className="selection-grid">
                             <div
-                                className={`fitness-level-card ${formData.fitnessLevel === 'Beginner' ? 'selected' : ''}`}
+                                className={`fitness-level-card ${formData.fitnessLevel === 'Beginner' ? 'selected beginner' : ''}`}
                                 onClick={() => updateData('fitnessLevel', 'Beginner')}
                             >
                                 <div className="level-header">
@@ -173,12 +174,11 @@ const Onboarding = () => {
                                 </div>
                                 <div className="level-details">
                                     <span>{translations.levels.Beginner.details[0]}</span>
-                                    <span>{translations.levels.Beginner.details[1]}</span>
                                 </div>
                             </div>
 
                             <div
-                                className={`fitness-level-card ${formData.fitnessLevel === 'Intermediate' ? 'selected' : ''}`}
+                                className={`fitness-level-card ${formData.fitnessLevel === 'Intermediate' ? 'selected intermediate' : ''}`}
                                 onClick={() => updateData('fitnessLevel', 'Intermediate')}
                             >
                                 <div className="level-header">
@@ -187,12 +187,11 @@ const Onboarding = () => {
                                 </div>
                                 <div className="level-details">
                                     <span>{translations.levels.Intermediate.details[0]}</span>
-                                    <span>{translations.levels.Intermediate.details[1]}</span>
                                 </div>
                             </div>
 
                             <div
-                                className={`fitness-level-card ${formData.fitnessLevel === 'Advanced' ? 'selected' : ''}`}
+                                className={`fitness-level-card ${formData.fitnessLevel === 'Advanced' ? 'selected advanced' : ''}`}
                                 onClick={() => updateData('fitnessLevel', 'Advanced')}
                             >
                                 <div className="level-header">
@@ -201,7 +200,6 @@ const Onboarding = () => {
                                 </div>
                                 <div className="level-details">
                                     <span>{translations.levels.Advanced.details[0]}</span>
-                                    <span>{translations.levels.Advanced.details[1]}</span>
                                 </div>
                             </div>
                         </div>
@@ -276,7 +274,11 @@ const Onboarding = () => {
                             </div>
                             <div className="summary-item">
                                 <strong>เป้าหมายรายสัปดาห์</strong>
-                                <span>{formData.fitnessLevel === 'Beginner' ? 3 : formData.fitnessLevel === 'Intermediate' ? 5 : 7} ครั้ง/สัปดาห์</span>
+                                <span>
+                                    {formData.preferredDays.length > 0 
+                                        ? formData.preferredDays.length 
+                                        : (formData.fitnessLevel === 'Beginner' ? 3 : formData.fitnessLevel === 'Intermediate' ? 5 : 7)} ครั้ง/สัปดาห์
+                                </span>
                             </div>
                             <div className="summary-item">
                                 <strong>เป้าหมายหลัก</strong>
