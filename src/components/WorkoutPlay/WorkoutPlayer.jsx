@@ -492,7 +492,7 @@ export default function WorkoutPlayer() {
             ...it,
             imageUrl: normalizeUrl(exObj?.media?.imageUrl || exObj?.imageUrl || exObj?.image || it?.imageUrl || it?.image),
             video: normalizeUrl(exObj?.media?.videoUrl || exObj?.videoUrl || exObj?.video || it?.videoUrl || it?.video),
-            met: exObj?.met || { base: 5.0 }
+            met: it?.met || exObj?.met || { base: 5.0 }
           };
         }));
         // Initial Reset

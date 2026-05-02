@@ -247,6 +247,13 @@
         text-align: left;
       }
 
+      .met-input {
+        width: 60px;
+        text-align: center;
+        background: #fdf2f2; // Light pink to distinguish MET
+        border-color: #fecaca;
+      }
+
       .btn-remove {
         background: none;
         border: none;

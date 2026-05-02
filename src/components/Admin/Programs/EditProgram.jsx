@@ -38,6 +38,7 @@ function EditProgram() {
         reps: 10,
         time: "",
         weight: "Bodyweight",
+        met: 0, // ✅ เพิ่มค่า MET เริ่มต้น
         order: 0,
     });
 
@@ -99,6 +100,7 @@ function EditProgram() {
                 reps: item.reps,
                 time: item.time || "",
                 weight: item.weight || "Bodyweight",
+                met: Number(item.met) || 0, // ✅ ส่งค่า MET ไปด้วย
                 order: idx,
             }));
 
@@ -172,6 +174,7 @@ function EditProgram() {
                 reps: item.reps,
                 time: item.time || "",
                 weight: item.weight || "Bodyweight",
+                met: Number(item.met) || 0, // ✅ ส่งค่า MET ไปด้วย
                 order: idx,
             }));
 
@@ -323,6 +326,7 @@ function EditProgram() {
                                 <th>ครั้ง</th>
                                 <th>เวลา</th>
                                 <th>น้ำหนัก</th>
+                                <th>MET</th>
                                 <th>ลบ</th>
                             </tr>
                         </thead>
@@ -397,6 +401,16 @@ function EditProgram() {
                                                     handleExerciseFieldChange(index, "weight", val);
                                                 }}
                                                 className="inline-input weight-input"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                value={item.met || ""}
+                                                onChange={(e) => handleExerciseFieldChange(index, "met", e.target.value)}
+                                                className="inline-input met-input"
+                                                style={{ width: '60px' }}
                                             />
                                         </td>
                                         <td>
@@ -487,6 +501,15 @@ function EditProgram() {
                                 setNewEx({ ...newEx, weight: val });
                             }}
                             className="small-input"
+                        />
+                        <label>MET</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            value={newEx.met}
+                            onChange={(e) => setNewEx({ ...newEx, met: e.target.value })}
+                            className="small-input"
+                            style={{ width: '60px' }}
                         />
                     </div>
 
