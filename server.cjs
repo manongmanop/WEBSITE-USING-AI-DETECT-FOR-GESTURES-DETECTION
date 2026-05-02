@@ -889,7 +889,7 @@ async function generateWorkoutPlanInternal(uid) {
   const newWP = await WorkoutPlan.create({ uid, plans });
 
   // 7. ล้าง DailyPlan ในอนาคต (Pending) เพื่อให้เห็นการเปลี่ยนแปลงทันที
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD ใน local time
   await DailyPlan.deleteMany({
     userId: uid,
     date: { $gte: todayStr },
@@ -915,7 +915,7 @@ app.get('/api/daily-plan/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
     const { date: queryDate } = req.query; // ✅ รองรับการระบุวันที่ (YYYY-MM-DD)
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
     const targetDate = queryDate || todayStr;
 
     // 1. ดึง WorkoutPlan เสมอเพื่อเอาชื่อวันที่มีท่า (Active Days) มาแสดงแถบ Header
@@ -1030,7 +1030,7 @@ app.get('/api/daily-plan/overview/:uid', async (req, res) => {
     for (let i = -7; i <= 7; i++) {
       const d = new Date();
       d.setDate(today.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = d.toLocaleDateString('en-CA'); // YYYY-MM-DD ใน local time
 
       // คำนวณ dayName แบบ timezone-safe
       const [y_part, m_part, d_part] = dateStr.split('-').map(Number);
@@ -1065,7 +1065,7 @@ app.post('/api/daily-plan/:uid/swap', async (req, res) => {
   try {
     const { uid } = req.params;
     const { targetDay } = req.body; // เช่น "monday"
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString('en-CA');
 
     const workoutPlan = await mongoose.model('WorkoutPlan')
       .findOne({ uid })

@@ -23,9 +23,10 @@ export const Top = () => {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [planLoading, setPlanLoading] = useState(true);
   const [previewExercise, setPreviewExercise] = useState(null); // State for exercise preview modal
+  const [showSwapModal, setShowSwapModal] = useState(false); // State for swap plan modal
 
   // 🆕 14-Day Calendar State
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [overviewDays, setOverviewDays] = useState([]);
   const [lastCheckDate, setLastCheckDate] = useState(null); // ตัวแปรคุมการ fetch overview
 
@@ -164,7 +165,7 @@ export const Top = () => {
   };
 
   const currentDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = new Date().toLocaleDateString('en-CA');
 
   const categories = [
     { label: "🌟 ทั้งหมด", value: "All" },
@@ -338,11 +339,19 @@ export const Top = () => {
           </div>
         ) : dailyPlan ? (
           <div className="daily-plan-card rest-day glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center', boxShadow: '0 8px 32px 0 rgba(0,0,0,0.05)' }}>
-            <h3 style={{ color: '#333', marginBottom: '0.5rem' }}>🌿 วันนี้เป็นวันพักผ่อน (Rest Day)</h3>
-            <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.2rem' }}>ถ้าอยากออกกำลังกายวันนี้ เลือกแผนจากด้านล่างได้เลยครับ!</p>
-            <div style={{ padding: '1rem', background: 'rgba(43, 88, 118, 0.05)', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#444' }}>
+            <div style={{ padding: '1rem', background: 'rgba(43, 88, 118, 0.05)', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#444', marginBottom: '1rem' }}>
               💡 การพักผ่อนช่วยให้กล้ามเนื้อได้ซ่อมแซมและเติบโต
             </div>
+
+            {/* ปุ่มสลับแผนสำหรับคนอยากเล่น */}
+            {selectedDate === todayStr && dailyPlan.availableWorkoutDays?.length > 0 && (
+              <button 
+                onClick={() => setShowSwapModal(true)}
+                style={{ width: '100%', padding: '0.8rem', background: '#48bb78', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
+              >
+                💪 ฟิตจัด! อยากดึงแผนวันอื่นมาเล่นวันนี้
+              </button>
+            )}
           </div>
         ) : (
           <div className="daily-plan-card no-plan glass-panel" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', textAlign: 'center', border: '2px dashed #ccc' }}>
@@ -394,6 +403,48 @@ export const Top = () => {
 
             <button onClick={() => setPreviewExercise(null)} style={{ padding: '0.8rem', background: '#2B5876', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '0.5rem' }}>
               เข้าใจแล้ว
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- SWAP PLAN MODAL --- */}
+      {showSwapModal && (
+        <div className="swap-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowSwapModal(false)}>
+          <div className="swap-modal-content" style={{ background: 'white', padding: '1.5rem', borderRadius: '1.5rem', width: '100%', maxWidth: '400px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginBottom: '1rem', color: '#2B5876' }}>💪 อยากเล่นวันไหน?</h2>
+            <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem' }}>เลือกแผนจากวันปกติของคุณ มาสลับเล่นในวันนี้ได้เลยครับ</p>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '1.5rem' }}>
+              {dailyPlan.availableWorkoutDays.map((day) => (
+                <button
+                  key={day}
+                  disabled={planLoading}
+                  onClick={async () => {
+                    await handleDaySwap(day);
+                    setShowSwapModal(false);
+                    Swal.fire({
+                      icon: 'success',
+                      title: 'สลับแผนสำเร็จ!',
+                      text: `คุณได้ดึงแผนของวัน${getDayLabel(day)} มาเล่นในวันนี้แล้ว`,
+                      timer: 2000,
+                      showConfirmButton: false
+                    });
+                  }}
+                  style={{ padding: '1rem', background: '#f8f9fa', border: '2px solid #eee', borderRadius: '0.8rem', fontWeight: 'bold', color: '#444', cursor: planLoading ? 'not-allowed' : 'pointer', transition: '0.2s' }}
+                  onMouseEnter={(e) => !planLoading && (e.currentTarget.style.borderColor = '#2B5876')}
+                  onMouseLeave={(e) => !planLoading && (e.currentTarget.style.borderColor = '#eee')}
+                >
+                  วัน{getDayLabel(day)}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setShowSwapModal(false)}
+              style={{ padding: '0.8rem 2rem', background: '#eee', color: '#555', border: 'none', borderRadius: '2rem', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              ยกเลิก
             </button>
           </div>
         </div>
