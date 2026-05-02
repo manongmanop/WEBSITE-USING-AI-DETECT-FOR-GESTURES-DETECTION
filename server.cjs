@@ -1204,6 +1204,7 @@ const exerciseSchema = new mongoose.Schema({
   imageUrl: { type: String },
   videoUrl: { type: String, default: null },
   image: { type: String },
+  video: { type: String }, // ✅ Added missing field to ensure MongoDB saves it
 
   // New nested fields
   media: {
@@ -1342,11 +1343,11 @@ app.put('/api/exercises/:id', upload.fields([
     const { name, type, description, duration, reps, muscles } = req.body;
 
     // หาข้อมูลเดิม
-    const existingExercise = await Exercise.findById(req.params.id);
-    if (!existingExercise) {
+    const existing = await Exercise.findById(req.params.id);
+    if (!existing) {
       return res.status(404).json({ message: 'ไม่พบข้อมูลการฝึก' });
     }
-    const existing = await Exercise.findById(req.params.id);
+
     let parsedMet = existing.met;
     if (req.body.met) {
       try { parsedMet = JSON.parse(req.body.met); } catch (e) { }
@@ -1366,8 +1367,8 @@ app.put('/api/exercises/:id', upload.fields([
 
     // Prepare media object fallback by creating a fresh object to prevent Mongoose reference caching
     updateData.media = { 
-      imageUrl: existing.media?.imageUrl || existing.imageUrl, 
-      videoUrl: existing.media?.videoUrl || existing.videoUrl 
+      imageUrl: existing.media?.imageUrl || existing.imageUrl || existing.image, 
+      videoUrl: existing.media?.videoUrl || existing.videoUrl || existing.video 
     };
 
     // อัพเดทรูปภาพหากมีการอัปโหลดใหม่
@@ -1377,26 +1378,33 @@ app.put('/api/exercises/:id', upload.fields([
       updateData.imageUrl = newImageUrl;
       updateData.media.imageUrl = newImageUrl;
 
-      // ลบไฟล์เดิม (ถ้าต้องการ)
-      if (existingExercise.image && fs.existsSync(existingExercise.image)) {
-        fs.unlinkSync(existingExercise.image);
+      if (existing.image && fs.existsSync(existing.image)) {
+        try { fs.unlinkSync(existing.image); } catch (e) { console.error("[Admin-Edit] Image unlink error:", e); }
       }
     }
 
     // อัพเดทวิดีโอหากมีการอัปโหลดใหม่
     if (req.files && req.files.video && req.files.video[0]) {
+      console.log("[Admin-Edit] Processing new video:", req.files.video[0].filename);
       updateData.video = req.files.video[0].path;
       const newVideoUrl = `/uploads/${req.files.video[0].filename}`;
       updateData.videoUrl = newVideoUrl;
       updateData.media.videoUrl = newVideoUrl;
 
-      // ลบไฟล์เดิม (ถ้าต้องการ)
-      if (existingExercise.video && fs.existsSync(existingExercise.video)) {
-        fs.unlinkSync(existingExercise.video);
+      if (existing.video && fs.existsSync(existing.video)) {
+        try { fs.unlinkSync(existing.video); } catch (e) { console.error("[Admin-Edit] Video unlink error:", e); }
       }
     }
 
+    console.log("[Admin-Edit] Final updateData object:", JSON.stringify(updateData, null, 2));
     const exercise = await Exercise.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    
+    if (exercise) {
+      console.log("[Admin-Edit] DB update successful. New videoUrl in DB:", exercise.videoUrl);
+    } else {
+      console.error("[Admin-Edit] findByIdAndUpdate failed (returned null)!");
+    }
+
     res.json(exercise);
 
   } catch (err) {
