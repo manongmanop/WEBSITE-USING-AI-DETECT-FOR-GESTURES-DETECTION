@@ -10,6 +10,16 @@ import { db } from '../../../../firebase'; // ต้องเพิ่ม import
 import { getMediaUrl } from "../../Detail Section/Detail/Detail.jsx";
 import "./top.css";
 import "../../style/global.css";
+
+const getDayLabel = (day) => {
+  if (!day) return "";
+  const days = {
+    monday: "จันทร์", tuesday: "อังคาร", wednesday: "พุธ", thursday: "พฤหัสบดี",
+    friday: "ศุกร์", saturday: "เสาร์", sunday: "อาทิตย์"
+  };
+  return days[day.toLowerCase()] || day;
+};
+
 export const Top = () => {
   const { user } = useUserAuth();
 
@@ -155,6 +165,35 @@ export const Top = () => {
       await fetchOverview();
     } catch (err) {
       console.error("Error swapping plan:", err);
+    } finally {
+      setPlanLoading(false);
+    }
+  };
+
+  const handleSetRestDay = async () => {
+    if (!user?.uid) return;
+    try {
+      const result = await Swal.fire({
+        title: 'เปลี่ยนเป็นวันพัก?',
+        text: "คุณต้องการเปลี่ยนแผนของวันนี้ให้เป็นวันพักผ่อนใช่หรือไม่?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2B5876',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'ใช่, พักผ่อน!',
+        cancelButtonText: 'ยกเลิก'
+      });
+
+      if (result.isConfirmed) {
+        setPlanLoading(true);
+        await axios.post(`/api/daily-plan/${user.uid}/set-rest`, { date: selectedDate });
+        await fetchDailyPlan(selectedDate);
+        await fetchOverview();
+        Swal.fire('สำเร็จ!', 'เปลี่ยนเป็นวันพักเรียบร้อยแล้ว', 'success');
+      }
+    } catch (err) {
+      console.error("Error setting rest day:", err);
+      Swal.fire('ผิดพลาด', 'ไม่สามารถเปลี่ยนเป็นวันพักได้', 'error');
     } finally {
       setPlanLoading(false);
     }
@@ -334,6 +373,16 @@ export const Top = () => {
                 <div style={{ padding: '0.8rem', background: '#eee', color: '#888', borderRadius: '0.5rem', textAlign: 'center', fontSize: '0.85rem', fontWeight: 'bold' }}>
                   ยังไม่ถึงเวลาเล่น ⏳
                 </div>
+              )}
+
+              {/* ปุ่มเปลี่ยนเป็นวันพัก (ยกเว้นวันที่สำเร็จแล้ว) */}
+              {dailyPlan.status !== 'completed' && (
+                <button 
+                  onClick={handleSetRestDay}
+                  style={{ width: '100%', marginTop: '0.5rem', padding: '0.6rem', background: 'transparent', color: '#888', border: '1px solid #ddd', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}
+                >
+                  💤 ไม่สะดวกเล่น? เปลี่ยนเป็นวันพัก
+                </button>
               )}
             </div>
           </div>

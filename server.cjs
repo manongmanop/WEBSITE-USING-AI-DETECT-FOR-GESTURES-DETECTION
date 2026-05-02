@@ -1115,6 +1115,31 @@ app.post('/api/daily-plan/:uid/swap', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ✅ API สำหรับกำหนดวันพัก (Set as Rest Day)
+app.post('/api/daily-plan/:uid/set-rest', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const { date } = req.body; // YYYY-MM-DD
+
+    const DailyPlan = mongoose.model('DailyPlan');
+    const updatedDailyPlan = await DailyPlan.findOneAndUpdate(
+      { userId: uid, date: date },
+      {
+        exercises: [],
+        totalDuration: 0,
+        estimatedCalories: 0,
+        status: "rest" // กำหนดเป็นวันพัก
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json(updatedDailyPlan);
+  } catch (err) {
+    console.error("Set Rest Day Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 // GET: ดึงข้อมูลผู้ใช้ตาม UID
 // GET /api/users/:uid
 app.get('/api/users/:uid', async (req, res) => {
