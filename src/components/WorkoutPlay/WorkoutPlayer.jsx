@@ -240,6 +240,7 @@ export default function WorkoutPlayer() {
   const currentDurationMsRef = useRef(0);
   const remainingMsRef = useRef(0);
   const lastStartTsRef = useRef(0);
+  const totalPauseMsForExerciseRef = useRef(0); // ✅ เก็บรวมเวลาที่หยุดพักในท่านี้
 
   const restIntervalRef = useRef(null);
   const restTimerRef = useRef(null);
@@ -254,6 +255,7 @@ export default function WorkoutPlayer() {
   const rafRef = useRef(null);
   const sessionIdRef = useRef(null);
   const exerciseVideoRef = useRef(null);
+  const pauseStartTimeRef = useRef(null); // ✅ เก็บเวลาที่กดหยุดสิพักไว้
 
   // --- Auth ---
   const { user } = useUserAuth();
@@ -880,11 +882,20 @@ export default function WorkoutPlayer() {
     //   remainingMsRef.current = Math.max(0, remainingMsRef.current - elapsed);
     //   updateWorkoutUI(remainingMsRef.current);
     // }
+    pauseStartTimeRef.current = Date.now(); // ✅ บันทึกเวลาที่เริ่ม Pause
     stopCamera();
   };
 
   const resumeWorkoutTimers = () => {
     if (remainingMsRef.current <= 0) return;
+
+    // ✅ ปรับจูนเวลาเริ่มออกกำลังกาย (exerciseStartTimeRef) โดยหักลบเวลาที่ Pause ออกไป
+    if (pauseStartTimeRef.current) {
+      const pauseDuration = Date.now() - pauseStartTimeRef.current;
+      exerciseStartTimeRef.current += pauseDuration;
+      pauseStartTimeRef.current = null; 
+    }
+
     lastStartTsRef.current = Date.now();
     const resumeFromMs = remainingMsRef.current;
 
@@ -919,9 +930,13 @@ export default function WorkoutPlayer() {
 
     try {
       const now = Date.now();
-      const startTime = exerciseStartTimeRef.current;
+      let startTime = exerciseStartTimeRef.current;
 
-      // ✅ คำนวณเวลาที่ผ่านไปจริง
+      // ✅ ถ้ายังอยู่ในสถานะ Pause ขณะที่จบ (เช่น กดข้ามท่าขณะหยุด) ให้หักเวลา Pause ปัจจุบันออกด้วย
+      if (pauseStartTimeRef.current) {
+        startTime += (now - pauseStartTimeRef.current);
+      }
+
       const elapsedMs = now - startTime;
       let performedSeconds = Math.round(elapsedMs / 1000);
 

@@ -10,6 +10,7 @@ import { db } from '../../../../firebase'; // ต้องเพิ่ม import
 import { getMediaUrl } from "../../Detail Section/Detail/Detail.jsx";
 import "./top.css";
 import "../../style/global.css";
+import Swal from "sweetalert2";
 
 const getDayLabel = (day) => {
   if (!day) return "";
@@ -207,7 +208,7 @@ export const Top = () => {
   const todayStr = new Date().toLocaleDateString('en-CA');
 
   const categories = [
-    { label: "🌟 ทั้งหมด", value: "All" },
+    { label: "🌟 โปรแกรมทั้งหมด", value: "All" },
     { label: "💪 โปรแกรมช่วงบน", value: "โปรแกรมช่วงบน" },
     { label: "🦵 โปรแกรมช่วงล่าง", value: "โปรแกรมช่วงล่าง" },
     { label: "🔥 โปรแกรมหน้าท้อง", value: "โปรแกรมหน้าท้อง" },
@@ -398,7 +399,7 @@ export const Top = () => {
                 onClick={() => setShowSwapModal(true)}
                 style={{ width: '100%', padding: '0.8rem', background: '#48bb78', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
               >
-                💪 ฟิตจัด! อยากดึงแผนวันอื่นมาเล่นวันนี้
+                อยากออกกำลังกายวันนี้ไหม
               </button>
             )}
           </div>

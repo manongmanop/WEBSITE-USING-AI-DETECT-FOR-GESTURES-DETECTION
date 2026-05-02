@@ -2709,20 +2709,32 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
     session.finishedAt = new Date();
     await session.save();
 
-    // 3. คำนวณผลรวม (Logic ของคุณถูกต้องแล้วครับ)
+    // 3. คำนวณผลรวม (แยก Active และ Rest ตามที่คุณต้องการ)
     const totals = session.logs.reduce((acc, log) => {
-      // แปลงเป็น Number อีกรอบกันเหนียว
-      const s = Number(log.performed?.seconds);
-      const c = Number(log.calories);
-
-      // ถ้าเป็น NaN ให้เป็น 0
-      acc.seconds += isNaN(s) ? 0 : s;
-      acc.calories += isNaN(c) ? 0 : c;
+      const s = Number(log.performed?.seconds) || 0;
+      const c = Number(log.calories) || 0;
+      acc.seconds += s;
+      acc.activeCalories += c;
       return acc;
-    }, { seconds: 0, reps: 0, calories: 0 });
+    }, { seconds: 0, activeCalories: 0 });
 
-    console.log(`∑ Totals: ${totals.seconds}s, ${totals.calories}kcal`);
-    totals.calories = Math.ceil(totals.calories);
+    // --- คำนวณ Rest Calories (MET 1.5) ---
+    // activeTime = ผลรวมของวินาทีในท่ายืด/ออกกำลังกาย
+    // totalSessionTime = เวลาที่ใช้ทั้งหมดตั้งแต่เริ่มจนจบเซสชัน
+    const totalSessionSeconds = (session.finishedAt - session.startedAt) / 1000;
+    const restSeconds = Math.max(0, totalSessionSeconds - totals.seconds);
+
+    // ดึงน้ำหนักผู้ใช้ (Fallback 70kg)
+    const user = await mongoose.model('User').findOne({ uid: session.uid });
+    const weight = user?.weight || 70;
+
+    // สูตร: calories = (MET * 3.5 * weight) / 200 * durationMinutes
+    const restCalories = (1.5 * 3.5 * weight) / 200 * (restSeconds / 60);
+    
+    totals.calories = Math.ceil(totals.activeCalories + restCalories);
+    totals.restSeconds = Math.round(restSeconds);
+
+    console.log(`∑ Totals: Active=${totals.seconds}s, Rest=${totals.restSeconds}s, ActiveCal=${totals.activeCalories.toFixed(2)}, RestCal=${restCalories.toFixed(2)}, Final=${totals.calories}kcal`);
 
     // [Production Guard] ถ้าออกกำลังกายไม่ถึง 60 วินาที จะไม่บันทึกประวัติ และทำการลบ session ออกไปเลย
     if (totals.seconds < 60) {
