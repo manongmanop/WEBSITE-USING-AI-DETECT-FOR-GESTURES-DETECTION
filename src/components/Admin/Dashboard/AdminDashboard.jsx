@@ -77,31 +77,39 @@ function AdminDashboard() {
 
                 // 1. Sort users by newest
                 usersList.sort((a, b) => {
-                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                    return dateB - dateA;
+                    const getDateA = a.createdAt || a["createdAt "] || a.updatedAt;
+                    const getDateB = b.createdAt || b["createdAt "] || b.updatedAt;
+                    const timeA = getDateA ? (getDateA.toDate ? getDateA.toDate().getTime() : new Date(getDateA).getTime()) : 0;
+                    const timeB = getDateB ? (getDateB.toDate ? getDateB.toDate().getTime() : new Date(getDateB).getTime()) : 0;
+                    return timeB - timeA;
                 });
 
                 setNewUsers(usersList.slice(0, 5));
 
                 // 2. Group by Month for Graph (Last 6 months)
-                const monthCounts = {};
+                const monthData = {};
                 const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
                 usersList.forEach(user => {
-                    const d = user.createdAt?.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
+                    const dateVal = user.createdAt || user["createdAt "] || user.updatedAt;
+                    const d = dateVal?.toDate ? dateVal.toDate() : new Date(dateVal || NaN);
                     if (!isNaN(d.getTime())) {
                         const monthKey = d.getMonth();
-                        monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
+                        if (!monthData[monthKey]) {
+                            monthData[monthKey] = { count: 0, names: [] };
+                        }
+                        monthData[monthKey].count += 1;
+                        monthData[monthKey].names.push(user.name || "ไม่มีชื่อ");
                     }
                 });
 
                 // Generate chart data for display (simply taking all months with data or generating a fixed set)
-                const chartData = Object.keys(monthCounts).sort((a, b) => a - b).map(key => ({
+                const chartData = Object.keys(monthData).sort((a, b) => a - b).map(key => ({
                     name: monthNames[key],
-                    users: monthCounts[key]
+                    users: monthData[key].count,
+                    userNames: monthData[key].names
                 }));
-                setMonthlyUsers(chartData.length > 0 ? chartData : [{ name: "ไม่มีข้อมูล", users: 0 }]);
+                setMonthlyUsers(chartData.length > 0 ? chartData : [{ name: "ไม่มีข้อมูล", users: 0, userNames: [] }]);
 
                 // 3. Popular Programs (Just top 5 for now)
                 const popular = [...programsRes.data].slice(0, 5);
@@ -115,7 +123,7 @@ function AdminDashboard() {
                     activities.push({
                         id: `u_${u.id}`,
                         title: `มีผู้ใช้งานใหม่สมัครสมาชิก: ${u.name || 'ไม่มีชื่อ'}`,
-                        time: formatDate(u.createdAt),
+                        time: formatDate(u.createdAt || u["createdAt "] || u.updatedAt),
                         type: 'user'
                     });
                 });
@@ -140,6 +148,25 @@ function AdminDashboard() {
     }, []);
 
     if (loading) return <div>กำลังโหลดข้อมูลสรุปผล...</div>;
+
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            const data = payload[0].payload;
+            return (
+                <div style={{ backgroundColor: '#fff', padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                    <p style={{ fontWeight: 'bold', margin: '0 0 5px 0', color: '#111827' }}>{`${label}: ${data.users} คน`}</p>
+                    {data.userNames && data.userNames.length > 0 && (
+                        <div style={{ fontSize: '0.85rem', color: '#4b5563', maxHeight: '150px', overflowY: 'auto' }}>
+                            {data.userNames.map((name, idx) => (
+                                <div key={idx}>• {name}</div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        return null;
+    };
 
     return (
         <div className="admin-dashboard">
@@ -194,7 +221,7 @@ function AdminDashboard() {
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} />
                             <YAxis axisLine={false} tickLine={false} />
-                            <Tooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f3f4f6' }} />
                             <Bar dataKey="users" name="จำนวนผู้ใช้" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -215,7 +242,7 @@ function AdminDashboard() {
                                         <p className="item-sub">{u.email}</p>
                                     </div>
                                 </div>
-                                <span className="item-meta">{formatDate(u.createdAt || u["createdAt "])}</span>
+                                <span className="item-meta">{formatDate(u.createdAt || u["createdAt "] || u.updatedAt)}</span>
                             </li>
                         )) : <li className="empty-message">ยังไม่มีข้อมูลผู้ใช้</li>}
                     </ul>
@@ -234,7 +261,7 @@ function AdminDashboard() {
                                 )}
                                 <div className="item-info-text">
                                     <p className="item-name">{p.name || "ไม่มีชื่อโปรแกรม"}</p>
-                                    <p className="item-sub">{p.exercises?.length || 0} ท่า • {p.duration || 0} นาที</p>
+                                    <p className="item-sub">{p.workoutList ? p.workoutList.length : (p.exercises ? p.exercises.length : 0)} ท่า • {p.duration || 0} นาที</p>
                                 </div>
                             </li>
                         )) : <li className="empty-message">ยังไม่มีข้อมูลโปรแกรม</li>}

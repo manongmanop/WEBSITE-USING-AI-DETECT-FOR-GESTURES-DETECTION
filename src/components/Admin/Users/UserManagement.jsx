@@ -83,9 +83,11 @@ function UserManagement() {
 
             // Sort by createdAt descending
             usersData.sort((a, b) => {
-                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-                return dateB - dateA;
+                const getDateA = a.createdAt || a["createdAt "] || a.updatedAt;
+                const getDateB = b.createdAt || b["createdAt "] || b.updatedAt;
+                const timeA = getDateA ? (getDateA.toDate ? getDateA.toDate().getTime() : new Date(getDateA).getTime()) : 0;
+                const timeB = getDateB ? (getDateB.toDate ? getDateB.toDate().getTime() : new Date(getDateB).getTime()) : 0;
+                return timeB - timeA;
             });
 
             setUsers(usersData);
@@ -198,7 +200,7 @@ function UserManagement() {
                                             <span className="status-badge badge-user">User</span>
                                         )}
                                     </td>
-                                    <td>{formatDate(user.createdAt || user["createdAt "])}</td>
+                                    <td>{formatDate(user.createdAt || user["createdAt "] || user.updatedAt)}</td>
                                     <td className="action-buttons">
                                         <button
                                             onClick={() => navigate(`/admin/users/progress/${user.firebaseUid}`)}
