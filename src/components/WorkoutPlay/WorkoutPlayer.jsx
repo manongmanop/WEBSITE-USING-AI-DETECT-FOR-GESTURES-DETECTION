@@ -579,81 +579,115 @@ export default function WorkoutPlayer() {
     }
   }, [isPaused, isResting, showGuide]);
 
-  // TTS for Tips
+  // Audio Tips during Rest phase: plays next exercise's tips while user previews
   useEffect(() => {
-    if (!isPlaying || isPaused || isResting || isCounting) {
+    // Only run during rest, not paused
+    if (!isResting || isPaused) {
       window.speechSynthesis.cancel();
       return;
     }
 
-    const currentEx = exercises[currentExercise];
-    // Check both currentEx.tips and currentEx.exercise.tips
-    const currentTips = currentEx?.tips || (currentEx?.exercise && typeof currentEx.exercise === "object" ? currentEx.exercise.tips : null);
+    // Get the NEXT exercise data (the one being previewed during rest)
+    const nextIdx = nextIndexRef.current;
+    const nextEx = nextIdx != null ? exercises[nextIdx] : null;
+    const exData = nextEx?.exercise && typeof nextEx.exercise === "object" ? nextEx.exercise : nextEx;
 
-    let tipsArray = [];
-    if (Array.isArray(currentTips)) {
-      // Split by newline just in case array items have newlines inside
-      tipsArray = currentTips.flatMap(t => t.split("\n"));
-    } else if (typeof currentTips === 'string') {
-      tipsArray = currentTips.split("\n");
-    }
+    if (!exData) return;
 
-    // fallback split comma if user just wrote commas instead of newlines
-    tipsArray = tipsArray
-      .flatMap(t => t.split(","))
-      .map(t => t.trim())
-      .filter(Boolean);
-
-    if (tipsArray.length === 0) return;
-
-    let currentIndex = 0;
-    let timeoutId = null;
-    let isActive = true;
-
-    // Global array to prevent Garbage Collection bug in Chrome/Windows breaking onend
-    window.__ttsUtterances = window.__ttsUtterances || [];
-
-    const speakNext = () => {
-      if (!isActive || isPaused) return;
-      if (currentIndex >= tipsArray.length) {
-        window.__ttsUtterances = []; // free memory
+    // Small delay so the rest screen has time to render before audio starts
+    const startDelay = setTimeout(() => {
+      // ---- 1. Try Pre-recorded audio first ----
+      const audioUrl = exData?.media?.audioUrl || exData?.audioUrl || null;
+      if (audioUrl) {
+        const API = import.meta.env?.VITE_API_URL || "";
+        const fullUrl = audioUrl.startsWith("http") ? audioUrl : API + audioUrl;
+        const audio = new Audio(fullUrl);
+        audio.play().catch(e => console.warn("[Audio] Pre-recorded play error:", e));
+        // Store reference for cleanup
+        window.__restAudio = audio;
         return;
       }
 
-      const utterance = new SpeechSynthesisUtterance(tipsArray[currentIndex]);
-      utterance.lang = "th-TH";
-      utterance.rate = 1.0;
+      // ---- 2. Fallback: TTS ----
+      const currentTips = exData?.tips || null;
+      let tipsArray = [];
+      if (Array.isArray(currentTips)) {
+        tipsArray = currentTips.flatMap(t => t.split("\n"));
+      } else if (typeof currentTips === 'string') {
+        tipsArray = currentTips.split("\n");
+      }
+      tipsArray = tipsArray
+        .flatMap(t => t.split(","))
+        .map(t => t.trim())
+        .filter(Boolean);
 
-      window.__ttsUtterances.push(utterance); // prevent GC
+      if (tipsArray.length === 0) return;
 
-      utterance.onend = () => {
-        currentIndex++;
-        if (currentIndex < tipsArray.length && isActive && !isPaused) {
-          timeoutId = setTimeout(speakNext, 2000); // 2 วินาที
+      let currentIndex = 0;
+      let timeoutId = null;
+      let isActive = true;
+      window.__ttsUtterances = window.__ttsUtterances || [];
+
+      const speakNext = () => {
+        if (!isActive) return;
+        if (currentIndex >= tipsArray.length) {
+          window.__ttsUtterances = [];
+          return;
         }
+
+        const utterance = new SpeechSynthesisUtterance(tipsArray[currentIndex]);
+        utterance.lang = "th-TH";
+        utterance.rate = 1.0;
+
+        if (selectedVoiceURI) {
+          const voice = window.speechSynthesis.getVoices().find(v => v.voiceURI === selectedVoiceURI);
+          if (voice) utterance.voice = voice;
+        }
+
+        window.__ttsUtterances.push(utterance);
+
+        utterance.onend = () => {
+          currentIndex++;
+          if (currentIndex < tipsArray.length && isActive) {
+            timeoutId = setTimeout(speakNext, 1500);
+          }
+        };
+        utterance.onerror = (e) => {
+          console.warn("TTS Error:", e);
+          currentIndex++;
+          if (currentIndex < tipsArray.length && isActive) {
+            timeoutId = setTimeout(speakNext, 1500);
+          }
+        };
+
+        window.speechSynthesis.speak(utterance);
       };
 
-      utterance.onerror = (e) => {
-        console.warn("TTS Error:", e);
-        // Fallback progress just in case
-        currentIndex++;
-        if (currentIndex < tipsArray.length && isActive && !isPaused) {
-          timeoutId = setTimeout(speakNext, 2000);
-        }
+      speakNext();
+      window.__restTtsCleanup = () => {
+        isActive = false;
+        if (timeoutId) clearTimeout(timeoutId);
+        window.speechSynthesis.cancel();
+        window.__ttsUtterances = [];
       };
-
-      window.speechSynthesis.speak(utterance);
-    };
-
-    speakNext();
+    }, 800); // 800ms delay after rest starts
 
     return () => {
-      isActive = false;
-      if (timeoutId) clearTimeout(timeoutId);
+      clearTimeout(startDelay);
+      // Stop pre-recorded audio
+      if (window.__restAudio) {
+        window.__restAudio.pause();
+        window.__restAudio.src = "";
+        window.__restAudio = null;
+      }
+      // Stop TTS
+      if (window.__restTtsCleanup) {
+        window.__restTtsCleanup();
+        window.__restTtsCleanup = null;
+      }
       window.speechSynthesis.cancel();
-      window.__ttsUtterances = [];
     };
-  }, [isPlaying, isPaused, isResting, isCounting, currentExercise, exercises, selectedVoiceURI]);
+  }, [isResting, isPaused, exercises, selectedVoiceURI]);
 
   // Camera Management
   useEffect(() => {

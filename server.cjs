@@ -1230,11 +1230,13 @@ const exerciseSchema = new mongoose.Schema({
   videoUrl: { type: String, default: null },
   image: { type: String },
   video: { type: String }, // ✅ Added missing field to ensure MongoDB saves it
+  audioUrl: { type: String, default: null }, // 🔊 Pre-recorded TTS audio
 
   // New nested fields
   media: {
     imageUrl: { type: String },
-    videoUrl: { type: String }
+    videoUrl: { type: String },
+    audioUrl: { type: String }
   },
   met: {
     base: { type: Number, default: 5.0 },
@@ -1362,7 +1364,8 @@ app.post('/api/exercises', upload.fields([
 // แก้ไข PUT - อัพเดทข้อมูลพร้อมอัปโหลดไฟล์
 app.put('/api/exercises/:id', upload.fields([
   { name: 'image', maxCount: 1 },
-  { name: 'video', maxCount: 1 }
+  { name: 'video', maxCount: 1 },
+  { name: 'audio', maxCount: 1 }
 ]), async (req, res) => {
   try {
     const { name, type, description, duration, reps, muscles } = req.body;
@@ -1393,8 +1396,10 @@ app.put('/api/exercises/:id', upload.fields([
     // Prepare media object fallback by creating a fresh object to prevent Mongoose reference caching
     updateData.media = { 
       imageUrl: existing.media?.imageUrl || existing.imageUrl || existing.image, 
-      videoUrl: existing.media?.videoUrl || existing.videoUrl || existing.video 
+      videoUrl: existing.media?.videoUrl || existing.videoUrl || existing.video,
+      audioUrl: existing.media?.audioUrl || existing.audioUrl || null
     };
+    updateData.audioUrl = existing.audioUrl || null;
 
     // อัพเดทรูปภาพหากมีการอัปโหลดใหม่
     if (req.files && req.files.image && req.files.image[0]) {
@@ -1418,6 +1423,20 @@ app.put('/api/exercises/:id', upload.fields([
 
       if (existing.video && fs.existsSync(existing.video)) {
         try { fs.unlinkSync(existing.video); } catch (e) { console.error("[Admin-Edit] Video unlink error:", e); }
+      }
+    }
+
+    // อัพเดทไฟล์เสียงหากมีการอัปโหลดใหม่
+    if (req.files && req.files.audio && req.files.audio[0]) {
+      console.log("[Admin-Edit] Processing new audio:", req.files.audio[0].filename);
+      const newAudioUrl = `/uploads/${req.files.audio[0].filename}`;
+      updateData.audioUrl = newAudioUrl;
+      updateData.media.audioUrl = newAudioUrl;
+
+      // ลบไฟล์เสียงเดิม
+      const oldAudioPath = existing.audioUrl ? path.join('.', existing.audioUrl) : null;
+      if (oldAudioPath && fs.existsSync(oldAudioPath)) {
+        try { fs.unlinkSync(oldAudioPath); } catch (e) { console.error("[Admin-Edit] Audio unlink error:", e); }
       }
     }
 

@@ -34,6 +34,10 @@ function EditExercise() {
     const [videoFile, setVideoFile] = useState(null);
     const [existingVideoUrl, setExistingVideoUrl] = useState("");
 
+    const [audioFile, setAudioFile] = useState(null);
+    const [existingAudioUrl, setExistingAudioUrl] = useState("");
+    const [audioPreviewUrl, setAudioPreviewUrl] = useState("");
+
     useEffect(() => {
         const fetchExercise = async () => {
             try {
@@ -59,6 +63,7 @@ function EditExercise() {
 
                 setExistingImageUrl(data.media?.imageUrl || data.imageUrl || data.image || "");
                 setExistingVideoUrl(data.media?.videoUrl || data.videoUrl || data.video || "");
+                setExistingAudioUrl(data.media?.audioUrl || data.audioUrl || "");
             } catch (error) {
                 console.error("Error fetching exercise:", error);
                 Swal.fire("ข้อผิดพลาด", "ไม่สามารถดึงข้อมูลท่าออกกำลังกายได้", "error");
@@ -83,6 +88,21 @@ function EditExercise() {
         if (file) {
             setVideoFile(file);
         }
+    };
+
+    const handleAudioChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setAudioFile(file);
+            setAudioPreviewUrl(URL.createObjectURL(file));
+        }
+    };
+
+    const handleRemoveAudio = async () => {
+        if (!existingAudioUrl) return;
+        setExistingAudioUrl("");
+        setAudioFile(null);
+        setAudioPreviewUrl("");
     };
 
     const handleSubmit = async (e) => {
@@ -122,6 +142,9 @@ function EditExercise() {
 
             if (imageFile) formData.append("image", imageFile);
             if (videoFile) formData.append("video", videoFile);
+            if (audioFile) formData.append("audio", audioFile);
+            // หากลบไฟล์เสียงโดยไม่อัปโหลดใหม่ ให้ส่ง flag เพื่อลบข้อมูลออก
+            if (!audioFile && !existingAudioUrl) formData.append("removeAudio", "true");
 
             const res = await axios.put(`/api/exercises/${id}`, formData, {
                 headers: {
@@ -323,6 +346,48 @@ function EditExercise() {
                             <p>ไฟล์วิดีโอเดิม: {existingVideoUrl.split("/").pop()}</p>
                         )}
                     </div>
+                </div>
+
+                {/* ——— ไฟล์เสียงพูดสำหรับ Tips ——— */}
+                <div className="form-group" style={{ border: '1px dashed #10b981', padding: '15px', borderRadius: '8px', background: '#f0fdf4' }}>
+                    <label style={{ fontWeight: 'bold', color: '#065f46', display: 'block', marginBottom: '8px' }}>
+                        🔊 ไฟล์เสียงคำแนะนำ (Pre-recorded Audio)
+                    </label>
+                    <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '10px' }}>
+                        อัปโหลดไฟล์เสียง MP3/WAV ที่อัดไว้ล่วงหน้า ระบบจะเล่นไฟล์นี้แทนการสุ่ม TTS
+                    </p>
+                    <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleAudioChange}
+                        className="form-input"
+                    />
+                    {/* Preview ไฟล์ใหม่ */}
+                    {audioPreviewUrl && (
+                        <div style={{ marginTop: '10px' }}>
+                            <p style={{ fontSize: '0.85rem', color: '#374151', marginBottom: '4px' }}>✅ ไฟล์เสียงใหม่ (ทดสอบฟัง):</p>
+                            <audio controls src={audioPreviewUrl} style={{ width: '100%' }} />
+                        </div>
+                    )}
+                    {/* แสดงไฟล์เสียงเดิม */}
+                    {existingAudioUrl && !audioPreviewUrl && (
+                        <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: '0.85rem', color: '#374151', marginBottom: '4px' }}>🔊 ไฟล์เสียงที่บันทึกไว้:</p>
+                                <audio controls src={existingAudioUrl} style={{ width: '100%' }} />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleRemoveAudio}
+                                style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                            >
+                                🗑️ ลบไฟล์เสียง
+                            </button>
+                        </div>
+                    )}
+                    {!existingAudioUrl && !audioPreviewUrl && (
+                        <p style={{ fontSize: '0.82rem', color: '#9ca3af', marginTop: '6px' }}>⚠️ ยังไม่มีไฟล์เสียง — ระบบจะใช้เสียง TTS สำรองแทน</p>
+                    )}
                 </div>
 
                 <div className="submit-section">
