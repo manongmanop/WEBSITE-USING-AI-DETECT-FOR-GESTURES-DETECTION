@@ -1572,7 +1572,7 @@ app.get('/api/workout_programs', async (req, res) => {
 app.get("/api/workout_programs/:id", async (req, res) => {
   try {
     const program = await WorkoutProgram.findById(req.params.id)
-      .populate({ path: "workoutList.exercise", select: "name description tips type value time duration image video caloriesBurned muscles" })
+      .populate({ path: "workoutList.exercise", select: "name description tips type value time duration image video caloriesBurned muscles audioUrl media met difficulty" })
       .lean();
     if (!program) return res.status(404).json({ message: "Program not found" });
 
@@ -1586,6 +1586,8 @@ app.get("/api/workout_programs/:id", async (req, res) => {
         video: (ex.video || "").replace(/\\/g, "/"),
         description: ex.description, tips: ex.tips, caloriesBurned: ex.caloriesBurned,
         muscles: ex.muscles, // ✅ Ensure muscles is passed to frontend
+        audioUrl: ex.audioUrl || null, // 🔊 Pre-recorded audio
+        media: ex.media || null,       // 🔊 media.audioUrl fallback
         sets: item.sets,
         reps: item.reps,
         duration: item.duration,
