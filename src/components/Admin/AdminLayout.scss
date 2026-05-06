@@ -2,10 +2,17 @@
   display: flex;
   min-height: 100vh;
   background-color: #f4f7f6;
+  position: relative; // Ensure it contains fixed/absolute children properly
 
   .admin-content {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
+    width: 100%; // Ensure it doesn't overflow horizontally
+    
+    // Make room for the mobile toggle button on small screens
+    @media (max-width: 768px) {
+      padding-top: 70px;
+    }
   }
 }

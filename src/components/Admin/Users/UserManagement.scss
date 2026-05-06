@@ -101,4 +101,26 @@
       }
     }
   }
+
+  // Responsive Styles
+  @media (max-width: 768px) {
+    padding: 15px;
+    
+    .filter-bar {
+      flex-direction: column;
+      
+      .search-input, .status-select {
+        min-width: 100%;
+        width: 100%;
+      }
+    }
+
+    .action-buttons {
+      flex-direction: column;
+      
+      .btn {
+        width: 100%;
+      }
+    }
+  }
 }

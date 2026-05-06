@@ -146,4 +146,34 @@
       }
     }
   }
+
+  // Responsive Styles
+  @media (max-width: 768px) {
+    padding: 15px;
+
+    .header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 15px;
+      
+      .btn-add {
+        width: 100%;
+        text-align: center;
+      }
+    }
+    
+    .filter-bar {
+      .search-input {
+        max-width: 100%;
+      }
+    }
+
+    .action-buttons {
+      flex-direction: column;
+      
+      .btn {
+        width: 100%;
+      }
+    }
+  }
 }

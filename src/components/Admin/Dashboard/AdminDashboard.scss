@@ -74,6 +74,15 @@
     .chart-panel {
       grid-column: 1 / -1;
     }
+    
+    // Responsive grid for smaller screens
+    @media (max-width: 1024px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
   }
 
   .dashboard-panel {
