@@ -36,8 +36,7 @@ function EditProgram() {
         exercise: "",
         sets: 3,
         reps: 10,
-        time: "",
-        weight: "Bodyweight",
+        duration: "00:00",
         met: 0, // ✅ เพิ่มค่า MET เริ่มต้น
         order: 0,
     });
@@ -59,7 +58,21 @@ function EditProgram() {
                 setCategory(data.category || "ความแข็งแรง");
 
                 // workoutList items may have exercise as populated object or ObjectId
-                setWorkoutList(data.workoutList || []);
+                const mappedList = (data.workoutList || []).map(item => {
+                    const exObj = item.exercise && typeof item.exercise === "object" ? item.exercise : {};
+                    // ✅ Fallback: ถ้า item.duration ไม่มี ให้ลองดูที่ item.time หรือข้อมูลจากตัว Exercise เอง
+                    const rawDuration = item.duration || item.time || exObj.duration || exObj.time || exObj.value || 0;
+                    console.log("🔍 Mapping item:", exObj.name || "Unknown", "RawDuration:", rawDuration);
+                    
+                    return {
+                        ...item,
+                        sets: item.sets ?? 3,
+                        reps: item.reps ?? 10,
+                        duration: formatDuration(rawDuration),
+                        met: item.met ?? 0
+                    };
+                });
+                setWorkoutList(mappedList);
                 setAllExercises(exercisesRes.data || []);
             } catch (error) {
                 console.error("Error fetching program:", error);
@@ -96,11 +109,10 @@ function EditProgram() {
                     item.exercise && typeof item.exercise === "object"
                         ? item.exercise._id
                         : item.exercise,
-                sets: item.sets,
-                reps: item.reps,
-                time: item.time || "",
-                weight: item.weight || "Bodyweight",
-                met: Number(item.met) || 0, // ✅ ส่งค่า MET ไปด้วย
+                sets: Number(item.sets) || 3,
+                reps: Number(item.reps) || 0,
+                duration: parseDuration(item.duration),
+                met: Number(item.met) || 0,
                 order: idx,
             }));
 
@@ -128,6 +140,21 @@ function EditProgram() {
         }
     };
 
+    // ── Helper: Duration formatting ──────────────────────────────────────────
+    const formatDuration = (seconds) => {
+        if (!seconds) return "00:00";
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    };
+
+    const parseDuration = (timeStr) => {
+        if (!timeStr || typeof timeStr !== "string") return 0;
+        if (!timeStr.includes(":")) return parseInt(timeStr) || 0;
+        const [mins, secs] = timeStr.split(":").map(s => parseInt(s) || 0);
+        return (mins * 60) + secs;
+    };
+
     // ── WorkoutList helpers ───────────────────────────────────────────────────
     const getExerciseName = (item) => {
         // populated object
@@ -148,7 +175,7 @@ function EditProgram() {
             ...prev,
             { ...newEx, order: prev.length },
         ]);
-        setNewEx({ exercise: "", sets: 3, reps: 10, time: "", weight: "Bodyweight", order: 0 });
+        setNewEx({ exercise: "", sets: 3, reps: 10, duration: "00:00", met: 0, order: 0 });
     };
 
     const handleRemoveExercise = (index) => {
@@ -170,11 +197,10 @@ function EditProgram() {
                     item.exercise && typeof item.exercise === "object"
                         ? item.exercise._id
                         : item.exercise,
-                sets: item.sets,
-                reps: item.reps,
-                time: item.time || "",
-                weight: item.weight || "Bodyweight",
-                met: Number(item.met) || 0, // ✅ ส่งค่า MET ไปด้วย
+                sets: Number(item.sets) || 3,
+                reps: Number(item.reps) || 0,
+                duration: parseDuration(item.duration),
+                met: Number(item.met) || 0,
                 order: idx,
             }));
 
@@ -325,7 +351,6 @@ function EditProgram() {
                                 <th>เซต</th>
                                 <th>ครั้ง</th>
                                 <th>เวลา</th>
-                                <th>น้ำหนัก</th>
                                 <th>MET</th>
                                 <th>ลบ</th>
                             </tr>
@@ -380,27 +405,13 @@ function EditProgram() {
                                             <input
                                                 type="text"
                                                 placeholder="00:30"
-                                                value={item.time || ""}
+                                                value={item.duration || ""}
                                                 maxLength="5"
                                                 onChange={(e) => {
                                                     let val = e.target.value.replace(/[^0-9:]/g, ""); // Allow only numbers and colon
-                                                    if (!isNaN(val) && val.trim() !== "" && Number(val) > 60) val = "60";
-                                                    handleExerciseFieldChange(index, "time", val);
+                                                    handleExerciseFieldChange(index, "duration", val);
                                                 }}
                                                 className="inline-input time-input"
-                                            />
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="text"
-                                                value={item.weight || ""}
-                                                maxLength="15"
-                                                onChange={(e) => {
-                                                    let val = e.target.value.replace(/[^a-zA-Z0-9]/g, ""); // Allow only letters and numbers
-                                                    if (!isNaN(val) && val.trim() !== "" && Number(val) > 50) val = "50";
-                                                    handleExerciseFieldChange(index, "weight", val);
-                                                }}
-                                                className="inline-input weight-input"
                                             />
                                         </td>
                                         <td>
@@ -481,24 +492,11 @@ function EditProgram() {
                         <input
                             type="text"
                             placeholder="00:30"
-                            value={newEx.time}
+                            value={newEx.duration}
                             maxLength="5"
                             onChange={(e) => {
                                 let val = e.target.value.replace(/[^0-9:]/g, "");
-                                if (!isNaN(val) && val.trim() !== "" && Number(val) > 60) val = "60";
-                                setNewEx({ ...newEx, time: val });
-                            }}
-                            className="small-input"
-                        />
-                        <label>น้ำหนัก</label>
-                        <input
-                            type="text"
-                            value={newEx.weight}
-                            maxLength="15"
-                            onChange={(e) => {
-                                let val = e.target.value.replace(/[^a-zA-Z0-9]/g, "");
-                                if (!isNaN(val) && val.trim() !== "" && Number(val) > 50) val = "50";
-                                setNewEx({ ...newEx, weight: val });
+                                setNewEx({ ...newEx, duration: val });
                             }}
                             className="small-input"
                         />

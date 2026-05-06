@@ -212,6 +212,8 @@ export default function WorkoutPlayer() {
 
   // --- State: Workout Progress ---
   const [currentExercise, setCurrentExercise] = useState(0);
+  const [currentSet, setCurrentSet] = useState(1);
+  const [accumulatedSeconds, setAccumulatedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
   // Phase Flags
@@ -316,14 +318,16 @@ export default function WorkoutPlayer() {
   }, [uid]);
 
   const activeExerciseIndexRef = useRef(-1);
+  const activeSetRef = useRef(-1);
   useEffect(() => {
-    // ถ้าหน้าจอยังเป็นกล้องไกด์อยู่ หรือ index ยังไม่เปลี่ยน หรือไม่มีข้อมูลท่า -> ไม่ต้องทำอะไร
-    if (showGuide || activeExerciseIndexRef.current === currentExercise || !exercises[currentExercise]) {
+    // ถ้าหน้าจอยังเป็นกล้องไกด์อยู่ หรือ index/set ยังไม่เปลี่ยน หรือไม่มีข้อมูลท่า -> ไม่ต้องทำอะไร
+    if (showGuide || (activeExerciseIndexRef.current === currentExercise && activeSetRef.current === currentSet) || !exercises[currentExercise]) {
       return;
     }
 
     // จำไว้ว่าทำท่านี่แล้ว
     activeExerciseIndexRef.current = currentExercise;
+    activeSetRef.current = currentSet;
 
     // 1. ตั้งค่าเวลาเริ่ม (จุดสำคัญ: ทำครั้งเดียว ไม่มีการรีเซ็ตอีกจนกว่าจะเปลี่ยนท่า)
     exerciseStartTimeRef.current = Date.now();
@@ -360,8 +364,22 @@ export default function WorkoutPlayer() {
   }, [uid]);
   const overallProgress = useMemo(() => {
     if (!exercises.length) return 0;
-    return ((currentExercise + exerciseProgress / 100) / exercises.length) * 100;
-  }, [currentExercise, exerciseProgress, exercises.length]);
+    
+    let totalSetsAll = 0;
+    let completedSetsBefore = 0;
+    
+    for (let i = 0; i < exercises.length; i++) {
+      const s = exercises[i].sets || 1;
+      totalSetsAll += s;
+      if (i < currentExercise) {
+        completedSetsBefore += s;
+      }
+    }
+    
+    const currentAbsoluteSet = completedSetsBefore + (currentSet - 1);
+    
+    return ((currentAbsoluteSet + exerciseProgress / 100) / totalSetsAll) * 100;
+  }, [currentExercise, currentSet, exerciseProgress, exercises]);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [sendingFeedback, setSendingFeedback] = useState(false);
@@ -497,6 +515,8 @@ export default function WorkoutPlayer() {
         }));
         // Initial Reset
         setCurrentExercise(0);
+        setCurrentSet(1);
+        setAccumulatedSeconds(0);
         stopCamera();
         resetAllTimers();
         setIsPaused(false); setIsResting(false); setIsPlaying(false); setIsCounting(false);
@@ -678,8 +698,8 @@ export default function WorkoutPlayer() {
 
   useEffect(() => {
     exerciseStartTimeRef.current = Date.now();
-    console.log(`⏱️ New Exercise Started: ${currentExercise} at ${exerciseStartTimeRef.current}`);
-  }, [currentExercise]); // ทำงานเมื่อเลขข้อเปลี่ยนเท่านั้น
+    console.log(`⏱️ New Exercise Started: ${currentExercise} Set: ${currentSet} at ${exerciseStartTimeRef.current}`);
+  }, [currentExercise, currentSet]); // ทำงานเมื่อเลขข้อเปลี่ยนหรือเซตเปลี่ยน
 
   /* =========================================
      SECTION 5: Logic & Timers
@@ -927,6 +947,8 @@ export default function WorkoutPlayer() {
     endingRef.current = true;
 
     const cur = exercises[currentExercise];
+    const targetSets = cur?.sets || 1;
+    let newAccumulated = accumulatedSeconds;
 
     try {
       const now = Date.now();
@@ -940,19 +962,21 @@ export default function WorkoutPlayer() {
       const elapsedMs = now - startTime;
       let performedSeconds = Math.round(elapsedMs / 1000);
 
-      // ลบข้อจำกัดเวลาสูงสุด 60 วินาทีออก เพื่อให้นับเวลาจริงทั้งหมดที่เล่น
-
       // ถ้าเวลาน้อยกว่า 1 ให้เป็น 1 (กันเหนียว)
       if (performedSeconds < 1) performedSeconds = 1;
 
-      console.log(`✅ Log Order ${currentExercise}: ${performedSeconds}s (From ${startTime} to ${now})`);
+      newAccumulated += performedSeconds;
 
-      await logExerciseResult({
-        order: currentExercise,
-        exerciseDoc: cur,
-        performedSeconds,
-        status: "completed",
-      });
+      console.log(`✅ Log Order ${currentExercise} Set ${currentSet}: ${performedSeconds}s (Total so far: ${newAccumulated}s)`);
+
+      if (currentSet === targetSets) {
+        await logExerciseResult({
+          order: currentExercise,
+          exerciseDoc: cur,
+          performedSeconds: newAccumulated,
+          status: "completed",
+        });
+      }
 
     } catch (e) {
       console.warn("Log failed:", e);
@@ -965,27 +989,36 @@ export default function WorkoutPlayer() {
     setIsPlaying(false);
     setIsPaused(false);
 
-    if (currentExercise < exercises.length - 1) {
+    if (currentSet < targetSets) {
+      setAccumulatedSeconds(newAccumulated);
+      setCurrentSet(prev => prev + 1);
       const currentRest = cur?.rest > 0 ? cur.rest : REST_BASE_SEC;
-      startRest(currentExercise + 1, currentRest);
+      startRest(currentExercise, currentRest);
     } else {
-      setIsCounting(false);
-      try {
-        const result = await finishSession();
-        if (result && result.aborted) {
-          setPopupInfo({
-            title: "เซสชันสั้นเกินไป",
-            text: "คุณใช้เวลาออกกำลังกายน้อยกว่า 60 วินาที ระบบจะไม่บันทึกประวัติและเซสชันนี้นะครับ",
-            showCancel: false,
-            onConfirm: () => {
-              setPopupInfo(null);
-              navigate("/home");
-            }
-          });
-          return;
-        }
-      } catch (e) { }
-      setShowFeedbackModal(true);
+      setAccumulatedSeconds(0);
+      setCurrentSet(1);
+      if (currentExercise < exercises.length - 1) {
+        const currentRest = cur?.rest > 0 ? cur.rest : REST_BASE_SEC;
+        startRest(currentExercise + 1, currentRest);
+      } else {
+        setIsCounting(false);
+        try {
+          const result = await finishSession();
+          if (result && result.aborted) {
+            setPopupInfo({
+              title: "เซสชันสั้นเกินไป",
+              text: "คุณใช้เวลาออกกำลังกายน้อยกว่า 60 วินาที ระบบจะไม่บันทึกประวัติและเซสชันนี้นะครับ",
+              showCancel: false,
+              onConfirm: () => {
+                setPopupInfo(null);
+                navigate("/home");
+              }
+            });
+            return;
+          }
+        } catch (e) { }
+        setShowFeedbackModal(true);
+      }
     }
   };
 
@@ -1170,6 +1203,8 @@ export default function WorkoutPlayer() {
     resetAllTimers();
     const prev = Math.max(0, currentExercise - 1);
     setCurrentExercise(prev);
+    setCurrentSet(1);
+    setAccumulatedSeconds(0);
     setIsPaused(false);
     setIsResting(false);
     setIsPlaying(false);
@@ -1298,7 +1333,7 @@ export default function WorkoutPlayer() {
           {/* ส่วน Header บอกชื่อท่าและเวลา คงเดิมไว้ */}
           <div className="wp-exercise-header">
             <h2 className="wp-current-exercise-name" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span>{current?.name}</span>
+              <span>{current?.name} <span style={{fontSize: '0.8em', color: '#ffb703', marginLeft: '8px'}}>(เซต {currentSet}/{current?.sets || 1})</span></span>
               {current?.sets || current?.reps || current?.duration || current?.rest ? (
                 <div style={{ fontSize: "0.6em", fontWeight: "normal", opacity: 0.8, marginTop: "4px" }}>
                   {[
@@ -1386,6 +1421,7 @@ export default function WorkoutPlayer() {
             <div className="wp-exercise-header">
               <h2 className="wp-current-exercise-name">
                 {exercises[nextIndexRef.current]?.name}
+                <span style={{fontSize: '0.8em', color: '#ffb703', marginLeft: '8px'}}>(เซต {currentSet}/{exercises[nextIndexRef.current]?.sets || 1})</span>
                 {exercises[nextIndexRef.current]?.sets || exercises[nextIndexRef.current]?.reps || exercises[nextIndexRef.current]?.duration || exercises[nextIndexRef.current]?.rest ? (
                   <div style={{ fontSize: "0.6em", fontWeight: "normal", opacity: 0.8, marginTop: "4px" }}>
                     {[

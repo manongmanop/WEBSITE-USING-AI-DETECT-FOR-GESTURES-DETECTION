@@ -1498,9 +1498,11 @@ const workoutProgramSchema = new Schema({
   workoutList: [
     {
       exercise: { type: mongoose.Schema.Types.ObjectId, ref: "Exercise", required: true },
+      sets: { type: Number, default: 3 },
       reps: { type: Number, default: 0 },
       duration: { type: Number, default: 0 },
-      rest: { type: Number, default: 0 },
+      rest: { type: Number, default: 30 },
+      weight: { type: String, default: "Bodyweight" },
       met: { type: Number, default: 0 }
     }
   ]
