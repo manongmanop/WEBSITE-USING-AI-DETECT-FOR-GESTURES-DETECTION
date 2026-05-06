@@ -210,6 +210,40 @@ export default function WorkoutPlayer() {
   const [weight, setWeight] = useState(""); // State สำหรับน้ำหนัก
   const [shouldAskWeight, setShouldAskWeight] = useState(false); // เช็คว่าควรถามน้ำหนักไหม
 
+  // --- State: TTS Voices ---
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState(() => localStorage.getItem('ttsVoiceURI') || "");
+
+  useEffect(() => {
+    const loadVoices = () => {
+      let voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        const thaiVoices = voices.filter(v => v.lang.includes('th'));
+        setAvailableVoices(thaiVoices.length > 0 ? thaiVoices : voices);
+        if (!localStorage.getItem('ttsVoiceURI') && thaiVoices.length > 0) {
+           setSelectedVoiceURI(thaiVoices[0].voiceURI);
+           localStorage.setItem('ttsVoiceURI', thaiVoices[0].voiceURI);
+        }
+      }
+    };
+    loadVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  const handleVoiceChange = (e) => {
+    const uri = e.target.value;
+    setSelectedVoiceURI(uri);
+    localStorage.setItem('ttsVoiceURI', uri);
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance("ทดสอบเสียง");
+    utterance.lang = "th-TH";
+    const voice = window.speechSynthesis.getVoices().find(v => v.voiceURI === uri);
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  };
+
   // --- State: Workout Progress ---
   const [currentExercise, setCurrentExercise] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
@@ -619,7 +653,7 @@ export default function WorkoutPlayer() {
       window.speechSynthesis.cancel();
       window.__ttsUtterances = [];
     };
-  }, [isPlaying, isPaused, isResting, isCounting, currentExercise, exercises]);
+  }, [isPlaying, isPaused, isResting, isCounting, currentExercise, exercises, selectedVoiceURI]);
 
   // Camera Management
   useEffect(() => {
@@ -1316,6 +1350,9 @@ export default function WorkoutPlayer() {
         progress={overallProgress}
         onBack={() => window.history.back()}
         onGuide={openGuidePeek}
+        availableVoices={availableVoices}
+        selectedVoiceURI={selectedVoiceURI}
+        onVoiceChange={handleVoiceChange}
       />
 
       {isCounting && (
@@ -1588,7 +1625,7 @@ const ErrorScreen = ({ error }) => (
   </div>
 );
 
-const Header = ({ title, current, total, progress, onBack, onGuide }) => (
+const Header = ({ title, current, total, progress, onBack, onGuide, availableVoices, selectedVoiceURI, onVoiceChange }) => (
   <header className="wp-header">
     <div className="wp-header-content">
       <button className="wp-back-btn" onClick={onBack}><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
@@ -1601,7 +1638,24 @@ const Header = ({ title, current, total, progress, onBack, onGuide }) => (
           </div>
         </div>
       </div>
-      <button className="wp-sound-btn" onClick={onGuide} title="เปิดไกด์">
+
+      {availableVoices && availableVoices.length > 0 && (
+        <select 
+          value={selectedVoiceURI} 
+          onChange={onVoiceChange}
+          className="wp-voice-select"
+          title="เลือกเสียงพูด"
+          style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d5db', marginRight: '10px', fontSize: '0.85rem', maxWidth: '150px', background: '#1f2937', color: 'white' }}
+        >
+          {availableVoices.map(v => (
+            <option key={v.voiceURI} value={v.voiceURI}>
+              {v.name.replace(/Google |Microsoft /g, '')}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <button className="wp-sound-btn" onClick={onGuide} title="วิธีฝึก">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.236c-.9.41-1.5 1.08-1.5 1.764V14" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="17" r="1" fill="currentColor" /></svg>
       </button>
     </div>
