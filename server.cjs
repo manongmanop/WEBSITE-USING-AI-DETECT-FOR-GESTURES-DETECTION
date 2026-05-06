@@ -648,17 +648,17 @@ const storage = multer.diskStorage({
 
 // กำหนด filter สำหรับไฟล์ที่อนุญาต
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+  if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')) {
     cb(null, true);
   } else {
-    cb(new Error('ไม่อนุญาตให้อัปโหลดไฟล์ประเภทนี้! กรุณาอัปโหลดเฉพาะรูปภาพหรือวิดีโอ'), false);
+    cb(new Error('ไม่อนุญาตให้อัปโหลดไฟล์ประเภทนี้! กรุณาอัปโหลดเฉพาะรูปภาพ, วิดีโอ หรือไฟล์เสียง'), false);
   }
 };
 
 // ตั้งค่า Multer
 const upload = multer({
   storage, fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')) cb(null, true);
     else cb(new Error('Invalid file type'), false);
   }
 });

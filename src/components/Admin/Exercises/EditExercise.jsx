@@ -366,7 +366,13 @@ function EditExercise() {
                     {audioPreviewUrl && (
                         <div style={{ marginTop: '10px' }}>
                             <p style={{ fontSize: '0.85rem', color: '#374151', marginBottom: '4px' }}>✅ ไฟล์เสียงใหม่ (ทดสอบฟัง):</p>
-                            <audio controls src={audioPreviewUrl} style={{ width: '100%' }} />
+                            <audio
+                                key={audioPreviewUrl}
+                                controls
+                                preload="auto"
+                                src={audioPreviewUrl}
+                                style={{ width: '100%' }}
+                            />
                         </div>
                     )}
                     {/* แสดงไฟล์เสียงเดิม */}
@@ -374,7 +380,13 @@ function EditExercise() {
                         <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{ flex: 1 }}>
                                 <p style={{ fontSize: '0.85rem', color: '#374151', marginBottom: '4px' }}>🔊 ไฟล์เสียงที่บันทึกไว้:</p>
-                                <audio controls src={existingAudioUrl} style={{ width: '100%' }} />
+                                <audio
+                                    key={existingAudioUrl}
+                                    controls
+                                    preload="auto"
+                                    src={existingAudioUrl}
+                                    style={{ width: '100%' }}
+                                />
                             </div>
                             <button
                                 type="button"
