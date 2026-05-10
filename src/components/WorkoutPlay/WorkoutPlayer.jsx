@@ -221,8 +221,8 @@ export default function WorkoutPlayer() {
         const thaiVoices = voices.filter(v => v.lang.includes('th'));
         setAvailableVoices(thaiVoices.length > 0 ? thaiVoices : voices);
         if (!localStorage.getItem('ttsVoiceURI') && thaiVoices.length > 0) {
-           setSelectedVoiceURI(thaiVoices[0].voiceURI);
-           localStorage.setItem('ttsVoiceURI', thaiVoices[0].voiceURI);
+          setSelectedVoiceURI(thaiVoices[0].voiceURI);
+          localStorage.setItem('ttsVoiceURI', thaiVoices[0].voiceURI);
         }
       }
     };
@@ -398,10 +398,10 @@ export default function WorkoutPlayer() {
   }, [uid]);
   const overallProgress = useMemo(() => {
     if (!exercises.length) return 0;
-    
+
     let totalSetsAll = 0;
     let completedSetsBefore = 0;
-    
+
     for (let i = 0; i < exercises.length; i++) {
       const s = exercises[i].sets || 1;
       totalSetsAll += s;
@@ -409,9 +409,9 @@ export default function WorkoutPlayer() {
         completedSetsBefore += s;
       }
     }
-    
+
     const currentAbsoluteSet = completedSetsBefore + (currentSet - 1);
-    
+
     return ((currentAbsoluteSet + exerciseProgress / 100) / totalSetsAll) * 100;
   }, [currentExercise, currentSet, exerciseProgress, exercises]);
 
@@ -981,7 +981,7 @@ export default function WorkoutPlayer() {
     if (pauseStartTimeRef.current) {
       const pauseDuration = Date.now() - pauseStartTimeRef.current;
       exerciseStartTimeRef.current += pauseDuration;
-      pauseStartTimeRef.current = null; 
+      pauseStartTimeRef.current = null;
     }
 
     lastStartTsRef.current = Date.now();
@@ -1677,8 +1677,8 @@ const Header = ({ title, current, total, progress, onBack, onGuide, availableVoi
       </div>
 
       {availableVoices && availableVoices.length > 0 && (
-        <select 
-          value={selectedVoiceURI} 
+        <select
+          value={selectedVoiceURI}
           onChange={onVoiceChange}
           className="wp-voice-select"
           title="เลือกเสียงพูด"
