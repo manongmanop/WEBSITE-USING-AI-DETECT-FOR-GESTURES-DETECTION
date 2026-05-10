@@ -120,8 +120,8 @@ function CameraGuide({ mode = "gate", images = [], onAccept, onClose }) {
       <div className="guide-overlay" role="dialog" aria-modal="true">
         <div className="guide-card">
           <div className="guide-header">
-            <h2 className="guide-title">คำแนะนำในการตั้งกล้อง (ทำแค่ครั้งเดียว!)</h2>
-            <p className="guide-subtitle">ตั้งกล้องแบบ "ครอบจักรวาล" เพื่อให้ AI ตรวจจับได้ครบทุกท่ายืนและท่านอน</p>
+            <h2 className="guide-title">คำแนะนำในการตั้งกล้อง</h2>
+            <p className="guide-subtitle">เพื่อให้ AI ตรวจจับได้ครบทุกท่ายืนและท่านอน</p>
             {mode === "peek" && <button type="button" className="guide-close-btn" onClick={onClose}>×</button>}
           </div>
           <div className="guide-body">
