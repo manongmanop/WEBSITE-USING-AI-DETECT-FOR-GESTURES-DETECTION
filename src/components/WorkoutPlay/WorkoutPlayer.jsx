@@ -1174,6 +1174,15 @@ export default function WorkoutPlayer() {
   };
 
   const endRest = () => {
+    // ✅ คำนวณเวลาพักที่ใช้จริงเพื่อนำไปคิดแคลอรี่
+    const performedRestMs = restTotalMsRef.current - restRemainingMsRef.current;
+    const performedRestSec = Math.floor(performedRestMs / 1000);
+    
+    if (performedRestSec > 0) {
+      setAccumulatedSeconds(prev => prev + performedRestSec);
+      console.log(`⏱️ Added Rest Time: ${performedRestSec}s to accumulated duration`);
+    }
+
     resetRestTimers();
     setIsResting(false);
     setIsPaused(false);

@@ -247,25 +247,52 @@
               }
             }
 
-            input:checked ~ .card-content {
-              border-color: #3b82f6;
-              background: #eff6ff;
+            // --- Male Theme (Blue) ---
+            &.male {
+              input:checked ~ .card-content {
+                border-color: #3b82f6;
+                background: #eff6ff;
 
-              .gender-icon {
-                color: #3b82f6;
+                .gender-icon {
+                  color: #3b82f6;
+                }
+
+                span {
+                  color: #1e293b;
+                }
               }
 
-              span {
-                color: #1e293b;
+              &:hover .card-content {
+                border-color: #cbd5e1;
+              }
+
+              input:checked:hover ~ .card-content {
+                border-color: #2563eb;
               }
             }
 
-            &:hover .card-content {
-              border-color: #cbd5e1;
-            }
-            
-            input:checked:hover ~ .card-content {
-              border-color: #2563eb;
+            // --- Female Theme (Pink) ---
+            &.female {
+              input:checked ~ .card-content {
+                border-color: #ec4899;
+                background: #fdf2f8;
+
+                .gender-icon {
+                  color: #ec4899;
+                }
+
+                span {
+                  color: #1e293b;
+                }
+              }
+
+              &:hover .card-content {
+                border-color: #cbd5e1;
+              }
+
+              input:checked:hover ~ .card-content {
+                border-color: #db2777;
+              }
             }
           }
         }

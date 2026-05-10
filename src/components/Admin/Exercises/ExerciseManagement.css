@@ -124,4 +124,27 @@
 }
 .exercise-management .action-buttons .btn.btn-delete {
   background-color: #ef4444;
+}
+@media (max-width: 768px) {
+  .exercise-management {
+    padding: 15px;
+  }
+  .exercise-management .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .exercise-management .header .btn-add {
+    width: 100%;
+    text-align: center;
+  }
+  .exercise-management .filter-bar .search-input {
+    max-width: 100%;
+  }
+  .exercise-management .action-buttons {
+    flex-direction: column;
+  }
+  .exercise-management .action-buttons .btn {
+    width: 100%;
+  }
 }/*# sourceMappingURL=ExerciseManagement.css.map */

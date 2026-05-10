@@ -93,10 +93,20 @@
   border-color: #cbd5e0;
   background: #f7fafc;
 }
-.onboarding-container .fitness-level-card.selected {
+.onboarding-container .fitness-level-card.selected.beginner {
   border-color: #4299e1;
   background: #ebf8ff;
   box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+}
+.onboarding-container .fitness-level-card.selected.intermediate {
+  border-color: #ecc94b;
+  background: #fffff0;
+  box-shadow: 0 0 0 3px rgba(236, 201, 75, 0.2);
+}
+.onboarding-container .fitness-level-card.selected.advanced {
+  border-color: #ed8936;
+  background: #fffaf0;
+  box-shadow: 0 0 0 3px rgba(237, 137, 54, 0.2);
 }
 .onboarding-container .fitness-level-card .level-header {
   display: flex;
@@ -105,8 +115,11 @@
 }
 .onboarding-container .fitness-level-card .level-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: #2d3748;
+  font-weight: 700;
+  text-align: center;
+  flex: 1;
 }
 .onboarding-container .fitness-level-card .level-header .level-icon {
   font-size: 1.5rem;
@@ -115,7 +128,14 @@
   font-size: 0.9rem;
   color: #718096;
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.onboarding-container .fitness-level-card .level-details span {
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+  width: 100%;
 }
 .onboarding-container .goal-option {
   display: flex;

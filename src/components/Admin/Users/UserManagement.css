@@ -87,4 +87,22 @@
 }
 .user-management .action-buttons .btn.btn-danger {
   background-color: #ef4444;
+}
+@media (max-width: 768px) {
+  .user-management {
+    padding: 15px;
+  }
+  .user-management .filter-bar {
+    flex-direction: column;
+  }
+  .user-management .filter-bar .search-input, .user-management .filter-bar .status-select {
+    min-width: 100%;
+    width: 100%;
+  }
+  .user-management .action-buttons {
+    flex-direction: column;
+  }
+  .user-management .action-buttons .btn {
+    width: 100%;
+  }
 }/*# sourceMappingURL=UserManagement.css.map */

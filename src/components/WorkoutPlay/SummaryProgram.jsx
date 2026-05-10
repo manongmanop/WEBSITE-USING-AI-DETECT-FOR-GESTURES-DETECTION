@@ -109,112 +109,134 @@ export default function SummaryProgram() {
         : "0.00";
 
     return (
-        <div className="summary-container">
-            <div className="summary-header">
-                <div className="header-content">
-                    <h1 className="header-title">🏋️ สรุปผลการออกกำลังกาย</h1>
-                    <p className="header-subtitle">
-                        {data.programName} • {new Date(data.finishedAt).toLocaleDateString('th-TH', { 
-                            year: 'numeric', month: 'long', day: 'numeric', 
-                            hour: '2-digit', minute: '2-digit' 
-                        })}
+        <div className="summary-container-new">
+            {/* Header Section */}
+            <div className="summary-page-header">
+                <div className="header-left">
+                    <h1 className="main-title">สรุปผลการออกกำลังกาย</h1>
+                    <p className="sub-title">
+                        ภารกิจวันนี้ของคุณ • {new Date(data.finishedAt).toLocaleDateString('th-TH', {
+                            day: 'numeric', month: 'long', year: 'numeric'
+                        })} เวลา {new Date(data.finishedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                     </p>
+                </div>
+                <div className="header-right">
+                    <div className="status-badge-done">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>เสร็จสิ้น</span>
+                    </div>
                 </div>
             </div>
 
+            {/* Success Banner */}
             {data.isDailyPlan && isRealWorkout && (
-                <div className="daily-mission-success">
-                    <div className="success-badge">🏅</div>
-                    <h2 className="success-title">🎯 ภารกิจวันนี้เสร็จสิ้น!</h2>
-                    <p className="success-subtitle">
-                        ยอดเยี่ยมมาก! คุณทำตามแผนรายวันได้สำเร็จ ระบบบันทึกประวัติเข้าระบบเรียบร้อยแล้วครับ
-                    </p>
+                <div className="mission-success-banner">
+                    <div className="banner-icon">
+                        <div className="icon-circle">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                    <div className="banner-text">
+                        <h3>ภารกิจวันนี้เสร็จสิ้น!</h3>
+                        <p>คุณทำตามแผนรายวันได้สำเร็จ ระบบบันทึกประวัติเข้าระบบเรียบร้อยแล้ว</p>
+                    </div>
                 </div>
             )}
 
-            <div className="summary-grid">
-                <div className="stat-card">
-                    <div className="stat-icon time-icon">⏱️</div>
-                    <div className="stat-content">
-                        <div className="stat-label">เวลาที่ใช้</div>
-                        <div className="stat-value">
-                            {formatDuration(data.totals?.seconds)}
+            {/* Stats Cards Grid */}
+            <div className="summary-stats-grid">
+                <div className="stats-card">
+                    <div className="card-top">
+                        <span className="card-icon time-icon-new">⏱️</span>
+                        <span className="card-label">เวลาที่ใช้</span>
+                    </div>
+                    <div className="card-value-box">
+                        <span className="main-value">{formatDuration(data.totals?.seconds)}</span>
+                        <span className="unit-label">นาที : วินาที</span>
+                    </div>
+                </div>
+
+                <div className="stats-card">
+                    <div className="card-top">
+                        <span className="card-icon cal-icon-new">🔥</span>
+                        <span className="card-label">แคลอรี่</span>
+                    </div>
+                    <div className="card-value-box">
+                        <span className="main-value">{displayCalories}</span>
+                        <span className="unit-label">kcal เผาผลาญ</span>
+                    </div>
+                </div>
+
+                <div className="stats-card">
+                    <div className="card-top">
+                        <span className="card-icon ex-icon-new">💪</span>
+                        <span className="card-label">ท่าที่ทำ</span>
+                    </div>
+                    <div className="card-value-box">
+                        <span className="main-value">{data.doneExercises} / {data.totalExercises}</span>
+                        <span className="unit-label">ครบทุกท่า</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Progress Section */}
+            <div className="exercise-progress-section">
+                <div className="section-header-row">
+                    <h2 className="section-title">ความสำเร็จของการออกกำลังกาย</h2>
+                    <span className="percentage-label">{exerciseProgress}%</span>
+                </div>
+
+                <div className="progress-bar-wrapper">
+                    <div className="bar-bg">
+                        <div className="bar-fill" style={{ width: `${exerciseProgress}%` }}></div>
+                    </div>
+                </div>
+
+                <div className="exercise-list-grid">
+                    {/* จำลองรายการท่าที่ทำตามจำนวน Done Exercises */}
+                    {Array.from({ length: data.totalExercises }).map((_, idx) => (
+                        <div key={idx} className={`exercise-mini-card ${idx < data.doneExercises ? 'active' : ''}`}>
+                            <div className="mini-card-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </div>
+                            <span>ท่าที่ {idx + 1}</span>
                         </div>
-                        <div className="stat-unit">นาที:วินาที</div>
-                    </div>
-                </div>
-
-                <div className="stat-card">
-                    <div className="stat-icon calorie-icon">🔥</div>
-                    <div className="stat-content">
-                        <div className="stat-label">แคลอรี่ที่เผา</div>
-                        <div className="stat-value">{displayCalories}</div>
-                        <div className="stat-unit">kcal</div>
-                    </div>
-                </div>
-
-                <div className="stat-card">
-                    <div className="stat-icon exercise-icon">💪</div>
-                    <div className="stat-content">
-                        <div className="stat-label">จำนวนท่าที่ทำ</div>
-                        <div className="stat-value">{data.doneExercises}</div>
-                        <div className="stat-unit">จาก {data.totalExercises} ท่า</div>
-                    </div>
+                    ))}
                 </div>
             </div>
 
-            <div className="progress-section">
-                <h2 className="progress-title">ความสำเร็จ</h2>
-                <div className="progress-bar-container">
-                    <div className="progress-bar-bg">
-                        <div
-                            className="progress-bar-fill"
-                            style={{ width: `${exerciseProgress}%` }}
-                        ></div>
-                    </div>
-                    <div className="progress-text">{exerciseProgress}% เสร็จสิ้น</div>
+            {/* Motivational Footer */}
+            <div className="motivational-message-card">
+                <div className="medal-icon">🏅</div>
+                <div className="message-content">
+                    {isRealWorkout ? (
+                        <>
+                            <h4>ยอดเยี่ยม! คุณทำได้ดีมากจริง ๆ</h4>
+                            <p>ข้อมูลการออกกำลังกายวันนี้ถูกบันทึกไว้เรียบร้อยแล้ว</p>
+                        </>
+                    ) : (
+                        <>
+                            <h4 style={{ color: '#92400e' }}>เวลาในการฝึกน้อยเกินไป</h4>
+                            <p>ระบบจะไม่บันทึกประวัติหากเวลาออกกำลังกายรวมน้อยกว่า 60 วินาทีครับ</p>
+                        </>
+                    )}
                 </div>
             </div>
 
-            <div className="summary-footer">
-                {isRealWorkout ? (
-                    <p className="footer-message">✨ ยอดเยี่ยม! คุณทำได้ดีมากจริง ๆ</p>
-                ) : (
-                    <p className="footer-message footer-message--warning">
-                        ⚠️ เวลาในการฝึกน้อยกว่า 60 วินาที ระบบจะไม่คำนวณแคลอรี่และประวัติชุดนี้
-                    </p>
-                )}
-            </div>
-
-            <div className="summary-actions-main" style={{ marginTop: '2rem' }}>
-                <button 
-                  className="btn-primary-home" 
-                  onClick={() => nav("/home")}
-                  style={{
-                    width: '100%',
-                    padding: '1.1rem',
-                    background: 'linear-gradient(135deg, #2B5876 0%, #4E4376 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '16px',
-                    fontWeight: '800',
-                    fontSize: '1.2rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '12px',
-                    boxShadow: '0 8px 25px rgba(43, 88, 118, 0.3)',
-                    transition: '0.3s transform'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                  </svg>
-                  <span>กลับสู่หน้าหลัก (Home)</span>
+            {/* Action Button */}
+            <div className="bottom-actions">
+                <button className="btn-back-home" onClick={() => nav("/home")}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    กลับสู่หน้าหลัก
                 </button>
             </div>
         </div>

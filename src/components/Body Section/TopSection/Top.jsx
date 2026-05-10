@@ -299,7 +299,7 @@ export const Top = () => {
                 onClick={() => setSelectedDate(day.date)}
                 className={`calendar-day-bubble ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
                 style={{
-                  minWidth: '55px', height: '70px', borderRadius: '14px', cursor: 'pointer',
+                  minWidth: '55px', height: '75px', borderRadius: '14px', cursor: 'pointer',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   transition: '0.3s', flexShrink: 0,
                   background: isSelected ? 'linear-gradient(135deg, #2B5876 0%, #4E4376 100%)' : 'rgba(255,255,255,0.85)',
@@ -378,7 +378,7 @@ export const Top = () => {
 
               {/* ปุ่มเปลี่ยนเป็นวันพัก (ยกเว้นวันที่สำเร็จแล้ว) */}
               {dailyPlan.status !== 'completed' && (
-                <button 
+                <button
                   onClick={handleSetRestDay}
                   style={{ width: '100%', marginTop: '0.5rem', padding: '0.6rem', background: 'transparent', color: '#888', border: '1px solid #ddd', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}
                 >
@@ -392,10 +392,18 @@ export const Top = () => {
             <div style={{ padding: '1rem', background: 'rgba(43, 88, 118, 0.05)', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#444', marginBottom: '1rem' }}>
               💡 การพักผ่อนช่วยให้กล้ามเนื้อได้ซ่อมแซมและเติบโต
             </div>
+            <div
+              onClick={() => document.getElementById('programs-section')?.scrollIntoView({ behavior: 'smooth' })}
+              style={{ padding: '1rem', background: 'rgba(43, 88, 118, 0.08)', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#2b5876', marginBottom: '1rem', cursor: 'pointer', border: '1px dashed #2b5876', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', transition: '0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(43, 88, 118, 0.15)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(43, 88, 118, 0.08)'}
+            >
+              👇 หากต้องการเล่น เลือกเล่นได้จากโปรแกรมด้านล่างครับ
+            </div>
 
             {/* ปุ่มสลับแผนสำหรับคนอยากเล่น */}
             {selectedDate === todayStr && dailyPlan.availableWorkoutDays?.length > 0 && (
-              <button 
+              <button
                 onClick={() => setShowSwapModal(true)}
                 style={{ width: '100%', padding: '0.8rem', background: '#48bb78', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}
               >
@@ -420,7 +428,7 @@ export const Top = () => {
           <div className="exercise-modal-content" style={{ background: 'white', padding: '1.5rem', borderRadius: '1.5rem', width: '100%', maxWidth: '400px', maxHeight: '85vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setPreviewExercise(null)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#eee', border: 'none', borderRadius: '50%', width: '30px', height: '30px', fontWeight: 'bold', cursor: 'pointer', color: '#555' }}>✕</button>
             <h3 style={{ margin: 0, color: '#2B5876', fontSize: '1.3rem', paddingRight: '2rem' }}>{previewExercise.name}</h3>
-            
+
             <div className="exercise-video-container" style={{ width: '100%', borderRadius: '1rem', overflow: 'hidden', background: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
               {(previewExercise.exerciseId?.videoUrl || previewExercise.exerciseId?.media?.videoUrl) ? (
                 <video src={getMediaUrl(previewExercise.exerciseId.videoUrl || previewExercise.exerciseId.media.videoUrl)} autoPlay loop muted playsInline style={{ width: '100%', maxHeight: '250px', objectFit: 'cover' }} />
@@ -435,7 +443,7 @@ export const Top = () => {
                 {previewExercise.exerciseId?.description || "ไม่มีคำแนะนำสำหรับท่านี้"}
               </p>
             </div>
-            
+
             <div className="exercise-target" style={{ display: 'flex', gap: '1rem', background: '#f8f9fa', padding: '1rem', borderRadius: '0.8rem', marginTop: 'auto' }}>
               <div style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: '0.8rem', color: '#888' }}>จำนวนครั้ง</div>
@@ -464,7 +472,7 @@ export const Top = () => {
           <div className="swap-modal-content" style={{ background: 'white', padding: '1.5rem', borderRadius: '1.5rem', width: '100%', maxWidth: '400px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ marginBottom: '1rem', color: '#2B5876' }}>💪 อยากเล่นวันไหน?</h2>
             <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1.5rem' }}>เลือกแผนจากวันปกติของคุณ มาสลับเล่นในวันนี้ได้เลยครับ</p>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '1.5rem' }}>
               {dailyPlan.availableWorkoutDays.map((day) => (
                 <button
@@ -490,7 +498,7 @@ export const Top = () => {
               ))}
             </div>
 
-            <button 
+            <button
               onClick={() => setShowSwapModal(false)}
               style={{ padding: '0.8rem 2rem', background: '#eee', color: '#555', border: 'none', borderRadius: '2rem', fontWeight: 'bold', cursor: 'pointer' }}
             >
@@ -523,7 +531,7 @@ export const Top = () => {
         </div>
       </div> */}
 
-      <div className="programs-section">
+      <div id="programs-section" className="programs-section">
         <div className="section-header">
           <h2>{categories.find((cat) => cat.value === selectedCategory)?.label || "🌟 แนะนำผู้เริ่มต้น"}</h2>
         </div>
