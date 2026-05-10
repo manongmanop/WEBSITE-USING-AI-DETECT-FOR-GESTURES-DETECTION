@@ -117,4 +117,31 @@
 }
 .program-management .action-buttons .btn.btn-delete {
   background-color: #ef4444;
+}
+@media (max-width: 768px) {
+  .program-management {
+    padding: 15px;
+  }
+  .program-management .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .program-management .header .btn-add {
+    width: 100%;
+    text-align: center;
+  }
+  .program-management .filter-bar {
+    flex-direction: column;
+  }
+  .program-management .filter-bar .search-input, .program-management .filter-bar .category-select {
+    min-width: 100%;
+    width: 100%;
+  }
+  .program-management .action-buttons {
+    flex-direction: column;
+  }
+  .program-management .action-buttons .btn {
+    width: 100%;
+  }
 }/*# sourceMappingURL=ProgramManagement.css.map */

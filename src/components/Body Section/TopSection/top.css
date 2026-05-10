@@ -823,38 +823,576 @@ body {
     border-radius: 16px;
     box-shadow: var(--shadow-light);
   }
-  /* ภาพการ์ด: ใช้อัตราส่วนคงที่เพื่อไม่กินพื้นที่เกิน */
-  .card-image-wrapper {
-    /* ใช้ class ใหม่ */
-    width: 100%;
-    aspect-ratio: 16/9; /* คุมความสูงรูป */
-    height: auto !important;
-    background: #eef2f7;
+}
+/* Daily Plan Wrapper & Calendar */
+.daily-plan-wrapper {
+  margin: 1rem;
+  margin-top: -2rem;
+  z-index: 10;
+  position: relative;
+}
+
+.calendar-scroll-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  padding: 10px 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.calendar-scroll-section::-webkit-scrollbar {
+  display: none;
+}
+
+.calendar-day-bubble {
+  min-width: 55px;
+  height: 75px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: 0.3s;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.85);
+  color: #555;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: none;
+}
+.calendar-day-bubble.selected {
+  background: linear-gradient(135deg, #0A2647 0%, #2C74B3 100%) !important;
+  color: white !important;
+  box-shadow: 0 6px 15px rgba(43, 88, 118, 0.3);
+}
+.calendar-day-bubble.today:not(.selected) {
+  border: 2px solid #0A2647;
+}
+.calendar-day-bubble .day-name {
+  font-size: 0.65rem;
+  margin-bottom: 2px;
+  opacity: 0.7;
+  font-weight: bold;
+}
+.calendar-day-bubble.selected .day-name {
+  opacity: 0.9;
+}
+.calendar-day-bubble .day-number {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+/* Daily Plan Card */
+.daily-plan-card {
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.daily-plan-card.loading {
+  padding: 2rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.7);
+}
+.daily-plan-card.rest-day, .daily-plan-card.no-plan {
+  text-align: center;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+.daily-plan-card.no-plan {
+  border: 2px dashed #ccc;
+}
+
+.card-top-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.card-top-info .day-info h3 {
+  font-size: 1.2rem;
+  color: #2B5876;
+  font-weight: 800;
+  margin: 0;
+}
+.card-top-info .day-info p {
+  font-size: 0.85rem;
+  color: #777;
+  margin: 0;
+}
+
+.status-badge {
+  background: #28a745;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.plan-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.daily-exercise-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+.daily-exercise-list ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+}
+.daily-exercise-list li {
+  background: rgba(0, 0, 0, 0.04);
+  padding: 0.8rem;
+  border-radius: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: 0.2s;
+  border: 1px solid transparent;
+}
+.daily-exercise-list li:hover {
+  border: 1px solid #2B5876;
+}
+.daily-exercise-list li strong {
+  color: #444;
+  font-size: 0.9rem;
+}
+.daily-exercise-list li .exercise-meta {
+  font-size: 0.85rem;
+  color: #007bff;
+  font-weight: bold;
+}
+
+.start-workout-btn {
+  display: block;
+  padding: 0.8rem;
+  background: linear-gradient(135deg, #0A2647 0%, #2C74B3 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+  text-decoration: none;
+  text-align: center;
+}
+
+.not-ready-btn {
+  padding: 0.8rem;
+  background: #eee;
+  color: #888;
+  border-radius: 0.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.set-rest-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  background: transparent;
+  color: #888;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.tip-box {
+  padding: 1rem;
+  background: rgba(43, 88, 118, 0.05);
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: #444;
+  margin-bottom: 1rem;
+}
+
+.hint-box {
+  padding: 1rem;
+  background: rgba(43, 88, 118, 0.08);
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: #2b5876;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  border: 1px dashed #2b5876;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: 0.2s;
+}
+.hint-box:hover {
+  background: rgba(43, 88, 118, 0.15);
+}
+
+.swap-plan-btn {
+  width: 100%;
+  padding: 0.8rem;
+  background: #48bb78;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.create-plan-btn {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  background: #2B5876;
+  color: white;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+/* Modal Overlay & Content */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+}
+.modal-content .close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #eee;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content h2, .modal-content h3 {
+  margin: 0;
+  color: #2B5876;
+}
+
+.exercise-modal-content {
+  text-align: left;
+}
+.exercise-modal-content h3 {
+  font-size: 1.3rem;
+  padding-right: 2rem;
+}
+
+.exercise-video-container {
+  width: 100%;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+.exercise-video-container video {
+  width: 100%;
+  max-height: 250px;
+  -o-object-fit: cover;
+     object-fit: cover;
+}
+
+.exercise-instructions {
+  color: #444;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.exercise-instructions h4 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+.exercise-instructions p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.exercise-target {
+  display: flex;
+  gap: 1rem;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 0.8rem;
+  margin-top: auto;
+}
+.exercise-target .target-item {
+  flex: 1;
+  text-align: center;
+}
+.exercise-target .target-item:not(:last-child) {
+  border-right: 1px solid #ddd;
+}
+.exercise-target .target-item .label {
+  font-size: 0.8rem;
+  color: #888;
+}
+.exercise-target .target-item .value {
+  font-weight: bold;
+  color: #333;
+}
+.exercise-target .target-item .value.calories {
+  color: #ff6b6b;
+}
+
+.modal-action-btn {
+  padding: 0.8rem;
+  background: #2B5876;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.swap-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+.swap-grid .swap-day-btn {
+  padding: 1rem;
+  background: #f8f9fa;
+  border: 2px solid #eee;
+  border-radius: 0.8rem;
+  font-weight: bold;
+  color: #444;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.swap-grid .swap-day-btn:hover:not(:disabled) {
+  border-color: #2B5876;
+}
+.swap-grid .swap-day-btn:disabled {
+  cursor: not-allowed;
+}
+
+.no-video-text {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
-  .card-image {
-    width: 100%;
-    height: 100%;
-    -o-object-fit: cover;
-    object-fit: cover;
+  to {
+    opacity: 1;
   }
-  /* เนื้อหาในการ์ด: ระยะห่างกระชับ */
-  .card-content {
-    /* ใช้ class ใหม่ */
-    padding: 0.75rem !important;
-    gap: 0.5rem;
+}
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
   }
-  .program-name {
-    font-size: var(--h3FontSize);
-    min-height: auto;
-    line-height: 1.25;
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
-  .program-description {
-    font-size: var(--smallFontSize);
-    -webkit-line-clamp: 3; /* ให้เห็นข้อความพอประมาณ */
+}
+/* ภาพการ์ด: ใช้อัตราส่วนคงที่เพื่อไม่กินพื้นที่เกิน */
+.card-image-wrapper {
+  /* ใช้ class ใหม่ */
+  width: 100%;
+  aspect-ratio: 16/9; /* คุมความสูงรูป */
+  height: auto !important;
+  background: #eef2f7;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+  object-fit: cover;
+}
+
+/* เนื้อหาในการ์ด: ระยะห่างกระชับ */
+.card-content {
+  /* ใช้ class ใหม่ */
+  padding: 0.75rem !important;
+  gap: 0.5rem;
+}
+
+.program-name {
+  font-size: var(--h3FontSize);
+  min-height: auto;
+  line-height: 1.25;
+}
+
+.program-description {
+  font-size: var(--smallFontSize);
+  -webkit-line-clamp: 3; /* ให้เห็นข้อความพอประมาณ */
+}
+
+/* ลดขนาดปุ่ม */
+.start-program-btn {
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+/* ============================================================
+   🆕 14-Day Calendar Styling (Premium Dashboard)
+   ============================================================ */
+.calendar-scroll-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding: 10px 5px;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.calendar-scroll-section::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.calendar-day-bubble {
+  min-width: 60px;
+  height: 90px;
+  border-radius: 18px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+  margin-top: 8px;
+}
+.calendar-day-bubble:hover {
+  transform: translateY(-4px);
+  background: rgb(255, 255, 255);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+.calendar-day-bubble.selected {
+  background: linear-gradient(135deg, #0A2647 0%, #2C74B3 100%);
+  color: #171717 !important;
+  transform: scale(1.05) translateY(-4px);
+  box-shadow: 0 10px 25px rgba(43, 88, 118, 0.4);
+  border: none;
+  z-index: 2;
+}
+.calendar-day-bubble.selected span {
+  color: white !important;
+}
+.calendar-day-bubble.today {
+  border: 2px solid #2B5876;
+  position: relative;
+}
+.calendar-day-bubble.today::after {
+  content: "TODAY";
+  position: absolute;
+  top: -8px;
+  font-size: 0.55rem;
+  background: #2B5876;
+  color: white;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.calendar-day-bubble .day-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+.calendar-day-bubble .day-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+.calendar-day-bubble .status-icon {
+  margin-top: 4px;
+  font-size: 1.3rem;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rest card premium polish */
+.daily-plan-card.rest-day {
+  background: rgba(255, 255, 255, 0.9);
+  border-left: 5px solid #4E4376;
+  transition: transform 0.3s ease;
+}
+.daily-plan-card.rest-day:hover {
+  transform: translateY(-2px);
+}
+
+/* Loading state for card */
+.daily-plan-card.loading {
+  animation: pulse-bg 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-bg {
+  0% {
+    background-color: rgba(255, 255, 255, 0.7);
   }
-  /* ลดขนาดปุ่ม */
-  .start-program-btn {
-    padding: 1rem;
-    font-size: 0.9rem;
+  50% {
+    background-color: rgba(255, 255, 255, 0.9);
+  }
+  100% {
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+}
+@media (max-width: 480px) {
+  .calendar-day-bubble {
+    min-width: 52px;
+    height: 72px;
+    border-radius: 14px;
   }
 }/*# sourceMappingURL=top.css.map */

@@ -2,9 +2,16 @@
   display: flex;
   min-height: 100vh;
   background-color: #f4f7f6;
+  position: relative;
 }
 .admin-layout .admin-content {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  width: 100%;
+}
+@media (max-width: 768px) {
+  .admin-layout .admin-content {
+    padding-top: 70px;
+  }
 }/*# sourceMappingURL=AdminLayout.css.map */

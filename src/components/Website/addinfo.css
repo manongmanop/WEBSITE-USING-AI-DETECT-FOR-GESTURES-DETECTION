@@ -220,21 +220,37 @@
   font-weight: 600;
   color: #64748b;
 }
-.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card input:checked ~ .card-content {
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.male input:checked ~ .card-content {
   border-color: #3b82f6;
   background: #eff6ff;
 }
-.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card input:checked ~ .card-content .gender-icon {
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.male input:checked ~ .card-content .gender-icon {
   color: #3b82f6;
 }
-.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card input:checked ~ .card-content span {
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.male input:checked ~ .card-content span {
   color: #1e293b;
 }
-.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card:hover .card-content {
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.male:hover .card-content {
   border-color: #cbd5e1;
 }
-.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card input:checked:hover ~ .card-content {
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.male input:checked:hover ~ .card-content {
   border-color: #2563eb;
+}
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.female input:checked ~ .card-content {
+  border-color: #ec4899;
+  background: #fdf2f8;
+}
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.female input:checked ~ .card-content .gender-icon {
+  color: #ec4899;
+}
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.female input:checked ~ .card-content span {
+  color: #1e293b;
+}
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.female:hover .card-content {
+  border-color: #cbd5e1;
+}
+.addinfo-container .addinfo-box .form-section .gender-selection .gender-options .gender-card.female input:checked:hover ~ .card-content {
+  border-color: #db2777;
 }
 .addinfo-container .addinfo-box .form-section .submit-group {
   display: grid;

@@ -261,7 +261,6 @@ body {
 
 .stat-item .stat-icon {
   font-size: 2rem;
-  color: var(--primary-color);
   margin-bottom: 0.5rem;
   height: 4rem;
   width: 4rem; /* Ensure it's perfectly round */
@@ -273,13 +272,13 @@ body {
 
 
 .stat-item .stat-icon.bg-male {
-  background-color: var(--primary-light);
-  color: var(--whiteColor);
+  background-color: var(--primary-color) !important; /* สีน้ำเงินหลัก */
+  color: var(--whiteColor) !important;
 }
 
 .stat-item .stat-icon.bg-female {
-  background-color: #f472b6; /* pink-400 */
-  color: var(--whiteColor);
+  background-color: #f472b6 !important; /* สีชมพู */
+  color: var(--whiteColor) !important;
 }
 
 .stat-item .stat-icon.bg-unspecified {

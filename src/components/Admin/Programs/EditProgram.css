@@ -204,6 +204,12 @@
   width: 96px;
   text-align: left;
 }
+.edit-program .workout-section .exercise-table .met-input {
+  width: 60px;
+  text-align: center;
+  background: #fdf2f2;
+  border-color: #fecaca;
+}
 .edit-program .workout-section .exercise-table .btn-remove {
   background: none;
   border: none;

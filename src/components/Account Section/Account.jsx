@@ -363,7 +363,7 @@ function Account() {
   const getChangeText = (change, unit, type = 'weight') => {
     if (change === 0) return { text: `คงที่`, type: 'default' };
     const timeRangeText = {
-      
+
       '3m': '3 เดือน',
       '6m': '6 เดือน',
       '1y': '1 ปี',
@@ -695,22 +695,22 @@ function Account() {
   const getGenderDisplay = (gender) => {
     if (gender === 'male' || gender === 'ชาย') {
       return {
-        icon: <FaMars className="!text-[#349de3] !text-3xl" />,
+        icon: <FaMars className="!text-3xl" />, // ลบสีฟ้าออกเพื่อให้เป็นสีขาวตาม CSS
         text: 'ชาย',
-        className: 'bg-white shadow-sm border border-gray-100'
+        className: 'bg-male'
       };
     }
     if (gender === 'female' || gender === 'หญิง') {
       return {
-        icon: <FaVenus className="!text-[#f472b6] !text-3xl" />,
+        icon: <FaVenus className="!text-3xl" />, // ลบสีชมพูออกเพื่อให้เป็นสีขาวตาม CSS
         text: 'หญิง',
-        className: 'bg-white shadow-sm border border-gray-100'
+        className: 'bg-female'
       };
     }
     return {
       icon: <FaVenusMars className="!text-gray-400 !text-3xl" />,
       text: 'ไม่ระบุ',
-      className: 'bg-white shadow-sm border border-gray-100'
+      className: 'bg-unspecified'
     };
   };
   const genderDisplay = getGenderDisplay(gender);
@@ -889,7 +889,7 @@ function Account() {
                 <div className="chart-container">
                   {/* Time range selection */}
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                  
+
                     <button
                       onClick={() => handleTimeRangeChange('1m')}
                       style={{

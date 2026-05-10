@@ -229,7 +229,7 @@ const AddUserDataForm = () => {
           <div className="gender-selection">
             <label className="form-label">เพศสภาพ</label>
             <div className="gender-options">
-              <label className="gender-card">
+              <label className="gender-card male">
                 <input
                   type="radio"
                   name="gender"
@@ -245,7 +245,7 @@ const AddUserDataForm = () => {
                 </div>
               </label>
 
-              <label className="gender-card">
+              <label className="gender-card female">
                 <input
                   type="radio"
                   name="gender"
