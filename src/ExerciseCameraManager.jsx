@@ -60,7 +60,7 @@ export const ExerciseCameraManager = ({
     isActive,
     targetReps: isTimeBased ? null : targetReps,
     targetSets,
-    targetTimePerSet: isTimeBased ? targetTimePerSet : null,
+    targetTime: isTimeBased ? (targetTimePerSet ?? 30) : 30 ,
     setRestTime,
     onRepComplete,
     onSetComplete,
