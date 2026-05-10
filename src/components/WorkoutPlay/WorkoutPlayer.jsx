@@ -1404,7 +1404,7 @@ export default function WorkoutPlayer() {
           {/* ส่วน Header บอกชื่อท่าและเวลา คงเดิมไว้ */}
           <div className="wp-exercise-header">
             <h2 className="wp-current-exercise-name" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span>{current?.name} <span style={{fontSize: '0.8em', color: '#ffb703', marginLeft: '8px'}}>(เซต {currentSet}/{current?.sets || 1})</span></span>
+              <span>{current?.name} <span style={{ fontSize: '0.8em', color: '#ffb703', marginLeft: '8px' }}>(เซต {currentSet}/{current?.sets || 1})</span></span>
               {current?.sets || current?.reps || current?.duration || current?.rest ? (
                 <div style={{ fontSize: "0.6em", fontWeight: "normal", opacity: 0.8, marginTop: "4px" }}>
                   {[
@@ -1463,6 +1463,9 @@ export default function WorkoutPlayer() {
                   targetReps={current?.reps || current?.value || 10}
                   onRepComplete={handleRepComplete}
                   onSetComplete={handleSetComplete}
+                  //อันนี้พึ่งเพิ่ม
+                  targetTimePerSet={current.duration}
+                  onWorkoutComplete={onWorkoutEnded}
                 />
               </div>
 
@@ -1492,7 +1495,7 @@ export default function WorkoutPlayer() {
             <div className="wp-exercise-header">
               <h2 className="wp-current-exercise-name">
                 {exercises[nextIndexRef.current]?.name}
-                <span style={{fontSize: '0.8em', color: '#ffb703', marginLeft: '8px'}}>(เซต {currentSet}/{exercises[nextIndexRef.current]?.sets || 1})</span>
+                <span style={{ fontSize: '0.8em', color: '#ffb703', marginLeft: '8px' }}>(เซต {currentSet}/{exercises[nextIndexRef.current]?.sets || 1})</span>
                 {exercises[nextIndexRef.current]?.sets || exercises[nextIndexRef.current]?.reps || exercises[nextIndexRef.current]?.duration || exercises[nextIndexRef.current]?.rest ? (
                   <div style={{ fontSize: "0.6em", fontWeight: "normal", opacity: 0.8, marginTop: "4px" }}>
                     {[
