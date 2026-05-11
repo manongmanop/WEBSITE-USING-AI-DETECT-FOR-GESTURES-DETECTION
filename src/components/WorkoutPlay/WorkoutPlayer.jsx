@@ -28,8 +28,7 @@ function normalizeUrl(p) {
 }
 
 function parseDurationMs(ex) {
-  if (ex.duration && ex.duration > 0) return ex.duration * 1000;
-  if (ex.type === 'time' && ex.value > 0) return ex.value * 1000;
+  // 💡 ลบการใช้ duration ออกตามคำสั่งผู้ใช้งาน
   return 0;
 }
 
@@ -368,12 +367,9 @@ export default function WorkoutPlayer() {
 
     // 2. ตั้งค่า Duration ตามประเภท
     const cur = exercises[currentExercise];
-    const isDuration = cur?.duration > 0 || cur?.type === 'time';
+    // 💡 ปิดการทำงานแบบจับเวลา (isDuration = false)
+    const isDuration = false;
     let duration = 0;
-    if (isDuration) {
-      if (cur.duration && cur.duration > 0) duration = cur.duration * 1000;
-      else if (cur.type === 'time' && cur.value > 0) duration = cur.value * 1000;
-    }
 
     currentDurationMsRef.current = duration;
     remainingMsRef.current = duration;
@@ -525,8 +521,8 @@ export default function WorkoutPlayer() {
             name: "ภารกิจวันนี้ของคุณ",
             workoutList: res.data.exercises.map(ex => ({
               exercise: ex.exerciseId,
-              reps: ex.reps, // Reps and Time mapping for performance tracking
-              duration: ex.time
+              reps: ex.reps, // เก็บเฉพาะ reps
+              // duration: ex.time // 🔥 ลบออกตามคำสั่ง
             }))
           };
         } else {
@@ -540,8 +536,10 @@ export default function WorkoutPlayer() {
         const list = Array.isArray(resData?.workoutList) ? resData.workoutList : [];
         setExercises(list.map((it) => {
           const exObj = it?.exercise && typeof it.exercise === "object" ? it.exercise : it;
+          // 🔥 กรองข้อมูล duration ออกเพื่อให้ไม่มีผลต่อการจับเวลา
+          const { duration, ...itemWithoutDuration } = it; 
           return {
-            ...it,
+            ...itemWithoutDuration,
             imageUrl: normalizeUrl(exObj?.media?.imageUrl || exObj?.imageUrl || exObj?.image || it?.imageUrl || it?.image),
             video: normalizeUrl(exObj?.media?.videoUrl || exObj?.videoUrl || exObj?.video || it?.videoUrl || it?.video),
             met: it?.met || exObj?.met || { base: 5.0 }
@@ -939,12 +937,9 @@ export default function WorkoutPlayer() {
   const startWorkoutTimersForCurrent = () => {
     const cur = exercises[currentExercise]; if (!cur) return;
 
-    const isDuration = cur?.duration > 0 || cur?.type === 'time';
+    // 💡 ปิดการทำงานแบบจับเวลา
+    const isDuration = false;
     let durationMs = 0;
-    if (isDuration) {
-      if (cur.duration && cur.duration > 0) durationMs = cur.duration * 1000;
-      else if (cur.type === 'time' && cur.value > 0) durationMs = cur.value * 1000;
-    }
 
     currentDurationMsRef.current = durationMs;
     remainingMsRef.current = durationMs;
@@ -1426,12 +1421,13 @@ export default function WorkoutPlayer() {
               ) : null}
             </h2>
             <div className="wp-exercise-stats">
-              {(current?.duration > 0 || current?.type === 'time') && currentDurationMsRef.current > 0 && (
+              {/* 💡 ซ่อนตัวจับเวลาออกตามคำสั่ง */}
+              {/* {(current?.duration > 0 || current?.type === 'time') && currentDurationMsRef.current > 0 && (
                 <CountdownWheel
                   timeRemaining={timeRemaining}
                   totalDuration={current?.duration || Math.ceil(currentDurationMsRef.current / 1000)}
                 />
-              )}
+              )} */}
             </div>
 
           </div>

@@ -197,15 +197,15 @@ export default function SummaryProgram() {
                 </div>
 
                 <div className="exercise-list-grid">
-                    {/* จำลองรายการท่าที่ทำตามจำนวน Done Exercises */}
-                    {Array.from({ length: data.totalExercises }).map((_, idx) => (
-                        <div key={idx} className={`exercise-mini-card ${idx < data.doneExercises ? 'active' : ''}`}>
+                    {/* แสดงรายชื่อท่าจริงที่ได้รับจาก Backend (ถ้ามี) */}
+                    {(data.exercises && data.exercises.length > 0 ? data.exercises : Array.from({ length: data.totalExercises })).map((ex, idx) => (
+                        <div key={idx} className={`exercise-mini-card ${idx < data.doneExercises || ex?.status === 'completed' ? 'active' : ''}`}>
                             <div className="mini-card-icon">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                             </div>
-                            <span>ท่าที่ {idx + 1}</span>
+                            <span>{ex?.name || `ท่าที่ ${idx + 1}`}</span>
                         </div>
                     ))}
                 </div>
