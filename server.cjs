@@ -2897,19 +2897,37 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
       }
     }
 
+    // 💡 ดึงรายชื่อท่าจาก WorkoutSession เพื่อส่งไปโชว์ที่ Frontend
+    let exerciseList = [];
+    if (latest.sessionId) {
+      try {
+        const sessionDoc = await mongoose.model("WorkoutSession").findById(latest.sessionId).lean();
+        if (sessionDoc) {
+           if (sessionDoc.logs && sessionDoc.logs.length > 0) {
+             exerciseList = sessionDoc.logs.map(l => ({ name: l.name, status: l.status || "completed" }));
+           } else if (sessionDoc.snapshot && sessionDoc.snapshot.exercises) {
+             exerciseList = sessionDoc.snapshot.exercises.map(ex => ({ name: ex.name, status: "pending" }));
+           }
+        }
+      } catch (sessErr) {
+        console.error("Error fetching session for summary:", sessErr);
+      }
+    }
+
     res.json({
       uid,
       sessionId: latest.sessionId,
       historyId: latest._id,
       programName: latest.programName || (isDailyPlan ? "ภารกิจรายวัน" : "โปรแกรมออกกำลังกาย"),
       totalExercises: latest.totalExercises || 0,
-      doneExercises: latest.totalExercises || 0, // ใน Summary ของ History คือตัวที่ทำเสร็จแล้ว
+      doneExercises: latest.totalExercises || 0, 
+      exercises: exerciseList, // ✅ ส่งรายชื่อท่ากลับไปด้วย
       totals: {
         seconds: totalSecs,
         calories: activeCalories
       },
       finishedAt: latest.finishedAt,
-      isDailyPlan // ✅ ส่ง flag ไปให้ Frontend โชว์เหรียญตราความสำเร็จ
+      isDailyPlan 
     });
   } catch (e) {
     console.error("❌ Summary API Error:", e);
