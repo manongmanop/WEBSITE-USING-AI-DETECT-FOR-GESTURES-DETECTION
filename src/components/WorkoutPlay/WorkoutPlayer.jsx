@@ -1049,7 +1049,10 @@ export default function WorkoutPlayer() {
     } catch (e) {
       console.warn("Log failed:", e);
     } finally {
-      endingRef.current = false;
+      // 💡 หน่วงเวลา 1 วินาทีก่อนปลดล็อกเพื่อให้ AI ไม่เรียกซ้ำซ้อน (เช่นใน React StrictMode)
+      setTimeout(() => {
+        endingRef.current = false;
+      }, 1000);
     }
 
     resetWorkoutTimers();
