@@ -20,7 +20,8 @@ export const ExerciseCameraManager = ({
   onRepComplete,
   onSetComplete,
   onWorkoutComplete,
-  onTimeUpdate
+  onTimeUpdate,
+  onAIStatusUpdate
 }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -66,7 +67,8 @@ export const ExerciseCameraManager = ({
     onRepComplete,
     onSetComplete,
     onWorkoutComplete,
-    onTimeUpdate
+    onTimeUpdate,
+    onAIStatusUpdate
   }) : { 
     counterLeft: 0, 
     counterRight: 0, 

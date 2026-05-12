@@ -180,6 +180,10 @@ export function submitProgramFeedback(programId, level, uid) {
    ========================================= */
 export default function WorkoutPlayer() {
   const { programId } = useParams();
+
+  // ✅ เพิ่ม Ref เพื่อเก็บสถานะการหยุดโดย AI
+  const isAIPausedRef = useRef(false);
+
   // Callback เมื่อทำครบ Rep
   const handleRepComplete = (side, count) => {
     console.log(`✅ ${side} arm completed rep ${count}`);
@@ -190,6 +194,26 @@ export default function WorkoutPlayer() {
     console.log('🎉 Set complete!');
     onWorkoutEnded(); // เรียกฟังก์ชันเดิม
   };
+
+  // ✅ ฟังก์ชันรับสัญญาณจาก AI เพื่อหยุด/เริ่มเวลา (เช่น ท่า Plank)
+  const handleAIStatusUpdate = (isCorrect) => {
+    const current = exercises[currentExercise];
+    const isDuration = current?.duration > 0 || current?.type === 'time';
+    
+    // จัดการเฉพาะท่าที่ใช้เวลา
+    if (!isDuration) return;
+
+    if (!isCorrect && !isAIPausedRef.current && isPlaying && !isPaused) {
+      console.log("⏸️ AI detected incorrect posture - Pausing timer");
+      isAIPausedRef.current = true;
+      pauseWorkoutTimers();
+    } else if (isCorrect && isAIPausedRef.current && isPlaying) {
+      console.log("▶️ AI detected correct posture - Resuming timer");
+      isAIPausedRef.current = false;
+      resumeWorkoutTimers();
+    }
+  };
+
   // --- Constants ---
   const REST_BASE_SEC = 20;
   const REST_MAX_SEC = 150;
@@ -1469,6 +1493,7 @@ export default function WorkoutPlayer() {
                   //อันนี้พึ่งเพิ่ม
                   targetTimePerSet={current?.duration}
                   onWorkoutComplete={onWorkoutEnded}
+                  onAIStatusUpdate={handleAIStatusUpdate}
                 />
               </div>
 

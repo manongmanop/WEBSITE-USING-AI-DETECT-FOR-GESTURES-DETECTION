@@ -9,6 +9,7 @@ export const usePlankCamera = ({
   targetTime = 1,       // Target hold time per set (seconds)
   onSetComplete,
   onWorkoutComplete,
+  onAIStatusUpdate,
 }) => {
   // ── State ────────────────────────────────────────────────────────────────────
   const [plankState, setPlankState] = useState('not_in_position'); // 'in_position' | 'not_in_position'
@@ -440,6 +441,11 @@ export const usePlankCamera = ({
 
             setElapsedTime(totalElapsed);
             setPlankState(isCorrect ? 'in_position' : 'not_in_position');
+
+            // ✅ แจ้งสถานะท่าทางกลับไปยังตัวแม่เพื่อคุมเวลา
+            if (onAIStatusUpdate) {
+              onAIStatusUpdate(isCorrect);
+            }
 
             // ── Draw status box ──────────────────────────────────────────
             ctx.save();
