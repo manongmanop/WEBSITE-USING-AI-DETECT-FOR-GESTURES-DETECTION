@@ -29,8 +29,8 @@ const WorkoutStats = ({ userData, workoutHistory = [] }) => {
             return d.toDateString() === now.toDateString();
         });
 
-        const caloriesToday = todayWorkouts.reduce((sum, h) => sum + (h.caloriesBurned || 0), 0);
-        const caloriesWeek = thisWeekWorkouts.reduce((sum, h) => sum + (h.caloriesBurned || 0), 0);
+        const caloriesToday = Number(todayWorkouts.reduce((sum, h) => sum + (h.caloriesBurned || 0), 0).toFixed(2));
+        const caloriesWeek = Number(thisWeekWorkouts.reduce((sum, h) => sum + (h.caloriesBurned || 0), 0).toFixed(2));
 
         // Weekly Progress
         const weeklyGoal = userData?.weeklyGoal || 3;
@@ -267,7 +267,7 @@ const ActivityCalendar = ({ workoutHistory }) => {
 
         const thaiMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
         const dateTooltip = `${day} ${thaiMonth[currentDate.getMonth()]} ${currentDate.getFullYear() + 543}`;
-        const statsTooltip = count > 0 ? `\n${count} กิจกรรม (${calories} kcal)` : '\nไม่มีกิจกรรม';
+        const statsTooltip = count > 0 ? `\n${count} กิจกรรม (${calories.toFixed(2)} kcal)` : '\nไม่มีกิจกรรม';
 
         return {
             status: isToday ? 'today' : 'neutral',

@@ -687,7 +687,7 @@ function Account() {
       id: 'calories',
       icon: 'calories',
       title: 'แคลอรี่ที่เผาผลาญ',
-      value: `${totalCaloriesBurned} kcal`,
+      value: `${totalCaloriesBurned.toFixed(2)} kcal`,
       status: '',
       statusType: 'default',
     }
