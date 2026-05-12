@@ -1017,15 +1017,24 @@ export default function WorkoutPlayer() {
       const rem = Math.max(0, resumeFromMs - elapsed);
       remainingMsRef.current = rem;
       updateWorkoutUI(rem);
-      if (rem <= 0) { clearInterval(progressIntervalRef.current); onWorkoutEnded(); }
+      if (rem <= 0) { 
+        clearInterval(progressIntervalRef.current); 
+        // ✅ ถ้าเป็น Daily Plan จะไม่ข้ามท่าอัตโนมัติเมื่อเวลาหมด
+        if (programId !== "dailyplan") {
+          onWorkoutEnded(); 
+        }
+      }
     }, 100);
 
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
-    autoNextTimerRef.current = setTimeout(() => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      remainingMsRef.current = 0;
-      onWorkoutEnded();
-    }, resumeFromMs);
+    // ✅ สำหรับ Daily Plan เราจะไม่ตั้งเวลาจบอัตโนมัติ (Force transition)
+    if (programId !== "dailyplan") {
+      autoNextTimerRef.current = setTimeout(() => {
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        remainingMsRef.current = 0;
+        onWorkoutEnded();
+      }, resumeFromMs);
+    }
   };
 
   const updateWorkoutUI = (ms) => {
@@ -1444,7 +1453,7 @@ export default function WorkoutPlayer() {
               ) : null}
             </h2>
             <div className="wp-exercise-stats">
-              {(current?.duration > 0 || current?.type === 'time') && currentDurationMsRef.current > 0 && (
+              {(current?.duration > 0 || current?.type === 'time') && currentDurationMsRef.current > 0 && programId !== 'dailyplan' && (
                 <CountdownWheel
                   timeRemaining={timeRemaining}
                   totalDuration={current?.duration || Math.ceil(currentDurationMsRef.current / 1000)}
