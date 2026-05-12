@@ -14,16 +14,15 @@ export const useDumbbellCamera = ({
   onWorkoutComplete
 }) => {
   // State variables
-  const [counterLeft, setCounterLeft] = useState(0);
-  const [counterRight, setCounterRight] = useState(0);
+  // ✅ SYNC: ใช้ counter เดียว — นับเฉพาะเมื่อยกพร้อมกัน
+  const [counter, setCounter] = useState(0);
   const [sets, setSets] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [workoutComplete, setWorkoutComplete] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
 
-  // ✅ NEW: Invalid rep counters (นับจากท่าที่ผิด)
-  const [invalidRepsLeft, setInvalidRepsLeft] = useState(0);
-  const [invalidRepsRight, setInvalidRepsRight] = useState(0);
+  // Invalid rep counter (นับเฉพาะเมื่อยกพร้อมกันแต่ท่าผิด)
+  const [invalidReps, setInvalidReps] = useState(0);
 
   // Refs for tracking state
   const stageLeft = useRef(null);
@@ -47,6 +46,16 @@ export const useDumbbellCamera = ({
   const formViolationsLeft = useRef([]);
   const formViolationsRight = useRef([]);
 
+  // ✅ SYNC: Pending "up" flags — นับก็ต่อเมื่อทั้งสองแขนยกพร้อมกัน
+  const SYNC_WINDOW_MS = 600; // รับได้ถ้าสองแขนต่างกันไม่เกิน 600ms
+  const pendingUpLeft = useRef(false);
+  const pendingUpRight = useRef(false);
+  const pendingUpLeftTime = useRef(0);
+  const pendingUpRightTime = useRef(0);
+  const pendingFormLeft = useRef({ isValid: true, violations: [] });
+  const pendingFormRight = useRef({ isValid: true, violations: [] });
+  const syncCountedThisRound = useRef(false); // ป้องกันนับซ้ำในรอบเดียว
+
   // Database refs - for storing angle data
   const angleDataRight = useRef([]);
   const angleDataLeft = useRef([]);
@@ -56,7 +65,6 @@ export const useDumbbellCamera = ({
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  // const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
   // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
@@ -181,38 +189,48 @@ export const useDumbbellCamera = ({
     }
   };
 
-  // Gemini API call
-  const callGeminiAPI = async (angle) => {
+  // OpenAI Chat Completions API call (replaces Gemini)
+  const callOpenAIAPI = async (angle) => {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+      const userMessage = { role: "user", content: Math.round(angle).toString() };
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          contents: [
+          model: 'gpt-4o-mini',
+          temperature: 0.8,
+          max_tokens: 256,
+          messages: [
+            { role: "system", content: instructions },
             ...chatHistory.current,
-            { role: "user", parts: [{ text: Math.round(angle).toString() }] }
-          ],
-          generationConfig: { temperature: 0.8, topP: 0.8, topK: 40, maxOutputTokens: 8192 }
+            userMessage
+          ]
         })
       });
 
-      if (!response.ok) throw new Error('Gemini API request failed');
+      if (!response.ok) throw new Error(`OpenAI API request failed: ${response.status}`);
 
       const data = await response.json();
-      const responseText = data.candidates[0].content.parts[0].text;
+      const responseText = data.choices[0].message.content;
+
+      // อัปเดต chatHistory ใน OpenAI format (role: "user" / "assistant")
       chatHistory.current.push(
-        { role: "user", parts: [{ text: Math.round(angle).toString() }] },
-        { role: "model", parts: [{ text: responseText }] }
+        userMessage,
+        { role: "assistant", content: responseText }
       );
 
       return responseText;
     } catch (error) {
-      console.error('Gemini API Error:', error);
+      console.error('OpenAI API Error:', error);
       return null;
     }
   };
 
-  // OpenAI TTS API call
+  // OpenAI TTS API call — uses Web Audio API to avoid CSP blob: media-src block
   const callTTSAPI = async (text) => {
     try {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -233,40 +251,52 @@ export const useDumbbellCamera = ({
 
       if (!response.ok) throw new Error('OpenAI TTS API request failed');
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      const arrayBuffer = await response.arrayBuffer();
+
+      // Use Web Audio API — not subject to media-src CSP
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
       return new Promise((resolve) => {
-        audio.onended = () => { URL.revokeObjectURL(audioUrl); resolve(); };
-        audio.play();
+        const source = audioCtx.createBufferSource();
+        source.buffer = decodedBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => {
+          audioCtx.close();
+          resolve();
+        };
+        source.start(0);
       });
     } catch (error) {
       console.error('TTS API Error:', error);
     }
   };
-
+  // Process TTS queue
   const processTTSQueue = async () => {
     if (isProcessingTTS.current || ttsQueue.current.length === 0) return;
+
     isProcessingTTS.current = true;
     setIsSpeaking(true);
+
     while (ttsQueue.current.length > 0) {
       const { text } = ttsQueue.current.shift();
       await callTTSAPI(text);
     }
+
     isProcessingTTS.current = false;
     setIsSpeaking(false);
   };
 
+  // Process angle with OpenAI and TTS
   const processGeminiAndTTS = async (angle) => {
     try {
-      const responseText = await callGeminiAPI(angle);
+      const responseText = await callOpenAIAPI(angle);
       if (responseText) {
         ttsQueue.current.push({ text: responseText });
         processTTSQueue();
       }
     } catch (error) {
-      console.error('Error in Gemini or TTS:', error);
+      console.error('Error in OpenAI or TTS:', error);
     }
   };
 
@@ -275,8 +305,7 @@ export const useDumbbellCamera = ({
     setResting(true);
     setRestTimeRemaining(setRestTime);
     restEndTime.current = Date.now() + (setRestTime * 1000);
-    setCounterLeft(0);
-    setCounterRight(0);
+    setCounter(0);
     restInterval.current = setInterval(() => {
       const timeLeft = Math.max(0, Math.ceil((restEndTime.current - Date.now()) / 1000));
       setRestTimeRemaining(timeLeft);
@@ -289,7 +318,7 @@ export const useDumbbellCamera = ({
 
   // Check if set is complete
   useEffect(() => {
-    if (counterLeft >= targetReps && !workoutComplete) {
+    if (counter >= targetReps && !workoutComplete) {
       setSets(prev => {
         const newSets = prev + 1;
         if (newSets >= targetSets) {
@@ -320,7 +349,7 @@ export const useDumbbellCamera = ({
         return newSets;
       });
     }
-  }, [counterLeft, counterRight, targetReps, sets, targetSets, workoutComplete]);
+  }, [counter, targetReps, sets, targetSets, workoutComplete]);
 
   // ─────────────────────────────────────────────
   // Main camera + pose effect
@@ -443,35 +472,17 @@ export const useDumbbellCamera = ({
                       isTimingLeft.current = false;
                       holdTimeLeft.current = 0;
 
-                      if (formResult.isValid) {
-                        // ✅ ท่าถูก → นับปกติ
-                        setCounterLeft(prev => {
-                          const newCounter = prev + 1;
-                          angleDataLeft.current.push({
-                            counter_left: newCounter,
-                            angle: Math.round(angleLeft * 100) / 100,
-                            timestamp: new Date().toISOString(),
-                            form: 'valid'  // ✅ NEW
-                          });
-                          if (onRepComplete) onRepComplete('left', newCounter);
-                          processGeminiAndTTS(Math.round(angleLeft));
-                          return newCounter;
-                        });
-                      } else {
-                        // ✅ ท่าผิด → นับ invalid rep แยกต่างหาก
-                        setInvalidRepsLeft(prev => {
-                          const newCounter = prev + 1;
-                          angleDataLeft.current.push({
-                            counter_left_invalid: newCounter,
-                            angle: Math.round(angleLeft * 100) / 100,
-                            timestamp: new Date().toISOString(),
-                            form: 'invalid',
-                            violations: formResult.violations
-                          });
-                          return newCounter;
-                        });
-                        console.warn('[LEFT] Invalid rep:', formResult.violations);
-                      }
+                      // ✅ SYNC: ตั้ง pending flag แทนการนับทันที
+                      pendingUpLeft.current = true;
+                      pendingUpLeftTime.current = Date.now();
+                      pendingFormLeft.current = formResult;
+                      syncCountedThisRound.current = false;
+                      angleDataLeft.current.push({
+                        angle: Math.round(angleLeft * 100) / 100,
+                        timestamp: new Date().toISOString(),
+                        form: formResult.isValid ? 'valid' : 'invalid',
+                        violations: formResult.violations
+                      });
                     }
 
                   } else if ((angleLeft > 40 && angleLeft < 160) || angleLeft < 20) {
@@ -534,34 +545,17 @@ export const useDumbbellCamera = ({
                       isTimingRight.current = false;
                       holdTimeRight.current = 0;
 
-                      if (formResult.isValid) {
-                        // ✅ ท่าถูก → นับปกติ
-                        setCounterRight(prev => {
-                          const newCounter = prev + 1;
-                          angleDataRight.current.push({
-                            counter_right: newCounter,
-                            angle_right: Math.round(angleRight * 100) / 100,
-                            timestamp: new Date().toISOString(),
-                            form: 'valid'  // ✅ NEW
-                          });
-                          if (onRepComplete) onRepComplete('right', newCounter);
-                          return newCounter;
-                        });
-                      } else {
-                        // ✅ ท่าผิด → นับ invalid rep แยก
-                        setInvalidRepsRight(prev => {
-                          const newCounter = prev + 1;
-                          angleDataRight.current.push({
-                            counter_right_invalid: newCounter,
-                            angle_right: Math.round(angleRight * 100) / 100,
-                            timestamp: new Date().toISOString(),
-                            form: 'invalid',
-                            violations: formResult.violations
-                          });
-                          return newCounter;
-                        });
-                        console.warn('[RIGHT] Invalid rep:', formResult.violations);
-                      }
+                      // ✅ SYNC: ตั้ง pending flag แทนการนับทันที
+                      pendingUpRight.current = true;
+                      pendingUpRightTime.current = Date.now();
+                      pendingFormRight.current = formResult;
+                      syncCountedThisRound.current = false;
+                      angleDataRight.current.push({
+                        angle_right: Math.round(angleRight * 100) / 100,
+                        timestamp: new Date().toISOString(),
+                        form: formResult.isValid ? 'valid' : 'invalid',
+                        violations: formResult.violations
+                      });
                     }
 
                   } else if ((angleRight > 40 && angleRight < 160) || angleRight < 20) {
@@ -580,6 +574,52 @@ export const useDumbbellCamera = ({
                   );
                 }
               }
+
+              // ✅ SYNC CHECK: นับ rep เฉพาะเมื่อทั้งสองแขนยกพร้อมกันภายใน SYNC_WINDOW_MS
+              if (pendingUpLeft.current && pendingUpRight.current && !syncCountedThisRound.current) {
+                const timeDiff = Math.abs(pendingUpLeftTime.current - pendingUpRightTime.current);
+                if (timeDiff <= SYNC_WINDOW_MS) {
+                  syncCountedThisRound.current = true;
+                  const bothValid = pendingFormLeft.current.isValid && pendingFormRight.current.isValid;
+
+                  if (bothValid) {
+                    setCounter(prev => {
+                      const newCounter = prev + 1;
+                      // อัปเดต counter ลงใน angleData ทั้งสองฝั่ง
+                      if (angleDataLeft.current.length > 0) {
+                        angleDataLeft.current[angleDataLeft.current.length - 1].counter = newCounter;
+                      }
+                      if (angleDataRight.current.length > 0) {
+                        angleDataRight.current[angleDataRight.current.length - 1].counter = newCounter;
+                      }
+                      if (onRepComplete) onRepComplete('both', newCounter);
+                      // processGeminiAndTTS(
+                      //   Math.round((pendingFormLeft.current.angle + pendingFormRight.current.angle) / 2)
+                      // );
+                      return newCounter;
+                    });
+                  } else {
+                    setInvalidReps(prev => {
+                      const newCounter = prev + 1;
+                      const allViolations = [
+                        ...(pendingFormLeft.current.violations || []).map(v => `L: ${v}`),
+                        ...(pendingFormRight.current.violations || []).map(v => `R: ${v}`)
+                      ];
+                      console.warn('[SYNC] Invalid rep:', allViolations);
+                      return newCounter;
+                    });
+                  }
+
+                  // Reset pending flags หลังนับแล้ว
+                  pendingUpLeft.current = false;
+                  pendingUpRight.current = false;
+                }
+              }
+
+              // ล้าง pending flag ถ้าแขนนั้นลงก่อนอีกข้างขึ้นทัน
+              if (stageLeft.current === 'down') pendingUpLeft.current = false;
+              if (stageRight.current === 'down') pendingUpRight.current = false;
+
               canvasCtx.restore();
             };
 
@@ -633,15 +673,16 @@ export const useDumbbellCamera = ({
   }, [isActive, targetReps, workoutComplete]);
 
   return {
-    counterLeft,
-    counterRight,
+    // ✅ SYNC: counter เดียว — นับเฉพาะเมื่อยกพร้อมกัน
+    counter,
+    // backward compat aliases
+    counterLeft: counter,
+    counterRight: counter,
     sets,
     isSpeaking,
     workoutComplete,
     saveStatus,
-    // ✅ NEW: expose invalid rep counts
-    invalidRepsLeft,
-    invalidRepsRight,
+    invalidReps,
     angleDataLeft: angleDataLeft.current,
     angleDataRight: angleDataRight.current
   };

@@ -6,7 +6,7 @@ export const usePlankCamera = ({
   videoRef,
   canvasRef,
   isActive,
-  targetTime = 30,       // Target hold time per set (seconds)
+  targetTime = 1,       // Target hold time per set (seconds)
   onSetComplete,
   onWorkoutComplete,
 }) => {
@@ -25,8 +25,7 @@ export const usePlankCamera = ({
   const plankElapsedRef = useRef(0);      // accumulated time before current in_position stint
 
   // Gemini / TTS
-  const geminiApiKey        = import.meta.env.VITE_GEMINI_API_KEY;
-  const openaiApiKey        = import.meta.env.VITE_OPENAI_API_KEY;
+  // const openaiApiKey        = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const lastGeminiTime = useRef(Date.now());
@@ -47,11 +46,11 @@ export const usePlankCamera = ({
   const chatHistory = useRef([
     {
       role: 'user',
-      parts: [{ text: 'ค่ามุมองศา shoulder-hip-ankle ที่ดีสำหรับ plank อยู่ที่ประมาณ 150-170 องศา หากค่าอยู่นอกช่วงนี้ให้แนะนำให้ผู้ใช้ปรับท่า' }],
+      parts: [{ text: 'ค่ามุมองศา shoulder-hip-ankle ที่ดีสำหรับ plank อยู่ที่ประมาณ 150-170 องศา หากค่าอยู่นอกช่วงนี้ให้แนะนำให้ผู้ใช้ปรับท่า นอกจากนี้ระบบยังตรวจสอบว่าร่างกายยกขึ้นจากพื้นจริงหรือไม่ และตัวต้องอยู่ในแนวนอน ถ้า isElevated=false แปลว่านอนราบหรือโกงท่า ถ้า isHorizontal=false แปลว่ายืนเอียง' }],
     },
     {
       role: 'model',
-      parts: [{ text: 'เข้าใจแล้ว! ช่วง 150-170 องศาคือ plank ที่ดี ถ้าเกิน 170 แปลว่าสะโพกยกสูงเกินไป ถ้าต่ำกว่า 150 แปลว่าสะโพกห้อยต่ำไป ฉันจะให้คำแนะนำทันที!' }],
+      parts: [{ text: 'เข้าใจแล้ว! ช่วง 150-170 องศาคือ plank ที่ดี ถ้าเกิน 170 แปลว่าสะโพกยกสูงเกินไป ถ้าต่ำกว่า 150 แปลว่าสะโพกห้อยต่ำไป และถ้า isElevated=false แสดงว่าผู้ใช้นอนราบกับพื้นหรือไม่ได้ยกตัวขึ้น ฉันจะให้คำแนะนำทันที!' }],
     },
   ]);
 
@@ -64,10 +63,30 @@ export const usePlankCamera = ({
     return angle;
   };
 
-  const getConnectionColor = (angle) => {
-    if (angle > 150 && angle < 170) return '#00ff00'; // ✅ Green – correct
-    if ((angle >= 170 && angle <= 180) || angle < 150) return '#FFFF00'; // 🟡 Yellow – borderline
-    return '#ff0000'; // 🔴 Red – bad
+  // ── Anti-cheat thresholds (normalized 0-1 coords, y increases downward) ───────
+  // Shoulder must be at least this far *above* the ankle in Y to confirm elevation.
+  // Lying flat → ankle.y ≈ shoulder.y → elevation ≈ 0 → fails immediately.
+  const MIN_SHOULDER_ELEVATION = 0.08; // 8% of frame height (~38 px at 480 p)
+  const MIN_HIP_ELEVATION      = 0.05; // 5% of frame height
+  // |shoulderY - hipY| must stay small: body should be horizontal, not standing/tilted.
+  const MAX_BODY_TILT = 0.18; // 18% of frame height
+
+  // Returns { isElevated, isHorizontal } for anti-cheat checks
+  const getBodyValidation = (shoulder, hip, ankle) => {
+    const shoulderElevation = ankle.y - shoulder.y; // >0 → shoulder above ankle
+    const hipElevation      = ankle.y - hip.y;      // >0 → hip above ankle
+    const bodyTilt          = Math.abs(shoulder.y - hip.y); // small → body is horizontal
+    return {
+      isElevated:   shoulderElevation > MIN_SHOULDER_ELEVATION && hipElevation > MIN_HIP_ELEVATION,
+      isHorizontal: bodyTilt < MAX_BODY_TILT,
+    };
+  };
+
+  const getConnectionColor = (angle, isElevated, isHorizontal) => {
+    if (!isElevated || !isHorizontal) return '#ff0000';  // 🔴 Lying flat / cheating
+    if (angle > 150 && angle < 170)   return '#00ff00';  // ✅ Green – correct
+    if ((angle >= 170 && angle <= 180) || (angle >= 140 && angle <= 150)) return '#FFFF00'; // 🟡 Borderline
+    return '#ff0000'; // 🔴 Red – bad angle
   };
 
   const formatTime = (seconds) => {
@@ -101,30 +120,40 @@ export const usePlankCamera = ({
   // ── Gemini API ───────────────────────────────────────────────────────────────
   const callGeminiAPI = async (angle) => {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              ...chatHistory.current,
-              { role: 'user', parts: [{ text: String(Math.round(angle)) }] },
-            ],
-            generationConfig: { temperature: 0.8, topP: 0.8, topK: 40, maxOutputTokens: 8192 },
-          }),
-        }
-      );
-      if (!res.ok) throw new Error('Gemini API failed');
-      const data = await res.json();
-      const text = data.candidates[0].content.parts[0].text;
+      const userMessage = { role: "user", content: Math.round(angle).toString() };
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          temperature: 0.8,
+          max_tokens: 256,
+          messages: [
+            { role: "system", content: instructions },
+            ...chatHistory.current,
+            userMessage
+          ]
+        })
+      });
+
+      if (!response.ok) throw new Error(`OpenAI API request failed: ${response.status}`);
+
+      const data = await response.json();
+      const responseText = data.choices[0].message.content;
+
+      // อัปเดต chatHistory ใน OpenAI format (role: "user" / "assistant")
       chatHistory.current.push(
-        { role: 'user', parts: [{ text: String(Math.round(angle)) }] },
-        { role: 'model', parts: [{ text }] }
+        userMessage,
+        { role: "assistant", content: responseText }
       );
-      return text;
-    } catch (err) {
-      console.error('Gemini API Error:', err);
+
+      return responseText;
+    } catch (error) {
+      console.error('OpenAI API Error:', error);
       return null;
     }
   };
@@ -264,6 +293,7 @@ export const usePlankCamera = ({
 
   // ── Main camera + pose effect ─────────────────────────────────────────────────
   useEffect(() => {
+    console.log('targetTime received:', targetTime);
     if (!isActive || !videoRef.current || !canvasRef.current || workoutComplete) return;
 
     const initCamera = async () => {
@@ -285,8 +315,8 @@ export const usePlankCamera = ({
           pose.setOptions({
             modelComplexity: 1,
             smoothLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7,
           });
 
           const onResults = (results) => {
@@ -330,7 +360,32 @@ export const usePlankCamera = ({
             const angleAvg = (angleRight + angleLeft) / 2;
             setCurrentAngle(Math.round(angleAvg));
 
-            const color = getConnectionColor(angleAvg);
+            // ── Anti-cheat: hip-knee-ankle angle check ────────────
+            const hipkneeankleLeft = calculateAngle(leftHip, leftKnee, leftAnkle);
+            const hipkneeankleRight = calculateAngle(rightHip, rightKnee, rightAnkle);
+            const kneeColor =
+              hipkneeankleLeft >= 161 && hipkneeankleLeft <= 180 &&
+              hipkneeankleRight >= 161 && hipkneeankleRight <= 180
+                ? '#00ff00'
+                : '#ff0000';
+
+            // ── Anti-cheat: body elevation + orientation check ────────────
+            // Average both sides so partial-visibility frames still work
+            const avgShoulder = {
+              x: (rightShoulder.x + leftShoulder.x) / 2,
+              y: (rightShoulder.y + leftShoulder.y) / 2,
+            };
+            const avgHip = {
+              x: (rightHip.x + leftHip.x) / 2,
+              y: (rightHip.y + leftHip.y) / 2,
+            };
+            const avgAnkle = {
+              x: (rightAnkle.x + leftAnkle.x) / 2,
+              y: (rightAnkle.y + leftAnkle.y) / 2,
+            };
+            const { isElevated, isHorizontal } = getBodyValidation(avgShoulder, avgHip, avgAnkle);
+
+            const color = getConnectionColor(angleAvg, isElevated, isHorizontal);
             setConnectionColor(color);
 
             // ── Draw skeleton (body lines only, no face) ─────────────────
@@ -345,6 +400,10 @@ export const usePlankCamera = ({
                 leftShoulder, leftHip, leftKnee, leftAnkle],
               color
             );
+            // Hip → Knee → Ankle (knee angle color: green/red only)
+            drawBodyConnections(ctx, [rightHip, rightKnee, rightAnkle], kneeColor);
+            drawBodyConnections(ctx, [leftHip, leftKnee, leftAnkle], kneeColor);
+            drawLandmarkDots(ctx, [rightKnee, rightAnkle, leftKnee, leftAnkle], kneeColor);
 
             // Angle label near hips midpoint
             const midX = ((rightHip.x + leftHip.x) / 2) * canvasRef.current.width;
@@ -357,7 +416,8 @@ export const usePlankCamera = ({
 
             // ── Plank state machine ──────────────────────────────────────
             const now = Date.now();
-            const isCorrect = angleAvg > 150 && angleAvg < 170;
+            // All three gates must pass: angle range + body elevated + body horizontal
+            const isCorrect = angleAvg > 150 && angleAvg < 170 && isElevated && isHorizontal  && hipkneeankleLeft >= 161 && hipkneeankleLeft <= 180 && hipkneeankleRight >= 161 && hipkneeankleRight <= 180;
 
             let currentElapsed = plankElapsedRef.current;
             if (plankStartTimeRef.current !== null) {
@@ -383,7 +443,16 @@ export const usePlankCamera = ({
 
             // ── Draw status box ──────────────────────────────────────────
             ctx.save();
-            const stateLabel = isCorrect ? 'CORRECT POSITION' : 'INCORRECT POSITION';
+            let stateLabel;
+            if (isCorrect) {
+              stateLabel = 'CORRECT POSITION';
+            } else if (!isElevated) {
+              stateLabel = 'LIFT YOUR BODY OFF FLOOR';
+            } else if (!isHorizontal) {
+              stateLabel = 'KEEP BODY HORIZONTAL';
+            } else {
+              stateLabel = 'INCORRECT ANGLE';
+            }
             const boxColor = isCorrect ? '#00ff00' : '#ff0000';
             drawStatusBox(ctx, totalElapsed, targetTime, stateLabel, totalElapsed / targetTime, boxColor);
             ctx.restore();
@@ -407,7 +476,7 @@ export const usePlankCamera = ({
             }
 
             // ── Set complete ─────────────────────────────────────────────
-            if (totalElapsed >= targetTime && !workoutComplete) {
+            if (targetTime != null && totalElapsed >= targetTime && !workoutComplete) {
               setWorkoutComplete(true);
               plankElapsedRef.current = 0;
               plankStartTimeRef.current = null;

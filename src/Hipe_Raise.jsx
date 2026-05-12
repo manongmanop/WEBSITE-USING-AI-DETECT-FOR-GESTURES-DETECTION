@@ -1,43 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Pose from '@mediapipe/pose';
 import * as cam from '@mediapipe/camera_utils';
-// const SOUND_MAP = {
-//   // Posture tilt
-//   'Leaning Left': '/sounds/Leaning_Right.mp3',
-//   'Leaning Right': '/sounds/Leaning_Left.mp3',
-//   // 'Straight': '/sounds/Straight.mp3',
-//   // Arm position
-//   'ArmWide': '/sounds/Wide.mp3',
-//   'ArmNarrow': '/sounds/Narrow.mp3',
-//   // 'ArmNeutral': '/sounds/Neutral.mp3',
-//   // Knee / stance position
-//   'StanceWide': '/sounds/Stance_Wide.mp3',
-//   'StanceNarrow': '/sounds/Stance_Narrow.mp3',
-//   // 'StanceNormal': '/sounds/Stance_Normal.mp3',
-//   // Landmarks
-//   'NoLandmarks': '/sounds/NoLandmarks.mp3',
-//   'Landmarks': '/sounds/Landmarks.mp3',
-// };
 
-// const createSoundPlayer = () => {
-//   const cache = {};
-//   const cooldowns = {};
-//   const COOLDOWN_MS = 9000;
-
-//   const play = (key) => {
-//     const now = Date.now();
-//     if (cooldowns[key] && now - cooldowns[key] < COOLDOWN_MS) return;
-//     cooldowns[key] = now;
-//     const src = SOUND_MAP[key];
-//     if (!src) return;
-//     if (!cache[key]) cache[key] = new Audio(src);
-//     const a = cache[key];
-//     a.currentTime = 0;
-//     a.play().catch(() => { });
-//   };
-
-//   return { play };
-// };
 export const useHipRaiseCamera = ({
   videoRef,
   canvasRef,
@@ -56,23 +20,34 @@ export const useHipRaiseCamera = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [workoutComplete, setWorkoutComplete] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
-  const [postureTilt, setPostureTilt] = useState('Straight');
-  const [leftArmPosition, setLeftArmPosition] = useState('Neutral');
-  const [rightArmPosition, setRightArmPosition] = useState('Neutral');
+
   const [landmarksValid, setLandmarksValid] = useState(false);
-  const [legStance, setLegStance] = useState('Normal');
-  const [ankleDistance, setAnkleDistance] = useState(0);
-  const [kneeDistance, setKneeDistance] = useState(0);
-  // const soundPlayer = useRef(createSoundPlayer());
-  // // Previous state refs for change-based sound triggers
-  // const prevTilt = useRef('Straight');
-  // const prevLeftPos = useRef('Neutral');
-  // const prevRightPos = useRef('Neutral');
-  // const prevStance = useRef('Normal');
-  // const prevLandmarks = useRef(false);
-  // Refs for tracking state
+
   const stageLeft = useRef(null);
   const stageRight = useRef(null);
+
+  // ── Cheat-detection: baseline positions captured at "down" stage ──────────
+  // hip/shoulder Y ในพิกัด normalized (0=บน, 1=ล่าง)
+  const baselineHipLeft = useRef(null);
+  const baselineShoulderLeft = useRef(null);
+  const baselineHipRight = useRef(null);
+  const baselineShoulderRight = useRef(null);
+
+  // threshold: สะโพกต้องขึ้น ≥ 6% ของความสูงเฟรม, ไหล่ขึ้นได้ไม่เกิน 5%
+  const HIP_RISE_MIN = 0.06;
+  const SHOULDER_RISE_MAX = 0.05;
+
+  const [cheatDetectedLeft, setCheatDetectedLeft] = useState(false);
+  const [cheatDetectedRight, setCheatDetectedRight] = useState(false);
+
+  const isValidHipRaise = (hip, shoulder, baselineHip, baseShoulder) => {
+    if (!baselineHip || !baseShoulder) return true; // ยังไม่มี baseline → ผ่านก่อน
+    const hipRise = baselineHip.y - hip.y;           // ค่าบวก = สะโพกขึ้น
+    const shoulderRise = baseShoulder.y - shoulder.y; // ค่าบวก = ไหล่ขึ้น
+    return hipRise >= HIP_RISE_MIN && shoulderRise < SHOULDER_RISE_MAX;
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const isTimingLeft = useRef(false);
   const isTimingRight = useRef(false);
   const holdTimeLeft = useRef(0);
@@ -93,8 +68,8 @@ export const useHipRaiseCamera = ({
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const instructions = "Voice: High-energy, upbeat, and encouraging, projecting enthusiasm and motivation.\n\nPunctuation: Short, punchy sentences with strategic pauses to maintain excitement and clarity.\n\nDelivery: Fast-paced and dynamic, with rising intonation to build momentum and keep engagement high.\n\nPhrasing: Action-oriented and direct, using motivational cues to push participants forward.\n\nTone: Positive, energetic, and empowering, creating an atmosphere of encouragement and achievement.";
@@ -161,29 +136,6 @@ export const useHipRaiseCamera = ({
     return '#ffffffff'; // White
   };
 
-  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
-  const getArmPositionLeft = (dist) => {
-    if (dist > 0.25) {
-      return "Wide";
-    } else if (dist < 0.08) {
-      return "Narrow";
-    } else {
-      return "Neutral";
-    }
-  };
-
-  // ฟังก์ชันตรวจสอบตำแหน่งแขน (Wide / Narrow / Neutral)
-  const getArmPositionRight = (dist) => {
-    if (dist > 0.25) {
-      return "Wide";
-    } else if (dist < 0.08) {
-      return "Narrow";
-    } else {
-      return "Neutral";
-    }
-  };
-
-
   // Save session data to database
   const saveSessionData = async (sessionData) => {
     try {
@@ -211,39 +163,43 @@ export const useHipRaiseCamera = ({
     }
   };
 
-  // Gemini API call gemini-2.5-flash ใช้ตัวนี้แทนตอนนำเสนอ
-  const callGeminiAPI = async (angle) => {
+  // OpenAI Chat Completions API call (replaces Gemini)
+  const callOpenAIAPI = async (angle) => {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+      const userMessage = { role: "user", content: Math.round(angle).toString() };
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          contents: [
+          model: 'gpt-4o-mini',
+          temperature: 0.8,
+          max_tokens: 256,
+          messages: [
+            { role: "system", content: instructions },
             ...chatHistory.current,
-            { role: "user", parts: [{ text: Math.round(angle).toString() }] }
-          ],
-          generationConfig: {
-            temperature: 0.8,
-            topP: 0.8,
-            topK: 40,
-            maxOutputTokens: 8192,
-          }
+            userMessage
+          ]
         })
       });
 
-      if (!response.ok) throw new Error('Gemini API request failed');
+      if (!response.ok) throw new Error(`OpenAI API request failed: ${response.status}`);
 
       const data = await response.json();
-      const responseText = data.candidates[0].content.parts[0].text;
-      console.log("Gemini response text:", responseText)
+      const responseText = data.choices[0].message.content;
+
+      // อัปเดต chatHistory ใน OpenAI format (role: "user" / "assistant")
       chatHistory.current.push(
-        { role: "user", parts: [{ text: Math.round(angle).toString() }] },
-        { role: "model", parts: [{ text: responseText }] }
+        userMessage,
+        { role: "assistant", content: responseText }
       );
 
       return responseText;
     } catch (error) {
-      console.error('Gemini API Error:', error);
+      console.error('OpenAI API Error:', error);
       return null;
     }
   };
@@ -308,7 +264,7 @@ export const useHipRaiseCamera = ({
   // Process angle with Gemini and TTS
   const processGeminiAndTTS = async (angle) => {
     try {
-      const responseText = await callGeminiAPI(angle);
+      const responseText = await callOpenAIAPI(angle);
       if (responseText) {
         ttsQueue.current.push({ text: responseText });
         processTTSQueue();
@@ -570,88 +526,26 @@ export const useHipRaiseCamera = ({
               if (results.poseLandmarks) {
                 const landmarks = results.poseLandmarks;
 
-                // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
-                const requiredLandmarks = [
-                  11, // LEFT_SHOULDER
-                  12, // RIGHT_SHOULDER
-                  25, // LEFT_KNEE
-                  26, // RIGHT_KNEE
-                ];
+                // // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
+                // const requiredLandmarks = [
+                //   11, // LEFT_SHOULDER
+                //   12, // RIGHT_SHOULDER
+                //   25, // LEFT_KNEE
+                //   26, // RIGHT_KNEE
+                // ];
 
-                // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
-                const valid = requiredLandmarks.every(
-                  idx => landmarks[idx] && landmarks[idx].visibility > 0.8
-                );
-                setLandmarksValid(valid);
+                // // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
+                // const valid = requiredLandmarks.every(
+                //   idx => landmarks[idx] && landmarks[idx].visibility > 0.8
+                // );
+                // setLandmarksValid(valid);
 
-                // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
-                if (!valid) {
-                  drawPositionGuide(canvasCtx);
-                  canvasCtx.restore();
-                  return;
-                }
-
-                // Get coordinates
-                const leftShoulder = landmarks[11];
-                const rightShoulder = landmarks[12];
-                const leftElbow = landmarks[13];
-                const rightElbow = landmarks[14];
-                const leftWrist = landmarks[15];
-                const rightWrist = landmarks[16];
-
-                // Get lower body landmark positions
-                const leftAnkle = landmarks[27];  // LEFT_ANKLE
-                const rightAnkle = landmarks[28]; // RIGHT_ANKLE
-                const leftHip = landmarks[23];    // LEFT_HIP
-                const rightHip = landmarks[24];   // RIGHT_HIP
-                const leftKnee = landmarks[25];   // LEFT_KNEE
-                const rightKnee = landmarks[26];  // RIGHT_KNEE
-
-                // คำนวณระยะทาง (normalized coordinates)
-                const shoulderWristDistanceLeft = Math.abs(leftShoulder.x - leftWrist.x);
-                const shoulderWristDistanceRight = Math.abs(rightShoulder.x - rightWrist.x);
-                const elbowDistanceLR = Math.abs(leftElbow.x - rightElbow.x);
-                const wristDistanceLR = Math.abs(leftWrist.x - rightWrist.x);
-                const leftHandDist = Math.abs(leftWrist.x - leftShoulder.x);
-                const rightHandDist = Math.abs(rightWrist.x - rightShoulder.x);
-
-                // คำนวณตัวเลขแบบ normalized สำหรับส่วนล่าง
-                const ankleDistanceNorm = Math.abs(leftAnkle.x - rightAnkle.x);
-                const kneeDistanceNorm = Math.abs(leftKnee.x - rightKnee.x);
-                const hipAnkleDistanceLeft = Math.abs(leftHip.x - leftAnkle.x);
-                const hipAnkleDistanceRight = Math.abs(rightHip.x - rightAnkle.x);
-
-                // บันทึกค่าระยะห่าง
-                setAnkleDistance(ankleDistanceNorm);
-                setKneeDistance(kneeDistanceNorm);
-
-                // ตัดสินว่า stance แบบไหน (ข้อเท้า)
-                let stance = "Normal";
-                if (ankleDistanceNorm > 0.10) {
-                  stance = "Wide";
-                } else if (ankleDistanceNorm < 0.04) {
-                  stance = "Narrow";
-                }
-                setLegStance(stance);
-
-                // คำนวณความต่างของแกน y ระหว่างไหล่
-                const shoulderDiffY = leftShoulder.y - rightShoulder.y;
-                const threshold = 0.03;
-
-                // ตัดสินว่าตัวเอียงด้านไหน
-                let tilt = "Straight";
-                if (shoulderDiffY > threshold) {
-                  tilt = "Leaning Right";
-                } else if (shoulderDiffY < -threshold) {
-                  tilt = "Leaning Left";
-                }
-                setPostureTilt(tilt);
-
-                // กำหนดสถานะตำแหน่งแขน
-                const leftPosition = getArmPositionLeft(leftHandDist);
-                const rightPosition = getArmPositionRight(rightHandDist);
-                setLeftArmPosition(leftPosition);
-                setRightArmPosition(rightPosition);
+                // // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
+                // if (!valid) {
+                //   drawPositionGuide(canvasCtx);
+                //   canvasCtx.restore();
+                //   return;
+                // }
 
                 // Left arm processing
                 const shoulderLeft = landmarks[11];
@@ -672,40 +566,58 @@ export const useHipRaiseCamera = ({
                     radius: 8
                   });
 
-                  // Left arm curl logic with hold timer
+                  // Left side hip-raise logic with cheat detection
                   if (angleLeft < 130) {
+                    // ── DOWN position: บันทึก baseline ──
                     stageLeft.current = "down";
                     isTimingLeft.current = false;
                     holdTimeLeft.current = 0;
+                    setCheatDetectedLeft(false);
+                    // snap baseline เฉพาะตอนนอนราบ (ค่าเสถียร)
+                    baselineHipLeft.current    = { y: hipLeft.y };
+                    baselineShoulderLeft.current = { y: shoulderLeft.y };
                   } else if (angleLeft >= 145 && angleLeft <= 165 && stageLeft.current === "down") {
-                    if (!isTimingLeft.current) {
-                      timerStartLeft.current = Date.now();
-                      isTimingLeft.current = true;
-                    }
+                    // ── UP position: ตรวจสอบ form ก่อนนับ ──
+                    const validForm = isValidHipRaise(
+                      hipLeft, shoulderLeft,
+                      baselineHipLeft.current, baselineShoulderLeft.current
+                    );
 
-                    const currentHoldTime = (Date.now() - timerStartLeft.current) / 1000;
-                    const totalHoldTime = holdTimeLeft.current + currentHoldTime;
-
-                    if (totalHoldTime >= holdTimeRequiredLeft.current) {
-                      stageLeft.current = "up";
-                      setCounterLeft(prev => {
-                        const newCounter = prev + 1;
-                        angleDataLeft.current.push({
-                          counter_left: newCounter,
-                          angle: Math.round(angleLeft * 100) / 100,
-                          timestamp: new Date().toISOString()
-                        });
-
-                        if (onRepComplete) onRepComplete('left', newCounter);
-                        if (newCounter % 3 === 0) {
-                          processGeminiAndTTS(Math.round(angleLeft));
-                        }
-                        return newCounter;
-                      });
+                    if (!validForm) {
+                      // โกง → ไม่นับ, หยุด timer, แสดง warning
+                      setCheatDetectedLeft(true);
                       isTimingLeft.current = false;
                       holdTimeLeft.current = 0;
+                    } else {
+                      setCheatDetectedLeft(false);
 
+                      if (!isTimingLeft.current) {
+                        timerStartLeft.current = Date.now();
+                        isTimingLeft.current = true;
+                      }
 
+                      const currentHoldTime = (Date.now() - timerStartLeft.current) / 1000;
+                      const totalHoldTime = holdTimeLeft.current + currentHoldTime;
+
+                      if (totalHoldTime >= holdTimeRequiredLeft.current) {
+                        stageLeft.current = "up";
+                        setCounterLeft(prev => {
+                          const newCounter = prev + 1;
+                          angleDataLeft.current.push({
+                            counter_left: newCounter,
+                            angle: Math.round(angleLeft * 100) / 100,
+                            timestamp: new Date().toISOString()
+                          });
+
+                          if (onRepComplete) onRepComplete('left', newCounter);
+                          if (newCounter % 3 === 0) {
+                            processGeminiAndTTS(Math.round(angleLeft));
+                          }
+                          return newCounter;
+                        });
+                        isTimingLeft.current = false;
+                        holdTimeLeft.current = 0;
+                      }
                     }
                   } else if ((angleLeft > 130 && angleLeft < 145) || angleLeft < 165) {
                     if (isTimingLeft.current) {
@@ -734,37 +646,54 @@ export const useHipRaiseCamera = ({
                     radius: 8
                   });
 
-                  // Right arm curl logic
+                  // Right side hip-raise logic with cheat detection
                   if (angleRight < 130) {
+                    // ── DOWN position: บันทึก baseline ──
                     stageRight.current = "down";
                     isTimingRight.current = false;
                     holdTimeRight.current = 0;
+                    setCheatDetectedRight(false);
+                    baselineHipRight.current     = { y: hipRight.y };
+                    baselineShoulderRight.current  = { y: shoulderRight.y };
                   } else if (angleRight >= 145 && angleRight <= 165 && stageRight.current === "down") {
-                    if (!isTimingRight.current) {
-                      timerStartRight.current = Date.now();
-                      isTimingRight.current = true;
-                    }
+                    // ── UP position: ตรวจสอบ form ก่อนนับ ──
+                    const validForm = isValidHipRaise(
+                      hipRight, shoulderRight,
+                      baselineHipRight.current, baselineShoulderRight.current
+                    );
 
-                    const currentHoldTime = (Date.now() - timerStartRight.current) / 1000;
-                    const totalHoldTime = holdTimeRight.current + currentHoldTime;
-
-                    if (totalHoldTime >= holdTimeRequiredRight.current) {
-                      stageRight.current = "up";
-                      setCounterRight(prev => {
-                        const newCounter = prev + 1;
-                        angleDataRight.current.push({
-                          counter_right: newCounter,
-                          angle_right: Math.round(angleRight * 100) / 100,
-                          timestamp: new Date().toISOString()
-                        });
-
-                        if (onRepComplete) onRepComplete('right', newCounter);
-
-                        return newCounter;
-                      });
+                    if (!validForm) {
+                      setCheatDetectedRight(true);
                       isTimingRight.current = false;
                       holdTimeRight.current = 0;
+                    } else {
+                      setCheatDetectedRight(false);
 
+                      if (!isTimingRight.current) {
+                        timerStartRight.current = Date.now();
+                        isTimingRight.current = true;
+                      }
+
+                      const currentHoldTime = (Date.now() - timerStartRight.current) / 1000;
+                      const totalHoldTime = holdTimeRight.current + currentHoldTime;
+
+                      if (totalHoldTime >= holdTimeRequiredRight.current) {
+                        stageRight.current = "up";
+                        setCounterRight(prev => {
+                          const newCounter = prev + 1;
+                          angleDataRight.current.push({
+                            counter_right: newCounter,
+                            angle_right: Math.round(angleRight * 100) / 100,
+                            timestamp: new Date().toISOString()
+                          });
+
+                          if (onRepComplete) onRepComplete('right', newCounter);
+
+                          return newCounter;
+                        });
+                        isTimingRight.current = false;
+                        holdTimeRight.current = 0;
+                      }
                     }
                   } else if ((angleRight > 130 && angleRight < 145) || angleRight < 165) {
                     if (isTimingRight.current) {
@@ -850,15 +779,10 @@ export const useHipRaiseCamera = ({
     isSpeaking,
     workoutComplete,
     saveStatus,
+    cheatDetectedLeft,
+    cheatDetectedRight,
     angleDataLeft: angleDataLeft.current,
     angleDataRight: angleDataRight.current,
-    postureTilt,
-    leftArmPosition,
-    rightArmPosition,
-    landmarksValid,
-    legStance,
-    ankleDistance,
-    kneeDistance
   };
 };
 

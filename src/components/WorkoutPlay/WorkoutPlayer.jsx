@@ -28,7 +28,8 @@ function normalizeUrl(p) {
 }
 
 function parseDurationMs(ex) {
-  // 💡 ลบการใช้ duration ออกตามคำสั่งผู้ใช้งาน
+  if (ex.duration && ex.duration > 0) return ex.duration * 1000;
+  if (ex.type === 'time' && ex.value > 0) return ex.value * 1000;
   return 0;
 }
 
@@ -119,8 +120,8 @@ function CameraGuide({ mode = "gate", images = [], onAccept, onClose }) {
       <div className="guide-overlay" role="dialog" aria-modal="true">
         <div className="guide-card">
           <div className="guide-header">
-            <h2 className="guide-title">คำแนะนำในการตั้งกล้อง</h2>
-            <p className="guide-subtitle">เพื่อให้ AI ตรวจจับได้ครบทุกท่ายืนและท่านอน</p>
+            <h2 className="guide-title">คำแนะนำในการตั้งกล้อง (ทำแค่ครั้งเดียว!)</h2>
+            <p className="guide-subtitle">ตั้งกล้องแบบ "ครอบจักรวาล" เพื่อให้ AI ตรวจจับได้ครบทุกท่ายืนและท่านอน</p>
             {mode === "peek" && <button type="button" className="guide-close-btn" onClick={onClose}>×</button>}
           </div>
           <div className="guide-body">
@@ -367,9 +368,12 @@ export default function WorkoutPlayer() {
 
     // 2. ตั้งค่า Duration ตามประเภท
     const cur = exercises[currentExercise];
-    // 💡 ปิดการทำงานแบบจับเวลา (isDuration = false)
-    const isDuration = false;
+    const isDuration = cur?.duration > 0 || cur?.type === 'time';
     let duration = 0;
+    if (isDuration) {
+      if (cur.duration && cur.duration > 0) duration = cur.duration * 1000;
+      else if (cur.type === 'time' && cur.value > 0) duration = cur.value * 1000;
+    }
 
     currentDurationMsRef.current = duration;
     remainingMsRef.current = duration;
@@ -521,8 +525,8 @@ export default function WorkoutPlayer() {
             name: "ภารกิจวันนี้ของคุณ",
             workoutList: res.data.exercises.map(ex => ({
               exercise: ex.exerciseId,
-              reps: ex.reps, // เก็บเฉพาะ reps
-              // duration: ex.time // 🔥 ลบออกตามคำสั่ง
+              reps: ex.reps, // Reps and Time mapping for performance tracking
+              duration: ex.time
             }))
           };
         } else {
@@ -536,10 +540,8 @@ export default function WorkoutPlayer() {
         const list = Array.isArray(resData?.workoutList) ? resData.workoutList : [];
         setExercises(list.map((it) => {
           const exObj = it?.exercise && typeof it.exercise === "object" ? it.exercise : it;
-          // 🔥 กรองข้อมูล duration ออกเพื่อให้ไม่มีผลต่อการจับเวลา
-          const { duration, ...itemWithoutDuration } = it; 
           return {
-            ...itemWithoutDuration,
+            ...it,
             imageUrl: normalizeUrl(exObj?.media?.imageUrl || exObj?.imageUrl || exObj?.image || it?.imageUrl || it?.image),
             video: normalizeUrl(exObj?.media?.videoUrl || exObj?.videoUrl || exObj?.video || it?.videoUrl || it?.video),
             met: it?.met || exObj?.met || { base: 5.0 }
@@ -937,9 +939,12 @@ export default function WorkoutPlayer() {
   const startWorkoutTimersForCurrent = () => {
     const cur = exercises[currentExercise]; if (!cur) return;
 
-    // 💡 ปิดการทำงานแบบจับเวลา
-    const isDuration = false;
+    const isDuration = cur?.duration > 0 || cur?.type === 'time';
     let durationMs = 0;
+    if (isDuration) {
+      if (cur.duration && cur.duration > 0) durationMs = cur.duration * 1000;
+      else if (cur.type === 'time' && cur.value > 0) durationMs = cur.value * 1000;
+    }
 
     currentDurationMsRef.current = durationMs;
     remainingMsRef.current = durationMs;
@@ -1169,15 +1174,6 @@ export default function WorkoutPlayer() {
   };
 
   const endRest = () => {
-    // ✅ คำนวณเวลาพักที่ใช้จริงเพื่อนำไปคิดแคลอรี่
-    const performedRestMs = restTotalMsRef.current - restRemainingMsRef.current;
-    const performedRestSec = Math.floor(performedRestMs / 1000);
-    
-    if (performedRestSec > 0) {
-      setAccumulatedSeconds(prev => prev + performedRestSec);
-      console.log(`⏱️ Added Rest Time: ${performedRestSec}s to accumulated duration`);
-    }
-
     resetRestTimers();
     setIsResting(false);
     setIsPaused(false);
@@ -1421,13 +1417,12 @@ export default function WorkoutPlayer() {
               ) : null}
             </h2>
             <div className="wp-exercise-stats">
-              {/* 💡 ซ่อนตัวจับเวลาออกตามคำสั่ง */}
-              {/* {(current?.duration > 0 || current?.type === 'time') && currentDurationMsRef.current > 0 && (
+              {(current?.duration > 0 || current?.type === 'time') && currentDurationMsRef.current > 0 && (
                 <CountdownWheel
                   timeRemaining={timeRemaining}
                   totalDuration={current?.duration || Math.ceil(currentDurationMsRef.current / 1000)}
                 />
-              )} */}
+              )}
             </div>
 
           </div>
@@ -1469,7 +1464,7 @@ export default function WorkoutPlayer() {
                   onRepComplete={handleRepComplete}
                   onSetComplete={handleSetComplete}
                   //อันนี้พึ่งเพิ่ม
-                  targetTimePerSet={current.duration}
+                  targetTimePerSet={current?.duration}
                   onWorkoutComplete={onWorkoutEnded}
                 />
               </div>

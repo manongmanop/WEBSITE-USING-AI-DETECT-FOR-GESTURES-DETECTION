@@ -93,8 +93,7 @@ export const useSquatCamera = ({
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const instructions = "Voice: High-energy, upbeat, and encouraging, projecting enthusiasm and motivation.\n\nPunctuation: Short, punchy sentences with strategic pauses to maintain excitement and clarity.\n\nDelivery: Fast-paced and dynamic, with rising intonation to build momentum and keep engagement high.\n\nPhrasing: Action-oriented and direct, using motivational cues to push participants forward.\n\nTone: Positive, energetic, and empowering, creating an atmosphere of encouragement and achievement.";
@@ -211,39 +210,43 @@ export const useSquatCamera = ({
     }
   };
 
-  // Gemini API call gemini-2.5-flash ใช้ตัวนี้แทนตอนนำเสนอ
-  const callGeminiAPI = async (angle) => {
+  // OpenAI Chat Completions API call (replaces Gemini)
+  const callOpenAIAPI = async (angle) => {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+      const userMessage = { role: "user", content: Math.round(angle).toString() };
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          contents: [
+          model: 'gpt-4o-mini',
+          temperature: 0.8,
+          max_tokens: 256,
+          messages: [
+            { role: "system", content: instructions },
             ...chatHistory.current,
-            { role: "user", parts: [{ text: Math.round(angle).toString() }] }
-          ],
-          generationConfig: {
-            temperature: 0.8,
-            topP: 0.8,
-            topK: 40,
-            maxOutputTokens: 8192,
-          }
+            userMessage
+          ]
         })
       });
 
-      if (!response.ok) throw new Error('Gemini API request failed');
+      if (!response.ok) throw new Error(`OpenAI API request failed: ${response.status}`);
 
       const data = await response.json();
-      const responseText = data.candidates[0].content.parts[0].text;
-      console.log("Gemini response text:", responseText)
+      const responseText = data.choices[0].message.content;
+
+      // อัปเดต chatHistory ใน OpenAI format (role: "user" / "assistant")
       chatHistory.current.push(
-        { role: "user", parts: [{ text: Math.round(angle).toString() }] },
-        { role: "model", parts: [{ text: responseText }] }
+        userMessage,
+        { role: "assistant", content: responseText }
       );
 
       return responseText;
     } catch (error) {
-      console.error('Gemini API Error:', error);
+      console.error('OpenAI API Error:', error);
       return null;
     }
   };
@@ -305,16 +308,16 @@ export const useSquatCamera = ({
     setIsSpeaking(false);
   };
 
-  // Process angle with Gemini and TTS
+  // Process angle with OpenAI and TTS
   const processGeminiAndTTS = async (angle) => {
     try {
-      const responseText = await callGeminiAPI(angle);
+      const responseText = await callOpenAIAPI(angle);
       if (responseText) {
         ttsQueue.current.push({ text: responseText });
         processTTSQueue();
       }
     } catch (error) {
-      console.error('Error in Gemini or TTS:', error);
+      console.error('Error in OpenAI or TTS:', error);
     }
   };
 

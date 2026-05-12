@@ -63,6 +63,11 @@ export const useLegRaiseCamera = ({
   const [legStance, setLegStance] = useState('Normal');
   const [ankleDistance, setAnkleDistance] = useState(0);
   const [kneeDistance, setKneeDistance] = useState(0);
+
+  // ── Form validation state ─────────────────────────────────────────────────
+  // 'ok' | 'torso_lift' | 'bent_knee'
+  const [formError, setFormError] = useState('ok');
+
   // const soundPlayer = useRef(createSoundPlayer());
   // // Previous state refs for change-based sound triggers
   // const prevTilt = useRef('Straight');
@@ -88,13 +93,24 @@ export const useLegRaiseCamera = ({
   const angleDataRight = useRef([]);
   const angleDataLeft = useRef([]);
 
+  // ── Form-validation refs ──────────────────────────────────────────────────
+  // Shoulder Y recorded at the "down" (rest) position for each side
+  const shoulderBaselineYLeft  = useRef(null);
+  const shoulderBaselineYRight = useRef(null);
+  // How much the shoulder is allowed to drift (normalized 0-1 coords)
+  // ~7 % of frame height — enough to ignore jitter but catches sit-up motion
+  const SHOULDER_DRIFT_THRESHOLD = 0.07;
+  // Knee must stay close to straight — anything below this = bent-knee cheat
+  const KNEE_STRAIGHT_MIN = 150; // degrees
+  // Ref for drawing error banner on canvas (avoids stale closure)
+  const formErrorRef = useRef('ok');
+
   // Camera and Pose refs
   const cameraRef = useRef(null);
   const poseRef = useRef(null);
 
   // TTS and AI refs
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  // const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
   const ttsQueue = useRef([]);
   const isProcessingTTS = useRef(false);
   const instructions = "Voice: High-energy, upbeat, and encouraging, projecting enthusiasm and motivation.\n\nPunctuation: Short, punchy sentences with strategic pauses to maintain excitement and clarity.\n\nDelivery: Fast-paced and dynamic, with rising intonation to build momentum and keep engagement high.\n\nPhrasing: Action-oriented and direct, using motivational cues to push participants forward.\n\nTone: Positive, energetic, and empowering, creating an atmosphere of encouragement and achievement.";
@@ -211,39 +227,43 @@ export const useLegRaiseCamera = ({
     }
   };
 
-  // Gemini API call gemini-2.5-flash ใช้ตัวนี้แทนตอนนำเสนอ
-  const callGeminiAPI = async (angle) => {
+  // OpenAI Chat Completions API call (replaces Gemini)
+  const callOpenAIAPI = async (angle) => {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+      const userMessage = { role: "user", content: Math.round(angle).toString() };
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          contents: [
+          model: 'gpt-4o-mini',
+          temperature: 0.8,
+          max_tokens: 256,
+          messages: [
+            { role: "system", content: instructions },
             ...chatHistory.current,
-            { role: "user", parts: [{ text: Math.round(angle).toString() }] }
-          ],
-          generationConfig: {
-            temperature: 0.8,
-            topP: 0.8,
-            topK: 40,
-            maxOutputTokens: 8192,
-          }
+            userMessage
+          ]
         })
       });
 
-      if (!response.ok) throw new Error('Gemini API request failed');
+      if (!response.ok) throw new Error(`OpenAI API request failed: ${response.status}`);
 
       const data = await response.json();
-      const responseText = data.candidates[0].content.parts[0].text;
-      console.log("Gemini response text:", responseText)
+      const responseText = data.choices[0].message.content;
+
+      // อัปเดต chatHistory ใน OpenAI format (role: "user" / "assistant")
       chatHistory.current.push(
-        { role: "user", parts: [{ text: Math.round(angle).toString() }] },
-        { role: "model", parts: [{ text: responseText }] }
+        userMessage,
+        { role: "assistant", content: responseText }
       );
 
       return responseText;
     } catch (error) {
-      console.error('Gemini API Error:', error);
+      console.error('OpenAI API Error:', error);
       return null;
     }
   };
@@ -308,7 +328,7 @@ export const useLegRaiseCamera = ({
   // Process angle with Gemini and TTS
   const processGeminiAndTTS = async (angle) => {
     try {
-      const responseText = await callGeminiAPI(angle);
+      const responseText = await callOpenAIAPI(angle);
       if (responseText) {
         ttsQueue.current.push({ text: responseText });
         processTTSQueue();
@@ -524,6 +544,28 @@ export const useLegRaiseCamera = ({
       ctx.restore();
     };
 
+    // ── Form-error banner drawn on canvas (unflipped layer) ─────────────
+    const drawFormErrorBanner = (ctx, errorKey) => {
+      if (errorKey === 'ok') return;
+      const w = ctx.canvas.width;
+      const h = ctx.canvas.height;
+      const msg = errorKey === 'torso_lift'
+        ? '⚠ อย่ายกลำตัว! วางหลังราบกับพื้น'
+        : '⚠ เหยียดขาให้ตรง! อย่างอเข่า';
+
+      // Semi-transparent red banner at top
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // reset mirror flip for text
+      ctx.fillStyle = 'rgba(220, 0, 0, 0.75)';
+      ctx.fillRect(0, 0, w, h * 0.1);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(w * 0.042)}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(msg, w / 2, h * 0.05);
+      ctx.restore();
+    };
+
     const initCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -570,26 +612,26 @@ export const useLegRaiseCamera = ({
               if (results.poseLandmarks) {
                 const landmarks = results.poseLandmarks;
 
-                // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
-                const requiredLandmarks = [
-                  11, // LEFT_SHOULDER
-                  12, // RIGHT_SHOULDER
-                  27, // LEFT_ANKLE
-                  28, // RIGHT_ANKLE
-                ];
+                // // ตรวจสอบความพร้อมของจุดสำคัญ 4 จุด
+                // const requiredLandmarks = [
+                //   11, // LEFT_SHOULDER
+                //   12, // RIGHT_SHOULDER
+                //   27, // LEFT_ANKLE
+                //   28, // RIGHT_ANKLE
+                // ];
 
-                // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
-                const valid = requiredLandmarks.every(
-                  idx => landmarks[idx] && landmarks[idx].visibility > 0.8
-                );
-                setLandmarksValid(valid);
+                // // ตรวจสอบว่าแต่ละจุดมี visibility สูงพอ (> 0.8)
+                // const valid = requiredLandmarks.every(
+                //   idx => landmarks[idx] && landmarks[idx].visibility > 0.8
+                // );
+                // setLandmarksValid(valid);
 
-                // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
-                if (!valid) {
-                  drawPositionGuide(canvasCtx);
-                  canvasCtx.restore();
-                  return;
-                }
+                // // ถ้า landmarks ไม่ valid ให้ข้ามการประมวลผล
+                // if (!valid) {
+                //   drawPositionGuide(canvasCtx);
+                //   canvasCtx.restore();
+                //   return;
+                // }
 
                 // Get coordinates
                 const leftShoulder = landmarks[11];
@@ -656,11 +698,26 @@ export const useLegRaiseCamera = ({
                 // Left arm processing
                 const shoulderLeft = landmarks[11];
                 const hipLeft = landmarks[23];
+                const kneeLeft  = landmarks[25]; // ← added for knee-angle check
                 const ankleLeft = landmarks[27];
 
-                if (shoulderLeft && hipLeft && ankleLeft) {
+                if (shoulderLeft && hipLeft && kneeLeft && ankleLeft) {
                   const angleLeft = calculateAngle(shoulderLeft, hipLeft, ankleLeft);
-                  const colorLeft = getColorForAngle(angleLeft);
+                  // ── form validation ──────────────────────────────────────
+                  const kneeAngleLeft = calculateAngle(hipLeft, kneeLeft, ankleLeft);
+                  const isCheatingKneeLeft = kneeAngleLeft < KNEE_STRAIGHT_MIN;
+                  const shoulderDriftLeft =
+                    shoulderBaselineYLeft.current !== null
+                      ? Math.abs(shoulderLeft.y - shoulderBaselineYLeft.current)
+                      : 0;
+                  const isCheatingTorsoLeft = shoulderDriftLeft > SHOULDER_DRIFT_THRESHOLD;
+                  const formOkLeft = !isCheatingKneeLeft && !isCheatingTorsoLeft;
+                  // ────────────────────────────────────────────────────────
+
+                  // Pick colour: red=cheat, green=good range, yellow=transition
+                  const colorLeft = !formOkLeft
+                    ? '#FF4444'           // bright red  → bad form
+                    : getColorForAngle(angleLeft);
 
                   drawArmConnections(canvasCtx, [shoulderLeft, hipLeft, ankleLeft], {
                     color: colorLeft,
@@ -672,11 +729,13 @@ export const useLegRaiseCamera = ({
                     radius: 8
                   });
 
-                  // Left arm curl logic with hold timer
+                  // Left leg-raise logic with hold timer + form gate
                   if (angleLeft > 160) {
                     stageLeft.current = "down";
                     isTimingLeft.current = false;
                     holdTimeLeft.current = 0;
+                    // ── record baseline shoulder Y when truly at rest ──────
+                    shoulderBaselineYLeft.current = shoulderLeft.y;
                   } else if (angleLeft >= 90 && angleLeft <= 120 && stageLeft.current === "down") {
                     if (!isTimingLeft.current) {
                       timerStartLeft.current = Date.now();
@@ -687,24 +746,30 @@ export const useLegRaiseCamera = ({
                     const totalHoldTime = holdTimeLeft.current + currentHoldTime;
 
                     if (totalHoldTime >= holdTimeRequiredLeft.current) {
-                      stageLeft.current = "up";
-                      setCounterLeft(prev => {
-                        const newCounter = prev + 1;
-                        angleDataLeft.current.push({
-                          counter_left: newCounter,
-                          angle: Math.round(angleLeft * 100) / 100,
-                          timestamp: new Date().toISOString()
-                        });
+                      // ── only advance stage & count if form is correct ───
+                      if (formOkLeft) {
+                        stageLeft.current = "up";
+                        setFormError('ok'); formErrorRef.current = 'ok';
+                        setCounterLeft(prev => {
+                          const newCounter = prev + 1;
+                          angleDataLeft.current.push({
+                            counter_left: newCounter,
+                            angle: Math.round(angleLeft * 100) / 100,
+                            timestamp: new Date().toISOString()
+                          });
 
-                        if (onRepComplete) onRepComplete('left', newCounter);
-                        if (newCounter % 3 === 0) {
-                          processGeminiAndTTS(Math.round(angleLeft));
-                        }
-                        return newCounter;
-                      });
+                          if (onRepComplete) onRepComplete('left', newCounter);
+                          if (newCounter % 3 === 0) {
+                            processGeminiAndTTS(Math.round(angleLeft));
+                          }
+                          return newCounter;
+                        });
+                      } else {
+                        // flag which cheat is happening (torso wins over knee)
+                        setFormError(isCheatingTorsoLeft ? 'torso_lift' : 'bent_knee'); formErrorRef.current = isCheatingTorsoLeft ? 'torso_lift' : 'bent_knee';
+                      }
                       isTimingLeft.current = false;
                       holdTimeLeft.current = 0;
-
                     }
                   } else if ((angleLeft > 120 && angleLeft < 160) || angleLeft < 90) {
                     if (isTimingLeft.current) {
@@ -717,11 +782,25 @@ export const useLegRaiseCamera = ({
                 // Right arm processing
                 const shoulderRight = landmarks[12];
                 const hipRight = landmarks[24];
+                const kneeRight  = landmarks[26]; // ← added for knee-angle check
                 const ankleRight = landmarks[28];
 
-                if (shoulderRight && hipRight && ankleRight) {
+                if (shoulderRight && hipRight && kneeRight && ankleRight) {
                   const angleRight = calculateAngle(shoulderRight, hipRight, ankleRight);
-                  const colorRight = getColorForAngle(angleRight);
+                  // ── form validation ──────────────────────────────────────
+                  const kneeAngleRight = calculateAngle(hipRight, kneeRight, ankleRight);
+                  const isCheatingKneeRight = kneeAngleRight < KNEE_STRAIGHT_MIN;
+                  const shoulderDriftRight =
+                    shoulderBaselineYRight.current !== null
+                      ? Math.abs(shoulderRight.y - shoulderBaselineYRight.current)
+                      : 0;
+                  const isCheatingTorsoRight = shoulderDriftRight > SHOULDER_DRIFT_THRESHOLD;
+                  const formOkRight = !isCheatingKneeRight && !isCheatingTorsoRight;
+                  // ────────────────────────────────────────────────────────
+
+                  const colorRight = !formOkRight
+                    ? '#FF4444'
+                    : getColorForAngle(angleRight);
 
                   drawArmConnections(canvasCtx, [shoulderRight, hipRight, ankleRight], {
                     color: colorRight,
@@ -733,11 +812,13 @@ export const useLegRaiseCamera = ({
                     radius: 8
                   });
 
-                  // Right arm curl logic
+                  // Right leg-raise logic with hold timer + form gate
                   if (angleRight > 160) {
                     stageRight.current = "down";
                     isTimingRight.current = false;
                     holdTimeRight.current = 0;
+                    // ── record baseline shoulder Y when truly at rest ──────
+                    shoulderBaselineYRight.current = shoulderRight.y;
                   } else if (angleRight >= 90 && angleRight <= 120 && stageRight.current === "down") {
                     if (!isTimingRight.current) {
                       timerStartRight.current = Date.now();
@@ -748,23 +829,30 @@ export const useLegRaiseCamera = ({
                     const totalHoldTime = holdTimeRight.current + currentHoldTime;
 
                     if (totalHoldTime >= holdTimeRequiredRight.current) {
-                      stageRight.current = "up";
-                      setCounterRight(prev => {
-                        const newCounter = prev + 1;
-                        angleDataRight.current.push({
-                          counter_right: newCounter,
-                          angle_right: Math.round(angleRight * 100) / 100,
-                          timestamp: new Date().toISOString()
+                      // ── only advance stage & count if form is correct ───
+                      if (formOkRight) {
+                        stageRight.current = "up";
+                        setFormError('ok'); formErrorRef.current = 'ok';
+                        setCounterRight(prev => {
+                          const newCounter = prev + 1;
+                          angleDataRight.current.push({
+                            counter_right: newCounter,
+                            angle_right: Math.round(angleRight * 100) / 100,
+                            timestamp: new Date().toISOString()
+                          });
+
+                          if (onRepComplete) onRepComplete('right', newCounter);
+
+                          if (newCounter % 3 === 0) {
+                            processGeminiAndTTS(Math.round(angleRight));
+                          }
+                          return newCounter;
                         });
-
-                        if (onRepComplete) onRepComplete('right', newCounter);
-
-                        return newCounter;
-                      });
+                      } else {
+                        setFormError(isCheatingTorsoRight ? 'torso_lift' : 'bent_knee'); formErrorRef.current = isCheatingTorsoRight ? 'torso_lift' : 'bent_knee';
+                      }
                       isTimingRight.current = false;
                       holdTimeRight.current = 0;
-
-                      // processGeminiAndTTS(Math.round(angleRight));
                     }
                   } else if ((angleRight > 120 && angleRight < 160) || angleRight < 90) {
                     if (isTimingRight.current) {
@@ -774,6 +862,9 @@ export const useLegRaiseCamera = ({
                   }
                 }
               }
+              // ── Form-error overlay banner ─────────────────────────────
+              drawFormErrorBanner(canvasCtx, formErrorRef.current);
+
               canvasCtx.restore();
             };
 
@@ -858,7 +949,8 @@ export const useLegRaiseCamera = ({
     landmarksValid,
     legStance,
     ankleDistance,
-    kneeDistance
+    kneeDistance,
+    formError,         // 'ok' | 'torso_lift' | 'bent_knee'
   };
 };
 
