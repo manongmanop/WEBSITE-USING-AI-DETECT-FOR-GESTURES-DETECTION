@@ -2228,6 +2228,7 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
         const ProgramFeedback = mongoose.model("ProgramFeedback");
         await ProgramFeedback.deleteMany({ programId: id });
       } catch (cleanErr) {
+        console.error("Failed to clear feedback history:", cleanErr);
       }
     }
 
