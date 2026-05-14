@@ -1394,8 +1394,8 @@ app.put('/api/exercises/:id', upload.fields([
     };
 
     // Prepare media object fallback by creating a fresh object to prevent Mongoose reference caching
-    updateData.media = { 
-      imageUrl: existing.media?.imageUrl || existing.imageUrl || existing.image, 
+    updateData.media = {
+      imageUrl: existing.media?.imageUrl || existing.imageUrl || existing.image,
       videoUrl: existing.media?.videoUrl || existing.videoUrl || existing.video,
       audioUrl: existing.media?.audioUrl || existing.audioUrl || null
     };
@@ -1442,7 +1442,7 @@ app.put('/api/exercises/:id', upload.fields([
 
     console.log("[Admin-Edit] Final updateData object:", JSON.stringify(updateData, null, 2));
     const exercise = await Exercise.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    
+
     if (exercise) {
       console.log("[Admin-Edit] DB update successful. New videoUrl in DB:", exercise.videoUrl);
     } else {
@@ -2126,7 +2126,7 @@ const WorkoutPlan = mongoose.model('WorkoutPlan', workoutPlanSchema);
 // ================== Adaptive Difficulty Logic ==================
 function adjustDifficulty(program) {
   // รองรับทั้ง schema เดิมและที่ให้มาใหม่
-  const stats = program.DataFeedback || program.feedbackStats || { easy:0, medium:0, hard:0 };
+  const stats = program.DataFeedback || program.feedbackStats || { easy: 0, medium: 0, hard: 0 };
   const { easy, medium, hard } = stats;
   const total = (easy || 0) + (medium || 0) + (hard || 0);
 
@@ -2158,20 +2158,19 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
     }
 
     // 💡 ป้องกันสแปม: 1 คนโหวตแต่ละระดับความยาก (easy, medium, hard) ได้ระดับละ 1 ครั้งต่อโปรแกรม
-    if (uid) {
-      const ProgramFeedback = mongoose.model("ProgramFeedback");
-      // เช็กว่าเคยโหวต "เลเวลนี้" ให้โปรแกรมนี้ไปหรือยัง (เปลี่ยนใจไปโหวตเลเวลอื่นได้)
-      const existingFeedback = await ProgramFeedback.findOne({ uid, programId: id, level });
-      
-      if (existingFeedback) {
-        console.log(`⚠️ Spam prevented: User ${uid} already gave '${level}' feedback to program ${id}`);
-        // ถือว่าสำเร็จแต่ไม่เอาไปบวกเพิ่ม (Idempotent) เพื่อไม่ให้ Frontend พัง
-        return res.json({ ok: true, msg: "Already submitted this feedback level", ignored: true });
-      }
-      
-      // บันทึกไว้ว่าคนนี้โหวตโปรแกรมนี้ไปแล้ว
-      await ProgramFeedback.create({ uid, programId: id, level });
-    }
+    // if (uid) {
+    //   const ProgramFeedback = mongoose.model("ProgramFeedback");
+    //   // เช็กว่าเคยโหวต "เลเวลนี้" ให้โปรแกรมนี้ไปหรือยัง (เปลี่ยนใจไปโหวตเลเวลอื่นได้)
+    //   const existingFeedback = await ProgramFeedback.findOne({ uid, programId: id, level });
+    //   // if (existingFeedback) {
+    //   //   console.log(`⚠️ Spam prevented: User ${uid} already gave '${level}' feedback to program ${id}`);
+    //   //   // ถือว่าสำเร็จแต่ไม่เอาไปบวกเพิ่ม (Idempotent) เพื่อไม่ให้ Frontend พัง
+    //   //   return res.json({ ok: true, msg: "Already submitted this feedback level" });
+    //   // }
+
+    //   // บันทึกไว้ว่าคนนี้โหวตโปรแกรมนี้ไปแล้ว
+    //   await ProgramFeedback.create({ uid, programId: id, level });
+    // }
 
     const incField = `DataFeedback.${level}`;
     let updated = await WorkoutProgram.findByIdAndUpdate(
@@ -2185,44 +2184,44 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
     // ✅ Adaptive Logic Trigger
     const newDifficulty = adjustDifficulty(updated);
     if (newDifficulty !== (updated.difficultyLevel || 1)) {
-       const oldDiff = updated.difficultyLevel || 1;
-       const isLevelUp = newDifficulty > oldDiff;
-       console.log(`🚀 Program ${id} difficulty automatically adjusted: ${oldDiff} -> ${newDifficulty}`);
+      const oldDiff = updated.difficultyLevel || 1;
+      const isLevelUp = newDifficulty > oldDiff;
+      console.log(`🚀 Program ${id} difficulty automatically adjusted: ${oldDiff} -> ${newDifficulty}`);
 
-       // ปรับแก้ reps / duration อัตโนมัติ
-       const newWorkoutList = updated.workoutList.map(item => {
-           // แปลงให้อยู่ในรูป Object ธรรมดาเพื่อเซฟกลับ
-           const obj = item.toObject ? item.toObject() : item;
-           let r = obj.reps || 0;
-           let d = obj.duration || 0;
-           let m = obj.met || 0;
-           
-           if (isLevelUp) {
-               if (r > 0) r += 3;
-               if (d > 0) d += 10;
-               if (m > 0) m = Number((m + 0.5).toFixed(1)); // อัปเลเวลเพิ่ม MET 0.5
-           } else {
-               if (r > 0) r = Math.max(1, r - 2); // จำนวนครั้งห้ามต่ำกว่า 1
-               if (d > 0) d = Math.max(5, d - 5); // เวลาห้ามต่ำกว่า 5 วินาที
-               if (m > 0) m = Math.max(1.0, Number((m - 0.5).toFixed(1))); // ลด MET 0.5 ต่ำสุดคือ 1.0
-           }
-           
-           return { ...obj, reps: r, duration: d, met: m };
-       });
+      // ปรับแก้ reps / duration อัตโนมัติ
+      const newWorkoutList = updated.workoutList.map(item => {
+        // แปลงให้อยู่ในรูป Object ธรรมดาเพื่อเซฟกลับ
+        const obj = item.toObject ? item.toObject() : item;
+        let r = obj.reps || 0;
+        let d = obj.duration || 0;
+        let m = obj.met || 0;
 
-       updated = await WorkoutProgram.findByIdAndUpdate(id, {
-         $set: { 
-           difficultyLevel: newDifficulty,
-           workoutList: newWorkoutList
-         },
-         $push: {
-           adaptiveHistory: {
-             date: new Date(),
-             difficultyLevel: newDifficulty,
-             reason: `Feedback triggered adjustment (Level ${oldDiff} -> ${newDifficulty})`
-           }
-         }
-       }, { new: true });
+        if (isLevelUp) {
+          if (r > 0) r += 3;
+          if (d > 0) d += 10;
+          if (m > 0) m = Number((m + 0.5).toFixed(1)); // อัปเลเวลเพิ่ม MET 0.5
+        } else {
+          if (r > 0) r = Math.max(1, r - 2); // จำนวนครั้งห้ามต่ำกว่า 1
+          if (d > 0) d = Math.max(5, d - 5); // เวลาห้ามต่ำกว่า 5 วินาที
+          if (m > 0) m = Math.max(1.0, Number((m - 0.5).toFixed(1))); // ลด MET 0.5 ต่ำสุดคือ 1.0
+        }
+
+        return { ...obj, reps: r, duration: d, met: m };
+      });
+
+      updated = await WorkoutProgram.findByIdAndUpdate(id, {
+        $set: {
+          difficultyLevel: newDifficulty,
+          workoutList: newWorkoutList
+        },
+        $push: {
+          adaptiveHistory: {
+            date: new Date(),
+            difficultyLevel: newDifficulty,
+            reason: `Feedback triggered adjustment (Level ${oldDiff} -> ${newDifficulty})`
+          }
+        }
+      }, { new: true });
     }
 
     console.log("✅ Feedback Updated:", updated.DataFeedback);
@@ -2753,7 +2752,7 @@ app.patch("/api/workout_sessions/:id/finish", async (req, res) => {
 
     // สูตร: calories = (MET * 3.5 * weight) / 200 * durationMinutes
     const restCalories = (1.5 * 3.5 * weight) / 200 * (restSeconds / 60);
-    
+
     totals.calories = Math.ceil(totals.activeCalories + restCalories);
     totals.restSeconds = Math.round(restSeconds);
 
@@ -2865,7 +2864,7 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
     if (totalSecs > 0) {
       const userDoc = await User.findOne({ uid }).lean();
       const weight = userDoc?.weight || 70; // น้ำหนักตั้งต้นถ้าไม่มีข้อมูลผู้ใช้
-      
+
       let metValue = 5.0; // ตั้งต้นค่า MET เฉลี่ย
 
       if (!isDailyPlan && latest.programId) {
@@ -2876,14 +2875,14 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
           if (prog && prog.workoutList && prog.workoutList.length > 0) {
             const metSum = prog.workoutList.reduce((sum, item) => {
               if (item.exercise && item.exercise.met && item.exercise.met.base) {
-                 return sum + item.exercise.met.base;
+                return sum + item.exercise.met.base;
               }
               return sum + 5.0; // default 5.0 per exercise if unknown
             }, 0);
             metValue = metSum / prog.workoutList.length;
           }
-        } catch(e) {
-           console.log("Could not load program to calculate exact MET, using default MET:", e.message);
+        } catch (e) {
+          console.log("Could not load program to calculate exact MET, using default MET:", e.message);
         }
       }
 
@@ -2891,7 +2890,7 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
       activeCalories = calculateCalories(weight, metValue, totalSecs);
 
       // (Optional) บันทึกกลับลงฐานข้อมูลเพื่อให้ตรงกัน ถ้ายอดต่างกันมากๆ ค่อยเซฟ
-      if (Math.abs((latest.caloriesBurned||0) - activeCalories) > 1) {
+      if (Math.abs((latest.caloriesBurned || 0) - activeCalories) > 1) {
         const ModelToUpdate = (latest._id === dailyLatest?._id) ? mongoose.model("DailyHistory") : mongoose.model("History");
         await ModelToUpdate.findByIdAndUpdate(latest._id, { caloriesBurned: activeCalories });
       }
@@ -2903,11 +2902,11 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
       try {
         const sessionDoc = await mongoose.model("WorkoutSession").findById(latest.sessionId).lean();
         if (sessionDoc) {
-           if (sessionDoc.logs && sessionDoc.logs.length > 0) {
-             exerciseList = sessionDoc.logs.map(l => ({ name: l.name, status: l.status || "completed" }));
-           } else if (sessionDoc.snapshot && sessionDoc.snapshot.exercises) {
-             exerciseList = sessionDoc.snapshot.exercises.map(ex => ({ name: ex.name, status: "pending" }));
-           }
+          if (sessionDoc.logs && sessionDoc.logs.length > 0) {
+            exerciseList = sessionDoc.logs.map(l => ({ name: l.name, status: l.status || "completed" }));
+          } else if (sessionDoc.snapshot && sessionDoc.snapshot.exercises) {
+            exerciseList = sessionDoc.snapshot.exercises.map(ex => ({ name: ex.name, status: "pending" }));
+          }
         }
       } catch (sessErr) {
         console.error("Error fetching session for summary:", sessErr);
@@ -2920,14 +2919,14 @@ app.get("/api/__summary_internal/program/:uid", async (req, res) => {
       historyId: latest._id,
       programName: latest.programName || (isDailyPlan ? "ภารกิจรายวัน" : "โปรแกรมออกกำลังกาย"),
       totalExercises: latest.totalExercises || 0,
-      doneExercises: latest.totalExercises || 0, 
+      doneExercises: latest.totalExercises || 0,
       exercises: exerciseList, // ✅ ส่งรายชื่อท่ากลับไปด้วย
       totals: {
         seconds: totalSecs,
         calories: activeCalories
       },
       finishedAt: latest.finishedAt,
-      isDailyPlan 
+      isDailyPlan
     });
   } catch (e) {
     console.error("❌ Summary API Error:", e);
