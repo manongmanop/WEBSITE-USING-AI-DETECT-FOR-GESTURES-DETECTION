@@ -2158,19 +2158,19 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
     }
 
     // 💡 ป้องกันสแปม: 1 คนโหวตแต่ละระดับความยาก (easy, medium, hard) ได้ระดับละ 1 ครั้งต่อโปรแกรม
-    // if (uid) {
-    //   const ProgramFeedback = mongoose.model("ProgramFeedback");
-    //   // เช็กว่าเคยโหวต "เลเวลนี้" ให้โปรแกรมนี้ไปหรือยัง (เปลี่ยนใจไปโหวตเลเวลอื่นได้)
-    //   const existingFeedback = await ProgramFeedback.findOne({ uid, programId: id, level });
-    //   // if (existingFeedback) {
-    //   //   console.log(`⚠️ Spam prevented: User ${uid} already gave '${level}' feedback to program ${id}`);
-    //   //   // ถือว่าสำเร็จแต่ไม่เอาไปบวกเพิ่ม (Idempotent) เพื่อไม่ให้ Frontend พัง
-    //   //   return res.json({ ok: true, msg: "Already submitted this feedback level" });
-    //   // }
+    if (uid) {
+      const ProgramFeedback = mongoose.model("ProgramFeedback");
+      // เช็กว่าเคยโหวต "เลเวลนี้" ให้โปรแกรมนี้ไปหรือยัง (เปลี่ยนใจไปโหวตเลเวลอื่นได้)
+      const existingFeedback = await ProgramFeedback.findOne({ uid, programId: id, level });
+      if (existingFeedback) {
+        console.log(`⚠️ Spam prevented: User ${uid} already gave '${level}' feedback to program ${id}`);
+        // ถือว่าสำเร็จแต่ไม่เอาไปบวกเพิ่ม (Idempotent) เพื่อไม่ให้ Frontend พัง
+        return res.json({ ok: true, msg: "Already submitted this feedback level" });
+      }
 
-    //   // บันทึกไว้ว่าคนนี้โหวตโปรแกรมนี้ไปแล้ว
-    //   await ProgramFeedback.create({ uid, programId: id, level });
-    // }
+      // บันทึกไว้ว่าคนนี้โหวตโปรแกรมนี้ไปแล้ว
+      await ProgramFeedback.create({ uid, programId: id, level });
+    }
 
     const incField = `DataFeedback.${level}`;
     let updated = await WorkoutProgram.findByIdAndUpdate(
@@ -2212,7 +2212,9 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
       updated = await WorkoutProgram.findByIdAndUpdate(id, {
         $set: {
           difficultyLevel: newDifficulty,
-          workoutList: newWorkoutList
+          workoutList: newWorkoutList,
+          // ✅ เมื่อปรับเลเวลแล้ว ให้รีเซ็ตค่า Feedback เพื่อเริ่มเก็บใหม่สำหรับเลเวลใหม่
+          DataFeedback: { easy: 0, medium: 0, hard: 0 }
         },
         $push: {
           adaptiveHistory: {
@@ -2222,6 +2224,11 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
           }
         }
       }, { new: true });
+      try {
+        const ProgramFeedback = mongoose.model("ProgramFeedback");
+        await ProgramFeedback.deleteMany({ programId: id });
+      } catch (cleanErr) {
+      }
     }
 
     console.log("✅ Feedback Updated:", updated.DataFeedback);
