@@ -2227,18 +2227,15 @@ app.patch("/api/workout_programs/:id/feedback", async (req, res) => {
       try {
         const ProgramFeedback = mongoose.model("ProgramFeedback");
         await ProgramFeedback.deleteMany({ programId: id });
-      } catch (cleanErr) {
-        console.error("Failed to clear feedback history:", cleanErr);
       }
-    }
 
     console.log("✅ Feedback Updated:", updated.DataFeedback);
-    res.json({ ok: true, DataFeedback: updated.DataFeedback, difficultyLevel: updated.difficultyLevel });
-  } catch (err) {
-    console.error("❌ Feedback Error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
+      res.json({ ok: true, DataFeedback: updated.DataFeedback, difficultyLevel: updated.difficultyLevel });
+    } catch (err) {
+      console.error("❌ Feedback Error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
 // ================== Stats Dashboard Endpoint ==================
 app.get("/api/stats/dashboard/:uid", async (req, res) => {
   try {
